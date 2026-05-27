@@ -10,9 +10,16 @@ apps/
 │   ├── next.config.ts               # Security headers + Server Actions allowedOrigins
 │   ├── auth.config.ts               # Edge-safe NextAuth config
 │   ├── middleware.ts                # Route protection
-│   └── components/SignOutButton.tsx # Client signout
-└── web/                             # Working demo app. Replace with your app on clone.
-                                     # CI builds this and uses it to test the construct.
+│   ├── sentry.{client,server,edge}.config.ts + instrumentation.ts
+│   ├── lib/email.ts                 # Resend helper (no-ops without key)
+│   ├── lib/rate-limit.ts            # Upstash helper (no-ops without keys)
+│   └── components/
+│       ├── SignOutButton.tsx        # Client signout
+│       ├── PostHogProvider.tsx      # Analytics + flags (no-ops without key)
+│       ├── Toaster.tsx              # Sonner toast root
+│       └── forms-README.md          # Documents RHF vs server-action forms
+└── _demo/                           # Working demo app. Platform CI builds this and synths
+                                     # the CDK construct against it.
 
 infra/
 ├── cdk/_template/                   # Full CDK package. Copy and rename per app.
@@ -21,14 +28,15 @@ infra/
 │   ├── lib/constructs/NextjsServerless.ts   # The reusable construct
 │   ├── package.json, tsconfig.json, cdk.json
 │   └── README.md
+├── cdk/_setup/                      # One-time stack: GitHub OIDC + IAM role
 └── iam/cdk-deploy-policy.json       # Least-privilege IAM policy
 
 scripts/verify-deploy.sh             # Post-deploy smoke test (9 checks)
 
 .github/workflows/
-├── ci.yml                           # typecheck, lint, demo build + open-next + cdk synth
+├── ci.yml                           # actionlint, typecheck, lint, demo build, cdk synth
 ├── security.yml                     # CodeQL, gitleaks, npm audit
-└── deploy.yml                       # OIDC, build, deploy, smoke test
+└── deploy.yml                       # OIDC, preflight gate, build, deploy, smoke test
 ```
 
 ## What belongs in this template

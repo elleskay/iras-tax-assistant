@@ -76,16 +76,23 @@ cd ../../..
 
 ## 6. GitHub Actions OIDC and variables
 
-For automated deploys via `.github/workflows/deploy.yml`:
+For automated deploys via `.github/workflows/deploy.yml`. The fastest path is the platform's setup CDK stack which provisions the AWS side in one command:
 
-- [ ] In AWS IAM, add `token.actions.githubusercontent.com` as an OIDC identity provider
-- [ ] Create a role with trust policy scoped to your GitHub repo
-- [ ] Attach the same `cdk-deploy-policy.json` to it
-- [ ] Set these GitHub Actions **secrets**:
-  - `AWS_DEPLOY_ROLE_ARN` (the OIDC role ARN)
+```bash
+cd infra/cdk/_setup
+npm install
+npx cdk deploy -c repo=<your-github-org>/<your-app>
+```
+
+That creates the OIDC trust + IAM role with the `cdk-deploy-policy.json` attached, and outputs the `DeployRoleArn`. See `infra/cdk/_setup/README.md` for the manual prerequisites (creating the OIDC provider if your account doesn't have one).
+
+Then set these on the app repo:
+
+- [ ] GitHub Actions **secrets**:
+  - `AWS_DEPLOY_ROLE_ARN` (the role ARN from the setup stack output)
   - `DATABASE_URL` (Postgres connection string)
   - `AUTH_SECRET` (`openssl rand -base64 32` output)
-- [ ] Set these GitHub Actions **variables**:
+- [ ] GitHub Actions **variables**:
   - `AWS_REGION` (e.g. `ap-southeast-1`)
   - `APP_URL` (https://your-cf-url-or-custom-domain)
   - `ALLOWED_ORIGINS` (CloudFront host + Lambda URL host, comma-separated)

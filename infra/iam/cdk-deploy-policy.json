@@ -1,6 +1,5 @@
 {
   "Version": "2012-10-17",
-  "Comment": "Minimum permissions for the cdk-deploy IAM user/role to deploy apps that use the NextjsServerless construct. Attach as an inline policy or managed policy to the user/role that runs cdk deploy.",
   "Statement": [
     {
       "Sid": "CdkBootstrapAndState",

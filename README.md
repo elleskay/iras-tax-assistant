@@ -8,14 +8,15 @@ Designed to be cloned per-app, not vendored as a dependency.
 
 | Area | Where |
 |---|---|
-| CI (typecheck, lint, demo build, CDK synth) | `.github/workflows/ci.yml` |
+| CI (actionlint, typecheck, lint, demo build, CDK synth) | `.github/workflows/ci.yml` |
 | Security scanning (CodeQL, secrets, npm audit) | `.github/workflows/security.yml` |
 | Deploy pipeline (build OpenNext, CDK deploy, smoke test) | `.github/workflows/deploy.yml` |
 | Reusable CDK construct (Lambda + S3 + CloudFront + optional custom domain) | `infra/cdk/_template/lib/constructs/NextjsServerless.ts` |
 | Full CDK package scaffold (copy and rename per app) | `infra/cdk/_template/` |
+| One-time AWS setup stack (OIDC + IAM role) | `infra/cdk/_setup/` |
 | Pre-canned IAM policy for the deploy user/role | `infra/iam/cdk-deploy-policy.json` |
-| Reference overlay files (next.config, auth.config, middleware, SignOutButton) | `apps/_template/` |
-| **Working demo app** (proves the construct + patterns end to end) | `apps/web/` |
+| Reference overlay files (next.config, auth.config, middleware, SignOutButton, Sentry, PostHog, Sonner, Resend, Upstash) | `apps/_template/` |
+| **Working demo app** (proves the construct + patterns end to end) | `apps/_demo/` |
 | Smoke-test script (9 checks, catches real production failures) | `scripts/verify-deploy.sh` |
 | Stack and security guidance | `docs/` |
 | TS/ESLint/Prettier base configs | root |
@@ -28,8 +29,9 @@ Designed to be cloned per-app, not vendored as a dependency.
    gh repo create my-app --template elleskay/platform --clone --private
    cd my-app
    ```
-2. Replace `apps/web/` with your own Next.js app (or keep the demo and grow it). Overlay the reference files from `apps/_template/` if you scaffolded with `create-next-app` and need to add the patterns.
+2. Create your real app at `apps/web/` (use `create-next-app` and overlay the reference files from `apps/_template/`, or copy `apps/_demo/` and rename it). The platform's `apps/_demo/` is sacred so CI's self-test keeps working; don't replace it.
 3. Rename `infra/cdk/_template/` to `infra/cdk/<your-app>/`. Edit `bin/app.ts` to match the stack id you want.
+4. Run the setup CDK to provision the OIDC role: `cd infra/cdk/_setup && npm install && npx cdk deploy -c repo=<owner>/<your-app>`. Copy the output role ARN.
 4. Configure AWS (OIDC + the IAM policy from `infra/iam/`), set the GitHub secrets and variables, push. The deploy workflow handles the rest.
 
 Full step-by-step in `docs/SETUP.md` and `docs/DEPLOY.md`. All 9 gotchas the platform has hit in production are documented in `docs/DEPLOY.md`.

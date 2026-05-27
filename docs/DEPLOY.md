@@ -52,6 +52,19 @@ You only need this once per account+region. Bootstrap provisions the CDK toolkit
 | `APP_URL` | variable | Your CloudFront URL or custom domain |
 | `ALLOWED_ORIGINS` | variable | CloudFront host + Lambda URL host, comma-separated |
 
+### Optional (for the 5 wired helpers in apps/_template)
+
+All five helpers no-op cleanly without their env vars, so omit any you don't use yet.
+
+| Setting | Type | Used by |
+|---|---|---|
+| `SENTRY_DSN` + `NEXT_PUBLIC_SENTRY_DSN` | secret + variable | Sentry server + client |
+| `SENTRY_AUTH_TOKEN` | secret | Sentry source map upload (release build) |
+| `NEXT_PUBLIC_POSTHOG_KEY` | variable | PostHog analytics |
+| `NEXT_PUBLIC_POSTHOG_HOST` | variable | Optional; default `https://us.i.posthog.com` |
+| `RESEND_API_KEY` | secret | `lib/email.ts` |
+| `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` | secrets | `lib/rate-limit.ts` |
+
 ## What the deploy does
 
 `.github/workflows/deploy.yml` runs on push to `main`:

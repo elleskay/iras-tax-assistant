@@ -11,6 +11,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  workflow-lint:
+    name: Workflow lint (actionlint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run actionlint
+        uses: docker://rhysd/actionlint:latest
+        with:
+          args: -color
+
   typecheck:
     name: Typecheck
     runs-on: ubuntu-latest
@@ -47,13 +57,13 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Next.js build
-        working-directory: apps/web
+        working-directory: apps/_demo
         env:
           AUTH_SECRET: build-time-placeholder-not-used-at-runtime
           ALLOWED_ORIGINS: "*.cloudfront.net"
         run: npm run build
       - name: OpenNext build
-        working-directory: apps/web
+        working-directory: apps/_demo
         env:
           AUTH_SECRET: build-time-placeholder-not-used-at-runtime
           ALLOWED_ORIGINS: "*.cloudfront.net"
@@ -62,8 +72,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: open-next-output
-          path: apps/web/.open-next
+          path: apps/_demo/.open-next
           retention-days: 1
+          include-hidden-files: true
+          if-no-files-found: error
 
   cdk-synth:
     name: CDK synth (proves construct works against demo)
@@ -80,7 +92,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: open-next-output
-          path: apps/web/.open-next
+          path: apps/_demo/.open-next
       - name: Install CDK package deps
         working-directory: infra/cdk/_template
         run: npm install
@@ -92,6 +104,7 @@ jobs:
           DATABASE_URL: postgres://placeholder
           AUTH_SECRET: placeholder
           AUTH_URL: https://placeholder.cloudfront.net
+          PLATFORM_DEMO_APP_PATH: apps/_demo
         run: npx cdk synth
 
   test:
