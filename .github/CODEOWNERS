@@ -1,0 +1,6 @@
+# Default owner for everything
+* @elleskay
+
+# Infra changes need a second pair of eyes
+/infra/ @elleskay
+/.github/workflows/ @elleskay

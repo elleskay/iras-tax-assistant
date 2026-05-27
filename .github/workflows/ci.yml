@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck --if-present
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint --if-present
+
+  build:
+    name: Build demo (Next.js + OpenNext)
+    runs-on: ubuntu-latest
+    needs: [typecheck, lint]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Next.js build
+        working-directory: apps/web
+        env:
+          AUTH_SECRET: build-time-placeholder-not-used-at-runtime
+          ALLOWED_ORIGINS: "*.cloudfront.net"
+        run: npm run build
+      - name: OpenNext build
+        working-directory: apps/web
+        env:
+          AUTH_SECRET: build-time-placeholder-not-used-at-runtime
+          ALLOWED_ORIGINS: "*.cloudfront.net"
+        run: npm run build:open-next
+      - name: Upload OpenNext output
+        uses: actions/upload-artifact@v4
+        with:
+          name: open-next-output
+          path: apps/web/.open-next
+          retention-days: 1
+
+  cdk-synth:
+    name: CDK synth (proves construct works against demo)
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Download OpenNext output
+        uses: actions/download-artifact@v4
+        with:
+          name: open-next-output
+          path: apps/web/.open-next
+      - name: Install CDK package deps
+        working-directory: infra/cdk/_template
+        run: npm install
+      - name: cdk synth
+        working-directory: infra/cdk/_template
+        env:
+          CDK_DEFAULT_ACCOUNT: "000000000000"
+          CDK_DEFAULT_REGION: ap-southeast-1
+          DATABASE_URL: postgres://placeholder
+          AUTH_SECRET: placeholder
+          AUTH_URL: https://placeholder.cloudfront.net
+        run: npx cdk synth
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm test --if-present

@@ -1,0 +1,83 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to deploy
+        required: true
+        default: production
+        type: choice
+        options:
+          - staging
+          - production
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.event.inputs.environment || 'production' }}
+  cancel-in-progress: false
+
+env:
+  # Override with repo variables if your paths differ from the convention.
+  APP_DIR: ${{ vars.APP_DIR || 'apps/web' }}
+  CDK_DIR: ${{ vars.CDK_DIR || 'infra/cdk/_template' }}
+  NODE_VERSION: "20"
+
+jobs:
+  deploy:
+    name: Deploy to ${{ github.event.inputs.environment || 'production' }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Install workspace dependencies
+        run: npm ci
+
+      - name: Build Next.js with OpenNext
+        working-directory: ${{ env.APP_DIR }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          AUTH_URL: ${{ vars.APP_URL }}
+          ALLOWED_ORIGINS: ${{ vars.ALLOWED_ORIGINS }}
+        run: npm run build:open-next
+
+      - name: Install CDK dependencies
+        working-directory: ${{ env.CDK_DIR }}
+        run: npm ci
+
+      - name: CDK deploy
+        working-directory: ${{ env.CDK_DIR }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          AUTH_URL: ${{ vars.APP_URL }}
+        run: npx cdk deploy --all --require-approval never --outputs-file cdk-outputs.json
+
+      - name: Extract deployed URL
+        id: outputs
+        working-directory: ${{ env.CDK_DIR }}
+        run: |
+          URL=$(node -e "const o=require('./cdk-outputs.json'); for(const k of Object.keys(o)) for(const k2 of Object.keys(o[k])) if(k2.endsWith('DistributionUrl')) { console.log(o[k][k2]); break; }")
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Deployed: $URL"
+
+      - name: Smoke test
+        run: ./scripts/verify-deploy.sh "${{ steps.outputs.url }}"
