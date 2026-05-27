@@ -1,0 +1,29 @@
+app: example
+version: 1
+requirements:
+  - id: EXAMPLE-AUTH-001
+    title: Unauthenticated requests to /admin redirect to /login
+    category: security
+    severity: critical
+    given: User has no active session
+    when: User GETs /admin
+    then: Response is a 307 redirect to /login
+    tags: [auth, middleware]
+
+  - id: EXAMPLE-MATH-001
+    title: Score is round(ok / total * 100)
+    category: data
+    severity: high
+    given: A submission with 5 ok and 1 not-ok across 6 items
+    when: computeScore({ ok: 5, total: 6 }) is called
+    then: Result is 83
+    tags: [scoring]
+
+  - id: EXAMPLE-UI-001
+    title: Home page renders a primary heading
+    category: ui
+    severity: medium
+    given: A user with no session
+    when: They GET /
+    then: An h1 with the app name is visible
+    tags: [home]

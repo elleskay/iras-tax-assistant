@@ -1,10 +1,11 @@
 {
   "name": "platform",
-  "version": "0.2.0",
+  "version": "0.7.0",
   "private": true,
   "description": "TypeScript platform template for Next.js apps on AWS serverless.",
   "workspaces": [
-    "apps/*"
+    "apps/*",
+    "packages/*"
   ],
   "scripts": {
     "typecheck": "echo 'Platform template has no app source. Apps add their own typecheck script.'",

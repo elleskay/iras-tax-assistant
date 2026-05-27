@@ -1,0 +1,53 @@
+{
+  "name": "@platform/spec-test",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Spec-driven test runner. Validates spec YAML, registers specTest IDs, enforces 100% coverage in CI.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./playwright": {
+      "types": "./dist/playwright.d.ts",
+      "import": "./dist/playwright.js"
+    },
+    "./vitest": {
+      "types": "./dist/vitest.d.ts",
+      "import": "./dist/vitest.js"
+    }
+  },
+  "bin": {
+    "spec-coverage": "./dist/cli.js"
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "yaml": "^2.5.0",
+    "zod": "^4.0.0"
+  },
+  "peerDependencies": {
+    "@playwright/test": "^1.48.0",
+    "vitest": "^2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@playwright/test": { "optional": true },
+    "vitest": { "optional": true }
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "@types/eslint": "^9.0.0",
+    "@types/estree": "^1.0.0",
+    "@types/node": "^20.0.0",
+    "eslint": "^9.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^2.0.0"
+  }
+}

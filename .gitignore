@@ -38,6 +38,10 @@ infra/cdk/**/cdk.context.json
 # Coverage
 coverage/
 *.lcov
+.spec-coverage/
+spec-coverage.md
+playwright-report/
+test-results/
 
 # Misc
 .cache/

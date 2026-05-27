@@ -18,7 +18,9 @@ Designed to be cloned per-app, not vendored as a dependency.
 | Reference overlay files (next.config, auth.config, middleware, SignOutButton, Sentry, PostHog, Sonner, Resend, Upstash) | `apps/_template/` |
 | **Working demo app** (proves the construct + patterns end to end) | `apps/_demo/` |
 | Smoke-test script (9 checks, catches real production failures) | `scripts/verify-deploy.sh` |
-| Stack and security guidance | `docs/` |
+| **Spec-driven test system** (zod-validated YAML spec, `specTest` runner, 100% coverage gate, ESLint rule) | `packages/spec-test/` |
+| Test scaffolding overlay (Vitest, Playwright, sample spec, CI workflow with Postgres service) | `apps/_template/tests/`, `apps/_template/.github/workflows/test.yml` |
+| Stack, security, testing guidance | `docs/`, see `docs/TESTING.md` |
 | TS/ESLint/Prettier base configs | root |
 | Conventional commits + commitlint | `commitlint.config.mjs` |
 

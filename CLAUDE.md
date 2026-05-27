@@ -107,3 +107,43 @@ All documented in `docs/DEPLOY.md`. Don't undo the fixes:
 2. If scaffolding with `create-next-app`, overlay files from `apps/_template/`
 3. Rename `infra/cdk/_template/` to `infra/cdk/<your-app>/`, edit `bin/app.ts` stack id
 4. Configure GitHub secrets/vars per `docs/DEPLOY.md`, push, verify smoke test passes
+5. Copy `apps/_template/specs/`, `apps/_template/tests/`, `apps/_template/vitest.config.ts`, `apps/_template/playwright.config.ts`, and `apps/_template/.github/workflows/test.yml` into the new app. Wire the spec-test ESLint rule into the app's flat config. See `docs/TESTING.md`.
+
+## Spec-driven build protocol (mandatory)
+
+Every app on this platform is built from a spec and tested against that spec. The full system is documented in `docs/TESTING.md`. The agent protocol below is mandatory whenever you are building or extending an app.
+
+**When the user gives you a brief for a new app:**
+
+1. First artifact you produce is `specs/<app>.yml`. Translate the brief into requirements, each with a unique ID (`<APP>-<DOMAIN>-<NNN>`), category, severity, given/when/then. Do not write any application code yet. If the user wants to correct interpretation, they say so before code is written.
+2. After the spec, for each requirement, write the `specTest('<ID>', ...)` and the implementation **in the same turn**. Tests use `@platform/spec-test/playwright` for ui/functional/security/a11y and `@platform/spec-test/vitest` for data.
+3. Run `npm run test:spec` continuously. The build is not "done" until the gate exits 0 (100% coverage, no failing tests, no category mismatches, lint passing).
+4. Never claim "the app works" without a green `test:spec`. The user should not have to ask. If the gate is red, the work is incomplete.
+
+**When the user gives you a brief for a new feature inside an existing app:**
+
+1. Add the new requirements to the app's `specs/<app>.yml` first. Do not extend code without a spec entry to point at.
+2. Write `specTest()` and implementation in the same turn, as above.
+3. Re-run `test:spec`. Ship when green.
+
+**When the user gives you a brief for a bug fix:**
+
+1. If the bug points to a missing or wrong requirement in the spec, fix the spec first (or add the missing requirement).
+2. Write a failing `specTest()` that captures the bug. Confirm it fails on current code.
+3. Fix the code. Confirm `specTest()` passes.
+4. Coverage gate stays green.
+
+**For apps built before this protocol existed (armoury, scamshield):**
+
+Treat backfilling as a separate task. Reverse-engineer requirements from the running app + the original brief into `specs/<app>.yml`. Write `specTest()` per requirement. Where a test reveals a real bug, fix the code in the same PR. Land the spec + tests + fixes together. Enable the gate in CI once coverage hits 100%.
+
+**What this prevents:**
+
+- Shipping an app and only finding out at verification time that flows are broken (the dropdown-rendered-as-text-input class of bug). The gate refuses to deploy if any requirement is uncovered or its test is red.
+- "I'll write tests later." There is no later. Tests and code ship together or not at all.
+- Test-as-checkbox without assertions. The ESLint rule fails lint on any `specTest()` body that contains zero `expect()` calls.
+
+**What this does NOT prevent:**
+
+- A wrong spec (e.g. requirement says scoring formula is wrong, test agrees with the wrong formula). The spec correctness is on the human reviewer.
+- New behavior that nobody added a spec entry for. Code review catches that.

@@ -118,3 +118,32 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test --if-present
+
+  spec-test:
+    name: spec-test (build + gate self-test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Build @platform/spec-test
+        working-directory: packages/spec-test
+        run: npx tsc
+      - name: Validate sample spec
+        working-directory: packages/spec-test
+        run: node dist/cli.js --spec samples/example.spec.yml --coverage samples/results-full.jsonl --out /tmp/sample-report.md
+      - name: Gate fails on partial coverage (expected exit 1)
+        working-directory: packages/spec-test
+        run: |
+          set +e
+          node dist/cli.js --spec samples/example.spec.yml --coverage samples/results.jsonl --out /tmp/partial.md
+          rc=$?
+          set -e
+          if [ "$rc" != "1" ]; then
+            echo "expected exit 1 from partial coverage, got $rc"
+            exit 1
+          fi
+          echo "gate correctly exits 1 on partial coverage"
