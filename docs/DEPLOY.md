@@ -72,11 +72,13 @@ All five helpers no-op cleanly without their env vars, so omit any you don't use
 1. Checkout, install Node 20, restore npm cache.
 2. Assume the OIDC role.
 3. Install workspace dependencies (`npm ci`).
-4. Build the Next.js app with OpenNext (`npm run build:open-next` in `apps/web/`). Env vars passed in: `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`, `ALLOWED_ORIGINS`.
-5. Install CDK deps (`npm ci` in `infra/cdk/app/`).
-6. `cdk deploy --all` with the same env vars. CDK reads them at synth time and bakes them into the Lambda env.
-7. Read the deployed URL from `cdk-outputs.json`.
-8. Run `scripts/verify-deploy.sh` against that URL. Fails the workflow if any smoke check fails.
+4. Apply DB migrations (`npx tsx db/migrate.ts` in `apps/web/`), conditional on `db/migrate.ts` existing. Runs **before** the new Lambda code goes live so the new code never references a column that hasn't been created yet.
+5. Seed reference / demo data (`npx tsx db/seed-demo.ts` in `apps/web/`), conditional on `db/seed-demo.ts` existing. Must be idempotent. See `docs/variants/default-nextjs.md` "Seed strategy".
+6. Build the Next.js app with OpenNext (`npm run build:open-next` in `apps/web/`). Env vars passed in: `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`, `ALLOWED_ORIGINS`.
+7. Install CDK deps (`npm ci` in `infra/cdk/app/`).
+8. `cdk deploy --all` with the same env vars. CDK reads them at synth time and bakes them into the Lambda env.
+9. Read the deployed URL from `cdk-outputs.json`.
+10. Run `scripts/verify-deploy.sh` against that URL. Fails the workflow if any smoke check fails.
 
 ## Rollback
 
@@ -175,6 +177,16 @@ If you're shipping a brand-new app, ignore this. Logical ID overrides only matte
 **Symptom:** `cdk deploy` blocks for 10-15 minutes after "UPDATE_COMPLETE" because CloudFormation is in `UPDATE_COMPLETE_CLEANUP_IN_PROGRESS`, removing the old CloudFront distribution.
 
 **Fix:** Not a bug, just AWS reality. CloudFront delete drains edge caches globally. New resources are already live before the cleanup finishes; you can verify with the new URL while CloudFormation drags. Use `logicalIdOverrides` (gotcha #8) to avoid the replace entirely.
+
+### 10. Prod database missing rows even though the deploy succeeded
+
+**Symptom:** You add a new template / inventory item / lookup row to `db/seed.ts`, push, CI green, deploy lands. Prod still doesn't have the row. Manual `psql` shows the row genuinely isn't there.
+
+**Cause:** `db/seed.ts` is the dev/CI fixture seed. It runs only in `apps/_template/.github/workflows/test.yml` against the Postgres service container, never in prod, because it's destructive (`db.delete(...)` everything before reseeding). Running it on prod would wipe user data.
+
+**Fix:** Split the seed into two files. Keep `db/seed.ts` for the destructive dev/CI fixture. Add `db/seed-demo.ts` for prod-safe reference data: every row looked up by natural key (`email` for users, `name+agency` for teams, `externalRef` for inventory) and inserted only if missing. Wire it into `.github/workflows/deploy.yml` as a conditional step right after the migrate step. Reruns on every deploy are no-ops because every row has a stable lookup.
+
+See `docs/variants/default-nextjs.md` "Seed strategy" for the full pattern (including `ensureX` helpers and the `DEMO_ANCHOR` constant for deterministic synthetic activity). Anchored to Rollback rule above ("never run destructive operations in deploy"): seed-demo respects that by design.
 
 ## Environments
 

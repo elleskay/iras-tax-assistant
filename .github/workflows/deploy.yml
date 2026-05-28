@@ -26,7 +26,7 @@ env:
   # Override with repo variables if your paths differ from the convention.
   APP_DIR: ${{ vars.APP_DIR || 'apps/web' }}
   CDK_DIR: ${{ vars.CDK_DIR || 'infra/cdk/_template' }}
-  NODE_VERSION: "20"
+  NODE_VERSION: "22"
 
 jobs:
   # Skip the deploy when secrets aren't configured. This lets the platform
@@ -57,21 +57,52 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment || 'production' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Install workspace dependencies
         run: npm ci
+
+      # Apply DB migrations before the new Lambda code (which may reference
+      # new columns/tables) goes live. If the app does not use Drizzle, the
+      # conditional skips this step. Requires a db/migrate.ts script and
+      # DATABASE_URL secret.
+      - name: Apply database migrations (if db/migrate.ts exists)
+        working-directory: ${{ env.APP_DIR }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -f db/migrate.ts ]; then
+            npx tsx db/migrate.ts
+          else
+            echo "::notice::No db/migrate.ts found, skipping migration step"
+          fi
+
+      # Seed reference / demo data after migrations. Must be idempotent
+      # (look up by natural key, never delete user-generated rows) so reruns
+      # on every deploy are safe. See docs/variants/default-nextjs.md "Seed
+      # strategy" for the recommended pattern. Skipped if the app has no
+      # db/seed-demo.ts.
+      - name: Seed demo data (if db/seed-demo.ts exists)
+        working-directory: ${{ env.APP_DIR }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -f db/seed-demo.ts ]; then
+            npx tsx db/seed-demo.ts
+          else
+            echo "::notice::No db/seed-demo.ts found, skipping seed step"
+          fi
 
       - name: Build Next.js with OpenNext
         working-directory: ${{ env.APP_DIR }}

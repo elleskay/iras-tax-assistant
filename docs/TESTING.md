@@ -2,7 +2,7 @@
 
 Every app on the platform is tested against a YAML spec. Every requirement in the spec must have a passing `specTest()` call with at least one `expect()`. CI gates merge and deploy on 100% spec coverage.
 
-You should never need to manually verify an app works. If a spec entry doesn't have a passing test, CI fails.
+You should rarely need to manually verify an app works. If a spec entry doesn't have a passing test, CI fails. The gate catches structural regressions; for the user-journey class of bug (see "Failure modes the gate does NOT catch" below), a post-deploy walk-through is still the only safety net.
 
 ## How it fits together
 
@@ -138,7 +138,7 @@ When you give the agent a spec for a new feature or app:
 3. Tests run continuously while the agent iterates
 4. Agent does not claim "done" until `npm run test:spec` is green
 
-You should never have to ask "did you check that this works." The build literally cannot complete without spec coverage.
+You should rarely have to ask "did you check that this works." The build literally cannot complete without spec coverage. The one class of break that survives this gate is the **decomposed-journey trap** (see below): a feature whose pieces all have green tests but whose end-to-end path has a missing link. For user-facing features, asking the agent to demonstrate the journey in a single Playwright walk is still useful.
 
 ## Backfilling an existing app
 
@@ -161,3 +161,4 @@ For an app built before this system existed:
 - Spec written wrong (e.g. spec says score formula is wrong, test asserts the wrong formula, both agree, app ships with wrong formula). Spec correctness is on you. Code review on spec changes is the mitigation.
 - Behavior in the app that isn't represented in the spec at all. No automated check for "did you add a feature without a spec entry?" Review discipline catches it.
 - Flaky tests that pass intermittently. Standard Playwright/Vitest retries help; long-term, hunt and fix flakes.
+- **Decomposed-journey gaps.** A user-facing feature spread across multiple spec IDs can be 100% covered while one link in the chain is broken. Real example from armoury: ARM-PHOTO-001..003 all passed (officer submit page renders file input for `kind === "photo"`, response stores the data URL, PDF renders it), but no admin could actually create a photo item because the builder dropdown was missing `<SelectItem value="photo">`. Coverage was 126/126 while the feature was unreachable end to end. **Mitigation:** every user-facing feature must have at least one journey-level e2e that traverses the full path (admin-creates → officer-uses → admin-sees-result), not just isolated component-level assertions. The spec gate confirms structure; the journey test confirms the structure connects.

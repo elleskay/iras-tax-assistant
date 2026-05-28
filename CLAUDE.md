@@ -124,7 +124,8 @@ Every app on this platform is built from a spec and tested against that spec. Th
 
 1. Add the new requirements to the app's `specs/<app>.yml` first. Do not extend code without a spec entry to point at.
 2. Write `specTest()` and implementation in the same turn, as above.
-3. Re-run `test:spec`. Ship when green.
+3. **If the feature is user-facing**, write at least one journey-level e2e that traverses the full path (admin-creates → officer-uses → admin-sees-result), not only isolated component-level assertions. This catches the decomposed-journey trap (see "What this does NOT prevent" below) where individual pieces are green but the chain is broken.
+4. Re-run `test:spec`. Ship when green.
 
 **When the user gives you a brief for a bug fix:**
 
@@ -147,3 +148,4 @@ Treat backfilling as a separate task. Reverse-engineer requirements from the run
 
 - A wrong spec (e.g. requirement says scoring formula is wrong, test agrees with the wrong formula). The spec correctness is on the human reviewer.
 - New behavior that nobody added a spec entry for. Code review catches that.
+- **Decomposed-journey gaps.** A feature whose spec is split across multiple IDs can hit 100% coverage while one link in the user chain is broken (e.g. ARM-PHOTO-001..003 covered the officer submit page, response storage, and PDF render; nothing covered the admin builder's item-kind dropdown, which silently omitted Photo → feature unreachable). Mitigation: for every user-facing feature, ship at least one journey-level e2e that traverses the full path (admin-creates → officer-uses → admin-sees-result). See `docs/TESTING.md` "Failure modes the gate does NOT catch" for the worked example.

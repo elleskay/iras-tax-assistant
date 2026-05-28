@@ -34,13 +34,13 @@ Designed to be cloned per-app, not vendored as a dependency.
 2. Create your real app at `apps/web/` (use `create-next-app` and overlay the reference files from `apps/_template/`, or copy `apps/_demo/` and rename it). The platform's `apps/_demo/` is sacred so CI's self-test keeps working; don't replace it.
 3. Rename `infra/cdk/_template/` to `infra/cdk/<your-app>/`. Edit `bin/app.ts` to match the stack id you want.
 4. Run the setup CDK to provision the OIDC role: `cd infra/cdk/_setup && npm install && npx cdk deploy -c repo=<owner>/<your-app>`. Copy the output role ARN.
-4. Configure AWS (OIDC + the IAM policy from `infra/iam/`), set the GitHub secrets and variables, push. The deploy workflow handles the rest.
+5. Configure AWS (OIDC + the IAM policy from `infra/iam/`), set the GitHub secrets and variables, push. The deploy workflow handles the rest.
 
-Full step-by-step in `docs/SETUP.md` and `docs/DEPLOY.md`. All 9 gotchas the platform has hit in production are documented in `docs/DEPLOY.md`.
+Full step-by-step in `docs/SETUP.md` and `docs/DEPLOY.md`. All 10 gotchas the platform has hit in production are documented in `docs/DEPLOY.md`.
 
 ## Self-test
 
-The platform's CI builds `apps/web/` (the demo app) and runs `cdk synth` against the construct on every push. If the construct breaks, CI fails before any cloned app picks it up.
+The platform's CI builds `apps/_demo/` (the demo app) and runs `cdk synth` against the construct on every push. If the construct breaks, CI fails before any cloned app picks it up.
 
 ## Opinions
 
@@ -50,7 +50,7 @@ The platform makes a few deliberate choices that constrain the happy path:
 - **No shared infra base.** Each app is self-contained. Sharing VPCs across portfolio apps is premature optimisation.
 - **No NestJS / no mobile / no AI-specific variant docs.** Speculation. Add a variant only when a real app needs one.
 - **Constructs are copied, not imported.** Each app pins its version of `NextjsServerless`. Breaking changes don't propagate without explicit action.
-- **The platform dogfoods itself.** `apps/web/` is a real Next.js app deployed by the same workflow apps inherit. If the platform's own demo broke, you'd see it.
+- **The platform dogfoods itself.** `apps/_demo/` is a real Next.js app built and synthesised by the same workflow apps inherit. If the platform's own demo broke, you'd see it.
 
 The smaller the surface area, the fewer wrong-by-default ways apps can diverge.
 
