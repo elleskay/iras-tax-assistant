@@ -47,7 +47,7 @@ Only the cross-cutting platform layer:
 - Reusable CDK construct + CDK package scaffold (`infra/cdk/_template/`)
 - IAM policy JSON
 - Reference overlay files (`apps/_template/`)
-- Working demo app (`apps/web/`) for self-test
+- Working demo app (`apps/_demo/`) for self-test
 - Smoke-test script
 - Base TS/ESLint/Prettier/Commitlint configs
 - Security policy, SSDLC docs, deploy runbook
@@ -59,7 +59,7 @@ Only the cross-cutting platform layer:
 - Per-product config, secrets, or env files
 - Speculative variants for stacks no real app uses
 
-The demo app at `apps/web/` exists to test the construct, not to ship features. Keep it minimal.
+The demo app at `apps/_demo/` exists to test the construct, not to ship features. Keep it minimal.
 
 ## Stack conventions
 
@@ -82,7 +82,7 @@ The demo app at `apps/web/` exists to test the construct, not to ship features. 
 ## Security defaults
 
 - Never commit secrets. `.env.local` is gitignored, production secrets live in GitHub Actions secrets and Lambda env vars.
-- Security headers configured in `apps/_template/next.config.ts` (and apps/web/next.config.ts).
+- Security headers configured in `apps/_template/next.config.ts` (and `apps/_demo/next.config.ts`).
 - Input validation via Zod on every server action.
 - Dependabot enabled, weekly cadence.
 - The IAM policy in `infra/iam/cdk-deploy-policy.json` is the least-privilege baseline for the deploy user. Use it instead of `AdministratorAccess`.
@@ -100,10 +100,11 @@ All documented in `docs/DEPLOY.md`. Don't undo the fixes:
 7. **First deploy needs two passes** (or use `customDomain` prop on the construct).
 8. **Refactoring resources into a construct changes logical IDs.** Use `logicalIdOverrides` for in-place upgrades.
 9. **CloudFront deletes take 10-15 minutes.** Not a bug.
+10. **`public/` files are auto-routed to S3** by the construct (it scans `.open-next/assets` at synth). A root `public/` file like `robots.txt` would otherwise 404 via the server Lambda. Bundled assets (e.g. a pdf.js worker) should use `new URL("pkg/worker.mjs", import.meta.url)` to land under `/_next/static`. See `docs/DEPLOY.md` #12.
 
 ## When adding a new app to a cloned repo
 
-1. Replace `apps/web/` with your real Next.js app (or grow the demo)
+1. Create your real app at `apps/web/` (or copy `apps/_demo/` and grow it). Leave `apps/_demo/` in place for CI's self-test.
 2. If scaffolding with `create-next-app`, overlay files from `apps/_template/`
 3. Rename `infra/cdk/_template/` to `infra/cdk/<your-app>/`, edit `bin/app.ts` stack id
 4. Configure GitHub secrets/vars per `docs/DEPLOY.md`, push, verify smoke test passes

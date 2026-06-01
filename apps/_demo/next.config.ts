@@ -14,7 +14,9 @@ const allowedOrigins =
     .filter(Boolean) ?? [];
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // No `output: "standalone"`. OpenNext bundles the server function itself and
+  // does not need it, and standalone makes `next start` refuse to serve on
+  // Next 16 (which the Playwright e2e webServer relies on).
   poweredByHeader: false,
   experimental: {
     serverActions: {

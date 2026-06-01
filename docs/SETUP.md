@@ -18,14 +18,13 @@ cd my-app
 - [ ] Update `.github/CODEOWNERS` to your GitHub handle
 - [ ] Update `SECURITY.md` with your real disclosure email
 
-## 3. Decide what to do with the demo app
+## 3. Create your app
 
-The clone comes with `apps/web/` already populated with a working demo (Auth.js + middleware + SignOutButton + healthcheck). Two paths:
+The clone comes with `apps/_demo/` (a working demo: Auth.js + middleware + SignOutButton + healthcheck). CI builds it for its self-test, so leave it in place and create your app at `apps/web/`. Two paths:
 
-**Option A: Replace with your own app**
+**Option A: Start fresh**
 
 ```bash
-rm -rf apps/web
 npx create-next-app@latest apps/web --typescript --tailwind --app --eslint --use-npm
 cd apps/web
 npm install next-auth@beta zod @opennextjs/aws
@@ -41,11 +40,13 @@ cp ../_template/components/SignOutButton.tsx components/
 cd ../..
 ```
 
-**Option B: Grow the demo into your app**
+**Option B: Grow from the demo**
 
-Keep `apps/web/` as starting point. Edit `auth.ts` to swap the hardcoded `DEMO_USER` for your real provider. Add database. Add routes. The patterns are already in place.
+```bash
+cp -r apps/_demo apps/web
+```
 
-Either way, make sure `next.config.ts` has `output: "standalone"` (OpenNext requires it).
+Then edit `apps/web/auth.ts` to swap the hardcoded `DEMO_USER` for your real provider, add a database, and add routes. The patterns are already in place.
 
 ## 4. Configure CDK for the app
 
@@ -117,5 +118,4 @@ For the cleanest first deploy (no two-pass dance), provision a custom domain + A
 - Step 5: Attaching the IAM policy instead of relying on root access
 - Step 6: Setting `APP_URL` (NextAuth breaks without it)
 - Step 6: Setting `ALLOWED_ORIGINS` (Server Actions break without it)
-- Step 3: `output: "standalone"` in `next.config.ts` (OpenNext won't work without it)
 - Step 4: Renaming the stack id in `bin/app.ts` (otherwise all your apps share the same CloudFormation stack name)

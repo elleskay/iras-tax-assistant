@@ -33,15 +33,34 @@ jobs:
       AUTH_URL: http://localhost:3000
       NODE_ENV: test
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Build @platform/spec-test (dist is gitignored)
+        working-directory: packages/spec-test
+        run: npm run build
+      - name: Resolve Playwright version
+        id: pw
+        working-directory: apps/web
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
         working-directory: apps/web
+      - name: Cache Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: apps/web/.next/cache
+          key: nextjs-web-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('apps/web/**/*.[jt]s', 'apps/web/**/*.[jt]sx') }}
+          restore-keys: |
+            nextjs-web-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
       - name: Apply DB migrations
         working-directory: apps/web
         run: npm run db:migrate
@@ -68,7 +87,7 @@ jobs:
         run: npm run test:coverage
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: spec-coverage
           path: apps/web/spec-coverage.md

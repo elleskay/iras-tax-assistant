@@ -35,8 +35,10 @@ Thumbs.db
 infra/cdk/**/cdk.out/
 infra/cdk/**/cdk.context.json
 
-# Coverage
-coverage/
+# Coverage (test-coverage output only; must not swallow a Next app/coverage route)
+/coverage/
+**/.nyc_output/
+!**/app/coverage/
 *.lcov
 .spec-coverage/
 spec-coverage.md

@@ -117,6 +117,15 @@ npm run test:coverage
 npm run test:spec
 ```
 
+## Test fixtures (two footguns)
+
+- **Do not use `import.meta.url` in a Playwright spec.** It flips the test file to ESM, and the runner then throws `require is not defined` and reports "No tests found". Resolve fixture paths relative to the working directory instead (`page.getByTestId(...).setInputFiles("tests/fixtures/x.pdf")`, where cwd is the app root).
+- **Mark binary fixtures `binary` in `.gitattributes`** (e.g. `*.pdf binary`). Otherwise autocrlf rewrites line endings on checkout and corrupts the bytes, so the fixture parses locally but fails in CI.
+
+## Mocking non-deterministic dependencies
+
+If a feature calls a non-deterministic service (an LLM, a third-party API), keep the gate deterministic and offline: unit-test the local pre/post-processing (schema, normalization) with Vitest, and in the e2e stub the network with `page.route("**/api/...", r => r.fulfill({ json: fixture }))`. Assert against the fixture, not the live response.
+
 ## CI workflow
 
 Copy `apps/_template/.github/workflows/test.yml` into your app's `.github/workflows/`. It includes:

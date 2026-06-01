@@ -1,3 +1,4 @@
+import * as fs from "fs";
 import * as path from "path";
 import * as cdk from "aws-cdk-lib";
 import * as lambda from "aws-cdk-lib/aws-lambda";
@@ -56,6 +57,29 @@ export interface NextjsServerlessProps {
    * CloudFront price class. Default PRICE_CLASS_200 (NA, EU, AP).
    */
   readonly priceClass?: cloudfront.PriceClass;
+
+  /**
+   * Cache policy for the default behavior (the HTML/RSC responses served by the
+   * server Lambda). Defaults to CACHING_DISABLED, the safe choice for auth/SSR
+   * apps because it never caches a personalized response. The downside: every
+   * request, including Next.js link prefetches and repeat visits, hits the
+   * Lambda. That is wasteful for static/SSG-heavy apps and can trip the Lambda
+   * account concurrency limit under modest traffic (ConcurrentInvocationLimitExceeded).
+   *
+   * For a content/SSG app, pass a policy with minTtl 0 that honours the origin
+   * Cache-Control headers Next.js already sets, so cacheable pages cache at the
+   * edge while dynamic routes (which Next marks no-store) stay uncached:
+   *
+   *   const respectOrigin = new cloudfront.CachePolicy(this, "RespectOrigin", {
+   *     minTtl: cdk.Duration.seconds(0),
+   *     defaultTtl: cdk.Duration.seconds(0),
+   *     maxTtl: cdk.Duration.days(365),
+   *     enableAcceptEncodingBrotli: true,
+   *     enableAcceptEncodingGzip: true,
+   *   });
+   *   new NextjsServerless(this, "Web", { appPath, environment, defaultCachePolicy: respectOrigin });
+   */
+  readonly defaultCachePolicy?: cloudfront.ICachePolicy;
 
   /**
    * Log retention for the Lambda log groups. Default 14 days.
@@ -214,6 +238,41 @@ export class NextjsServerless extends Construct {
 
     const requestForwardAll = cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER;
 
+    // One S3 origin reused across every static behavior so CloudFront keeps a
+    // single origin + Origin Access Control.
+    const s3Origin = origins.S3BucketOrigin.withOriginAccessControl(this.assetsBucket);
+    const s3Behavior: cloudfront.BehaviorOptions = {
+      origin: s3Origin,
+      viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+      cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+    };
+
+    const additionalBehaviors: Record<string, cloudfront.BehaviorOptions> = {
+      "/_next/static/*": s3Behavior,
+      "/_next/image*": {
+        origin: new origins.FunctionUrlOrigin(imageFunctionUrl),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+        originRequestPolicy: requestForwardAll,
+      },
+    };
+
+    // Route every public asset to S3. OpenNext copies the app's `public/`
+    // folder to the assets bucket root, but CloudFront's default behavior sends
+    // everything to the server Lambda, so files like robots.txt, sitemap.xml,
+    // manifest.json, web workers, and OG images would 404. Add an S3 behavior
+    // for each top-level public entry (skipping the Next.js internals already
+    // routed above). Build output must exist; gotcha: run `open-next build`
+    // before synth.
+    const assetsRoot = path.join(openNextDir, "assets");
+    if (fs.existsSync(assetsRoot)) {
+      for (const entry of fs.readdirSync(assetsRoot, { withFileTypes: true })) {
+        if (entry.name === "_next") continue; // handled by the behaviors above
+        const pattern = entry.isDirectory() ? `/${entry.name}/*` : `/${entry.name}`;
+        additionalBehaviors[pattern] = s3Behavior;
+      }
+    }
+
     const distributionProps: cloudfront.DistributionProps = {
       defaultBehavior: {
         origin: new origins.FunctionUrlOrigin(serverFunctionUrl, {
@@ -221,28 +280,12 @@ export class NextjsServerless extends Construct {
         }),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
-        cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+        cachePolicy:
+          props.defaultCachePolicy ?? cloudfront.CachePolicy.CACHING_DISABLED,
         originRequestPolicy: requestForwardAll,
         responseHeadersPolicy: cloudfront.ResponseHeadersPolicy.SECURITY_HEADERS,
       },
-      additionalBehaviors: {
-        "/_next/static/*": {
-          origin: origins.S3BucketOrigin.withOriginAccessControl(this.assetsBucket),
-          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-          cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
-        },
-        "/_next/image*": {
-          origin: new origins.FunctionUrlOrigin(imageFunctionUrl),
-          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-          cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
-          originRequestPolicy: requestForwardAll,
-        },
-        "/favicon.ico": {
-          origin: origins.S3BucketOrigin.withOriginAccessControl(this.assetsBucket),
-          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-          cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
-        },
-      },
+      additionalBehaviors,
       priceClass: props.priceClass ?? cloudfront.PriceClass.PRICE_CLASS_200,
       httpVersion: cloudfront.HttpVersion.HTTP2_AND_3,
       minimumProtocolVersion: cloudfront.SecurityPolicyProtocol.TLS_V1_2_2021,

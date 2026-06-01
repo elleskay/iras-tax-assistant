@@ -9,15 +9,18 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./playwright": {
       "types": "./dist/playwright.d.ts",
-      "import": "./dist/playwright.js"
+      "import": "./dist/playwright.js",
+      "default": "./dist/playwright.js"
     },
     "./vitest": {
       "types": "./dist/vitest.d.ts",
-      "import": "./dist/vitest.js"
+      "import": "./dist/vitest.js",
+      "default": "./dist/vitest.js"
     }
   },
   "bin": {

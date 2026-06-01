@@ -1,4 +1,4 @@
-# apps/web — platform demo app
+# apps/_demo — platform demo app
 
 Minimal Next.js app that uses every pattern the platform recommends:
 
@@ -15,10 +15,12 @@ So the platform can self-test. Platform CI builds this app and synthesises the C
 
 ## When you clone the platform for your real app
 
-Replace this app entirely with your own. Or keep it as the starting point and grow it.
+Leave this app in place so CI's self-test keeps working. Create your real app at
+`apps/web/`, either from `create-next-app` + the `apps/_template/` overlay, or by
+copying this demo (`cp -r apps/_demo apps/web`) and growing it. See `docs/SETUP.md`.
 
 - `npm install` at repo root
-- Edit auth.ts to swap the hardcoded `DEMO_USER` for your real provider
+- Edit `auth.ts` to swap the hardcoded `DEMO_USER` for your real provider
 - Build & deploy via `npm run build:open-next` then `cdk deploy` in `infra/cdk/_template/` (after renaming)
 
 ## Local development
