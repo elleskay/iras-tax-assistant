@@ -24,7 +24,7 @@ import {
 
 export default function ToolsPage() {
   return (
-    <main id="main" className="mx-auto w-full max-w-3xl px-4 py-8 pb-16">
+    <main id="main" className="mx-auto w-full max-w-5xl px-4 py-8 pb-16">
       <div className="mb-2 flex items-center gap-2 text-sm font-medium text-primary">
         <Wrench className="h-4 w-4" /> iras-mcp-server
       </div>

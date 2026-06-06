@@ -1,289 +1,454 @@
 <div align="center">
 
-<img src="docs/banner.png" alt="platform: clone it, ship Next.js apps to AWS serverless on day one" width="100%">
+# Unofficial IRAS Tax Assistant
 
-[![CI](https://github.com/elleskay/platform/actions/workflows/ci.yml/badge.svg)](https://github.com/elleskay/platform/actions/workflows/ci.yml) &nbsp;[![Security](https://github.com/elleskay/platform/actions/workflows/security.yml/badge.svg)](https://github.com/elleskay/platform/actions/workflows/security.yml) &nbsp;![IaC](https://img.shields.io/badge/IaC-AWS%20CDK%20%2B%20OpenNext-4F46E5) &nbsp;![deploys](https://img.shields.io/badge/deploys-OIDC%2C%20no%20stored%20keys-06B6D4) &nbsp;[![website](https://img.shields.io/badge/website-live-4F46E5)](https://elleskay.github.io/platform-site) &nbsp;[![license](https://img.shields.io/badge/license-MIT-64748B)](LICENSE)
+**A conversational Singapore tax assistant that answers GST, income tax, corporate tax, and SRS questions in plain language, calls real MCP-style tools, routes every query to the cheapest capable model across OpenAI and Anthropic, and escalates anything personal to a human.**
 
-**A reusable foundation for shipping Next.js apps to AWS serverless, fast and safely.** A TypeScript monorepo template, not a product: clone it per app and inherit a working CI/CD pipeline, infrastructure as code via AWS CDK, security scanning, OIDC-based deploys with zero stored credentials, a spec-driven test gate that blocks merges until every requirement is covered, and a deploy smoke test that catches the production failures this template already learned the hard way.
+[![Live](https://img.shields.io/badge/live-d1yl1box414d2i.cloudfront.net-1668B0)](https://d1yl1box414d2i.cloudfront.net) &nbsp;![Spec gate](https://img.shields.io/badge/spec%20gate-24%2F24%20covered-2e9e44) &nbsp;![Next.js](https://img.shields.io/badge/Next.js%2016-App%20Router-000000) &nbsp;![AI SDK](https://img.shields.io/badge/Vercel%20AI%20SDK-v6-0A0A0A) &nbsp;![AWS](https://img.shields.io/badge/AWS-CloudFront%20%2B%20Lambda%20%2B%20S3-FF9900) &nbsp;![IaC](https://img.shields.io/badge/IaC-CDK%20%2B%20OpenNext-4F46E5)
 
-**Built to pair with AI coding agents.** Point Claude Code or Codex at this repo and describe an app: it scaffolds from the template, builds, and ships. The agent conventions live in [CLAUDE.md](CLAUDE.md), and one command (`npm run setup`, see [`scripts/connect.sh`](scripts/connect.sh)) wires the GitHub + AWS connection so every push deploys to a live AWS URL with no stored keys.
-
-The owner's apps, [CoverLens](https://github.com/elleskay/insurance-dashboard), [Cancer Navigator](https://github.com/elleskay/cancer-navigator), and [Armoury](https://github.com/elleskay/armoury), are all cloned from it. The repo is its own proof: a real demo app at `apps/_demo/` is built and synthesised by the same workflow every cloned app inherits, so if the foundation breaks, CI fails here before any app picks it up.
+<a href="https://d1yl1box414d2i.cloudfront.net"><img src="docs/img/hero-v3.png" alt="IRAS Tax Assistant: Singapore tax, answered" width="100%"></a>
 
 </div>
 
-## What you get by cloning
+> **Unofficial demo.** This project is not affiliated with, endorsed by, or connected to the Inland Revenue Authority of Singapore (IRAS) or the Singapore government. "IRAS" is used only to describe the subject matter. It provides general information for demonstration, not personalised tax advice, and the tax figures shown are illustrative and may not reflect current rules. Always confirm with IRAS or a qualified professional.
 
-- A NextjsServerless CDK construct: one call deploys a Next.js app as Lambda, S3, and CloudFront via OpenNext, auto-routing every `public/` asset to S3 and optionally attaching a custom domain.
-- Three GitHub Actions workflows: CI (lint, typecheck, demo build, CDK synth), security (CodeQL, secret scan, npm audit), and deploy (OIDC, build, CDK deploy, smoke test).
-- A spec-driven test system (`packages/spec-test`): write requirements in YAML first, then code and tests together, and CI refuses to merge below 100 percent requirement coverage.
-- A one-command setup (`npm run setup`, `scripts/connect.sh`) that wires the whole GitHub + AWS connection: it deploys the OIDC role, provisions a database, generates `AUTH_SECRET`, and sets every GitHub Actions secret and variable, so deploys carry no long-lived AWS keys.
-- A least-privilege IAM policy for the deploy role, so you never reach for AdministratorAccess.
-- Reference overlay files (auth, security headers, middleware, Sentry, PostHog, email, rate limiting) and a smoke-test script that runs nine checks against the live URL.
-- Every production gotcha already solved and documented in `docs/DEPLOY.md`, with each fix kept in place.
+---
 
-## Demo: the spec gate in action
+## Table of contents
 
-The template has no live UI to screenshot. Its surface is the command line. Below is the real coverage gate from `packages/spec-test`, run against the bundled sample spec.
+- [What it is](#what-it-is)
+- [Feature tour](#feature-tour)
+- [How a question flows](#how-a-question-flows)
+- [Sequence: a chat turn](#sequence-a-chat-turn)
+- [Sequence: human escalation](#sequence-human-escalation)
+- [Logical architecture](#logical-architecture)
+- [Physical architecture](#physical-architecture)
+- [Deployment pipeline](#deployment-pipeline)
+- [Data model](#data-model)
+- [Spec-driven development](#spec-driven-development)
+- [Tech stack](#tech-stack)
+- [Local development](#local-development)
+- [Deployment](#deployment)
+- [Repository structure](#repository-structure)
+- [Provenance and disclaimer](#provenance-and-disclaimer)
 
-A green gate (every requirement covered by a passing test, exit 0):
+---
 
-```
-$ node dist/cli.js --spec samples/example.spec.yml --coverage samples/results-full.jsonl
+## What it is
 
-example v1: 100% covered (3/3)
-  report: spec-coverage.md
-```
+Three command-line projects, an MCP tool server, a tax agent, and an LLM eval harness, made usable by anyone in a browser. No install, no terminal, no API key of your own.
 
-A red gate (one requirement has no passing test, exit 1, merge blocked):
+- **Assistant.** Ask a Singapore tax question. It grounds factual answers in IRAS facts via a tool, can work out a rough chargeable-income estimate, and routes anything personal to a human advisor. Conversations have history and a New chat button, stored per browser.
+- **Cheapest capable routing.** A deterministic rule engine picks a model per query from six models across OpenAI and Anthropic, so a simple lookup uses a cheap model and a complex comparison uses a premium one. Each answer shows which model handled it.
+- **Configurable MCP tools.** The three built-in tools can be enabled, disabled, redescribed, and (for the lookup tool) have their facts edited. Visitors can also build their own lookup or template tools. Edits apply to the live assistant.
+- **An eval workbench.** Edit the routing rules and the test cases, click Run, and watch each case route to a model and get graded, with a per-model pass-rate comparison.
+- **Human in the loop.** Personalised questions are escalated to an advisor queue that a human resolves.
 
-```
-$ node dist/cli.js --spec samples/example.spec.yml --coverage samples/results.jsonl
+It is built on the [`elleskay/platform`](https://github.com/elleskay/platform) template: a Next.js to AWS serverless monorepo with a mandatory spec-driven test gate.
 
-example v1: 66.7% covered (2/3)
-  uncovered: 1
-    - EX-UI-001: Dropdown renders combobox with provided options
-  report: spec-coverage.md
-```
+---
 
-The deploy smoke test (`scripts/verify-deploy.sh`) probes a live URL after every deploy and exits non-zero on any failure, so a broken deploy never goes green:
+## Feature tour
 
-```
-$ ./scripts/verify-deploy.sh https://d1aeysqic3xk9.cloudfront.net
-Detected auth app (root returned 307); checking landing page /login
+### Landing: a guided entry point
 
-==> Security headers present
-  PASS  Security headers present
-==> Stylesheet serves as text/css
-  PASS  Stylesheet serves as text/css
-==> No Lambda Function URL leaked in auth surface
-  PASS  No Lambda Function URL leaked in auth surface
+A plain-language guide to each part of the app, with example questions that open the assistant and ask them.
 
-Summary: 9 passed, 0 failed
-```
+<img src="docs/img/landing.png" alt="IRAS Tax Assistant landing page" width="100%">
 
-Clone to deployed, end to end:
+### Assistant: tools and per-query model routing
 
-```
-gh repo create my-app --template elleskay/platform --clone --private
-cd my-app
-# create your app at apps/web, rename infra/cdk/_template to infra/cdk/my-app
-cd infra/cdk/_setup && npm install && npx cdk deploy -c repo=<owner>/my-app
-# copy the role ARN into the AWS_DEPLOY_ROLE_ARN secret, set repo vars, push
-git push   # the deploy workflow builds, deploys, and smoke-tests automatically
-```
+A factual question calls the `lookup_tax_info` tool and is answered by the cheapest model the rules pick (here, GPT-4o mini). The chip under each answer reports the routed model.
 
-## Logical architecture
+<img src="docs/img/assistant.png" alt="Assistant answering a GST question, showing the tool call and the routed model" width="100%">
 
-What the template hands you, grouped by concern. No app code here, only the foundation.
+### MCP tools: configurable, and they drive the assistant
 
-```mermaid
-flowchart TD
-  P[platform template]
+Enable or disable each built-in tool, edit its description, and edit the lookup tool's facts. Build your own tools too. Everything is sent with each chat request, so edits change the live assistant.
 
-  P --> APPS[App overlays]
-  P --> INFRA[Infrastructure as code]
-  P --> CI[GitHub Actions workflows]
-  P --> SPEC[Spec-driven test gate]
+<img src="docs/img/tools.png" alt="MCP tools page with editable built-in tools" width="100%">
 
-  APPS --> T[apps/_template overlay files]
-  APPS --> D[apps/_demo self-test app]
+### Evals: configurable rules, runnable test cases, model comparison
 
-  INFRA --> C[NextjsServerless construct]
-  INFRA --> S[_setup OIDC role stack]
-  INFRA --> IAM[Least-privilege IAM policy]
+Edit the routing rules (each model shows its approximate price) and the test cases, then Run. Each case routes to a model, is graded against keywords, and the results compare models side by side.
 
-  CI --> CIW[ci.yml lint, build, synth]
-  CI --> SECW[security.yml CodeQL, secrets, audit]
-  CI --> DEPW[deploy.yml OIDC, build, deploy, smoke]
+<img src="docs/img/evals.png" alt="Eval workbench with routing rules, test cases, and a populated results comparison" width="100%">
 
-  SPEC --> RUN[specTest runner]
-  SPEC --> GATE[Coverage gate, 100 percent]
-  SPEC --> RULE[ESLint no-empty-assertion rule]
-```
+### Advisor queue: human in the loop
 
-## Physical architecture (an app deployed on the construct)
+Escalated questions land here for a human to review and resolve.
 
-What a single cloned app looks like once `NextjsServerless` deploys it. One CloudFront distribution fronts a streaming server Lambda, an image Lambda, and an S3 assets bucket; the app talks to Postgres on Neon.
+<img src="docs/img/admin.png" alt="Advisor queue listing escalations" width="100%">
+
+---
+
+## How a question flows
+
+The router is the cheap part: deterministic keyword rules, no extra model call. The model is only called to answer.
 
 ```mermaid
 flowchart TD
-  U[Browser]
-  CF[CloudFront distribution]
-  U --> CF
+  Q[User question] --> RL[Rate limit check]
+  RL --> RULES[applyRoutingRules: deterministic keyword match]
 
-  CF --> SRV[Server Lambda, OpenNext, response streaming]
-  CF --> IMG[Image optimization Lambda]
-  CF --> S3[S3 assets bucket, public and _next/static]
+  RULES -->|nric, uen| HAIKU[Claude Haiku 4.5: pii-sensitive]
+  RULES -->|compare, versus, optimise| OPUS[Claude Opus 4.8: complex-reasoning]
+  RULES -->|estimate, calculate, how much| GPT41[GPT-4.1: calculation]
+  RULES -->|should i, my income, my company| SONNET[Claude Sonnet 4.6: personalised-advice]
+  RULES -->|what is, rate, deadline, threshold| MINI[GPT-4o mini: factual-lookup]
+  RULES -->|no signal| NANO[GPT-4.1 nano: default]
 
-  SRV --> NEON[(Neon Postgres)]
-  IMG --> S3
+  HAIKU --> GEN[streamText with the configured MCP tools]
+  OPUS --> GEN
+  GPT41 --> GEN
+  SONNET --> GEN
+  MINI --> GEN
+  NANO --> GEN
+
+  GEN --> T1[lookup_tax_info]
+  GEN --> T2[calculate_tax_estimate]
+  GEN --> T3[escalate_to_human]
+  T1 --> ANS[Streamed answer + routed-model metadata]
+  T2 --> ANS
+  T3 --> QUEUE[(Advisor queue)]
+  T3 --> ANS
 ```
 
-## Deployment pipeline
+---
 
-`deploy.yml` runs on push to main (documentation-only changes are skipped). It assumes the AWS role over OIDC, builds with OpenNext, runs CDK deploy, then smoke-tests the deployed URL. A preflight step lets the template repo itself pass without AWS secrets configured.
-
-```mermaid
-flowchart LR
-  A[Push to main] --> B[Preflight: secrets set?]
-  B --> C[OIDC assume role]
-  C --> D[npm ci]
-  D --> E[Migrate, seed if scripts exist]
-  E --> F[Build with OpenNext]
-  F --> G[CDK deploy]
-  G --> H[Extract deployed URL]
-  H --> I[Smoke test]
-  I --> J[Live]
-```
-
-## Clone-to-running-app flow
-
-The path from template to a deployed app, as a sequence.
+## Sequence: a chat turn
 
 ```mermaid
 sequenceDiagram
-  participant Dev as Developer
-  participant GH as GitHub
-  participant Setup as CDK _setup
-  participant AWS as AWS
-  participant CI as deploy.yml
+  participant B as Browser (useChat)
+  participant API as /api/chat (Lambda)
+  participant R as Router (lib/routing-rules)
+  participant M as Model (OpenAI or Anthropic)
+  participant T as MCP tools (lib/tools)
 
-  Dev->>GH: gh repo create --template elleskay/platform
-  Dev->>Setup: cdk deploy -c repo=owner/app
-  Setup->>AWS: create OIDC role + IAM policy
-  AWS-->>Dev: role ARN
-  Dev->>GH: set AWS_DEPLOY_ROLE_ARN secret + repo vars
-  Dev->>GH: git push
-  GH->>CI: trigger deploy workflow
-  CI->>AWS: OIDC assume, build, cdk deploy
-  CI->>AWS: smoke test deployed URL
-  CI-->>Dev: live URL
+  B->>API: messages + routingConfig + builtinConfig + customTools
+  API->>API: rate limit, validate, bound input size
+  API->>R: applyRoutingRules(config, latest question)
+  R-->>API: { modelId, reason }
+  API->>M: streamText(system, messages, tools)
+  M->>T: lookup_tax_info / calculate_tax_estimate
+  T-->>M: deterministic fact or estimate
+  M-->>API: streamed tokens
+  API-->>B: UI message stream + metadata (routed model, reason)
+  B-->>B: render answer, "Routed to X", persist conversation to localStorage
 ```
 
-## Spec-driven development
+---
 
-Every app on this platform is built from a spec and tested against it. You write `specs/<app>.yml` first: each requirement gets a unique ID, a category, a severity, and given/when/then acceptance criteria. Then implementation and `specTest()` land in the same change. CI runs the gate and refuses to merge unless coverage is 100 percent with no failing tests, no category mismatches, and lint clean. `data` requirements run on Vitest (pure functions); `ui`, `functional`, `security`, and `a11y` run on Playwright. An ESLint rule fails any `specTest()` whose body never calls `expect()`.
+## Sequence: human escalation
 
-A sample requirement, taken verbatim from `packages/spec-test/samples/example.spec.yml`:
+```mermaid
+sequenceDiagram
+  participant B as Visitor
+  participant API as /api/chat
+  participant M as Model (Claude Sonnet 4.6)
+  participant S as HITL store (S3)
+  participant ADV as Advisor (/admin)
+  participant H as /api/hitl
 
-```yaml
-- id: EX-UI-001
-  title: Dropdown renders combobox with provided options
-  category: ui
-  severity: high
-  given: A template item with kind=dropdown and options=[a,b,c]
-  when: The submit page renders
-  then: A combobox with three options is visible
+  B->>API: "Should I contribute to SRS this year?" (personalised)
+  API->>M: streamText
+  M->>S: escalate_to_human -> addEscalation()
+  S-->>M: case id (pending)
+  M-->>B: "Escalated to a human advisor (case #...)"
+  ADV->>H: GET /api/hitl
+  H->>S: listEscalations()
+  S-->>ADV: pending escalations
+  ADV->>H: POST resolve(id)
+  H->>S: resolveEscalation(id) -> status resolved
 ```
 
-When that requirement has no passing test, the gate prints exactly this and exits 1:
+---
 
-```
-example v1: 66.7% covered (2/3)
-  uncovered: 1
-    - EX-UI-001: Dropdown renders combobox with provided options
-```
+## Logical architecture
 
-The gate verifies structure: that every spec ID has a registered test that asserts something. It does not verify the spec is correct, that no feature shipped without a spec entry, or that a feature split across several IDs actually connects end to end. Those three failure modes are documented honestly in `packages/spec-test/README.md` and `docs/TESTING.md`, along with the journey-level e2e that mitigates the third.
-
-## The spec gate flow
+Pages, API routes, the pure domain libraries they call, and the external providers and stores. The router and tools are plain deterministic code; the models are the only network dependency for answering.
 
 ```mermaid
 flowchart TD
-  A[Write specs/app.yml] --> B[Write specTest + implementation together]
-  B --> C[npm run test:spec]
-  C --> D[Vitest runs data tests]
-  C --> E[Playwright runs ui, functional, security, a11y]
-  D --> F[Coverage results.jsonl]
-  E --> F
-  F --> G[spec-coverage CLI]
-  G --> H{100 percent covered, none failing?}
-  H -->|yes| I[Exit 0, merge allowed]
-  H -->|no| J[Exit 1, merge blocked]
+  subgraph UI["Next.js App Router pages"]
+    L["/ landing guide"]
+    A["/assistant: chat, history"]
+    TL["/tools: configurable MCP tools"]
+    E["/evals: rules + cases workbench"]
+    AD["/admin: advisor queue"]
+  end
+
+  subgraph APIRoutes["API routes"]
+    C["/api/chat: stream, route, tools"]
+    EV["/api/eval: run one graded case"]
+    HI["/api/hitl: list and resolve"]
+  end
+
+  subgraph Lib[Domain libraries]
+    RR[routing-rules: applyRoutingRules]
+    MR[model-registry: 6 models + prices]
+    TO[tools: buildTaxTools]
+    TX[tax: facts + estimate]
+    CT[custom-tools]
+    HS[hitl-store]
+    RT[rate-limit]
+  end
+
+  A --> C
+  E --> EV
+  AD --> HI
+  TL -. client-side run .-> TX
+
+  C --> RR --> MR
+  C --> TO --> TX
+  C --> RT
+  EV --> MR
+  HI --> HS
+
+  C --> ANTH[Anthropic API]
+  C --> OAI[OpenAI API]
+  EV --> ANTH
+  EV --> OAI
+  HS --> S3[(S3 escalations)]
+  A -. per browser .-> LS[(localStorage)]
+  TL -. per browser .-> LS
+  E -. per browser .-> LS
 ```
+
+---
+
+## Physical architecture
+
+One CloudFront distribution fronts a streaming server Lambda (built by OpenNext), an image Lambda, and an S3 assets bucket. The server Lambda calls the model providers and a private S3 bucket for the escalation queue. There is no relational database.
+
+```mermaid
+flowchart TD
+  U[Browser] --> CF[CloudFront distribution]
+  CF --> SRV["Server Lambda: OpenNext, response streaming, 60s timeout"]
+  CF --> IMG[Image optimization Lambda]
+  CF --> S3A["S3 assets bucket: public and _next/static"]
+
+  SRV --> ANTH[Anthropic API]
+  SRV --> OAI[OpenAI API]
+  SRV --> HITL[("Private S3 bucket: escalations, public blocked")]
+  SRV -. optional .-> UP[("Upstash Redis: rate limit, fails open")]
+```
+
+---
+
+## Deployment pipeline
+
+`deploy.yml` runs on push to main. It assumes an AWS role over OIDC (no stored keys), bakes the model keys in at synth, builds with OpenNext, runs CDK deploy, and the smoke test probes the live URL.
+
+```mermaid
+flowchart LR
+  A[Push to main] --> B[OIDC assume role]
+  B --> C[npm ci]
+  C --> D[Build with OpenNext]
+  D --> E[CDK deploy: CloudFront, Lambda, S3, HITL bucket]
+  E --> F[Extract deployed URL]
+  F --> G[Smoke test]
+  G --> H[Live]
+```
+
+Secrets baked at synth and forwarded in the deploy step: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_MODEL`. The HITL bucket name is a CDK token resolved at deploy time.
+
+---
 
 ## Data model
 
-The template ships no fixed business schema. It supports Postgres (Neon for serverless connection pooling) and wires `DATABASE_URL` through the construct, but each cloned app defines its own tables. The deploy workflow will run `db/migrate.ts` and `db/seed-demo.ts` only if those files exist. The sample spec models a minimal demo domain (a template with items, and submissions of those items), shown here purely to illustrate the kind of entities an app would add; it is not part of the template.
+No relational database. Two stores, chosen for what each needs:
+
+- **Escalations** live in a private S3 bucket, one JSON object per case under `escalations/`, so concurrent Lambda writes never race on a shared file (locally and in tests, a JSON file is used instead). This is the only server-persisted entity.
+- **Everything else is per browser** in `localStorage`: conversation history, the routing config, the eval test cases, the built-in tool config, and any custom tools. Nothing personal is stored server-side beyond an escalation the user explicitly triggers.
 
 ```mermaid
 erDiagram
-  TEMPLATE ||--o{ ITEM : contains
-  TEMPLATE ||--o{ SUBMISSION : "is filled as"
-  SUBMISSION ||--o{ RESPONSE : has
-  ITEM ||--o{ RESPONSE : "answered by"
+  ESCALATION {
+    number id PK
+    string timestamp
+    string reason
+    string original_query
+    string status "pending or resolved"
+  }
+
+  CONVERSATION {
+    string id PK
+    string title
+    json messages
+    number updatedAt
+  }
+
+  ROUTING_CONFIG {
+    string fallbackModelId
+    string fallbackReason
+  }
+  ROUTING_RULE {
+    string id PK
+    json keywords
+    string modelId
+    string reason
+  }
+  TEST_CASE {
+    string id PK
+    string query
+    json expects
+  }
+  BUILTIN_TOOLS_CONFIG {
+    json lookup "enabled, description, facts"
+    json estimate "enabled, description"
+    json escalate "enabled, description"
+  }
+  CUSTOM_TOOL {
+    string id PK
+    string kind "lookup or template"
+    string name
+    string description
+  }
+
+  ROUTING_CONFIG ||--o{ ROUTING_RULE : "ordered rules"
+  ESCALATION }o--|| CONVERSATION : "raised from a chat turn"
 ```
+
+Server-persisted (S3): `ESCALATION`. Client-persisted (localStorage): `CONVERSATION`, `ROUTING_CONFIG`, `ROUTING_RULE`, `TEST_CASE`, `BUILTIN_TOOLS_CONFIG`, `CUSTOM_TOOL`.
+
+---
+
+## Spec-driven development
+
+Every feature is written from a spec first. `specs/web.yml` lists each requirement with a unique ID, a category, a severity, and given/when/then criteria. Implementation and `specTest()` land in the same change. The gate (`npm run test:spec`) builds, runs the tests, and refuses to pass below 100 percent requirement coverage. `data` requirements run on Vitest (pure functions); `ui`, `functional`, `security`, and `a11y` run on Playwright. The LLM is non-deterministic, so chat and eval e2e stub the API with fixed fixtures and assert against them.
+
+```mermaid
+flowchart TD
+  A[Write specs/web.yml] --> B[Write specTest + implementation together]
+  B --> C[npm run test:spec]
+  C --> D[next build]
+  D --> E[Vitest: data requirements]
+  D --> F[Playwright: ui, functional, security, a11y]
+  E --> G[spec-coverage CLI]
+  F --> G
+  G --> H{100 percent covered, none failing?}
+  H -->|yes| I[Exit 0]
+  H -->|no| J[Exit 1, blocked]
+```
+
+The 24 requirements currently covered:
+
+<details>
+<summary><strong>Show all 24 requirements</strong></summary>
+
+| ID | Category | Requirement |
+|---|---|---|
+| IRAS-TAX-001 | data | Chargeable income is gross income minus deductions, floored at zero |
+| IRAS-TAX-002 | data | Tax lookup returns the known fact for a supported topic |
+| IRAS-HITL-001 | data | Escalation store supports create, list, and resolve |
+| IRAS-ROUTER-001 | data | The deterministic routing rules pick the right model per query |
+| IRAS-TOOLS-004 | data | Built-in tools respect their configuration (enable/disable, facts) |
+| IRAS-RATELIMIT-001 | data | Rate limiting fails open when Upstash is not configured |
+| IRAS-CHAT-001 | ui | Home page (assistant) renders the chat interface |
+| IRAS-CHAT-003 | ui | A general-information disclaimer is always visible |
+| IRAS-LANDING-001 | ui | Landing page guides the visitor and links into the assistant |
+| IRAS-TOOLS-001 | ui | Tools page lists the MCP server tools |
+| IRAS-EVAL-001 | ui | Evals page shows configurable routing rules and test cases |
+| IRAS-CHAT-002 | functional | Sending a message shows the user message and the assistant reply |
+| IRAS-CHAT-004 | functional | New chat clears the conversation and history keeps the previous one |
+| IRAS-CHAT-005 | functional | A question deep link (`/assistant?q=`) asks it automatically |
+| IRAS-NAV-001 | functional | Primary navigation links to every page |
+| IRAS-TOOLS-002 | functional | A visitor can run the lookup tool and see a result |
+| IRAS-TOOLS-003 | functional | A visitor can create a custom tool and run it |
+| IRAS-EVAL-002 | functional | The route preview shows where a query routes |
+| IRAS-EVAL-003 | functional | Running the test cases populates the result stats |
+| IRAS-HITL-002 | functional | Admin page lists pending escalations |
+| IRAS-HITL-003 | functional | Resolving an escalation marks it resolved end to end |
+| IRAS-A11Y-001 | a11y | Page exposes a skip-to-content link and a single h1 |
+| IRAS-A11Y-002 | a11y | The chat message input has an accessible label |
+| IRAS-SEC-001 | security | Responses carry baseline security headers |
+
+</details>
+
+---
 
 ## Tech stack
 
 | Layer | Choice |
 |---|---|
-| Framework | Next.js (App Router), TypeScript strict |
-| Runtime | Node 22, AWS Lambda (ARM64) |
+| Framework | Next.js 16 (App Router), React 19, TypeScript strict |
+| AI | Vercel AI SDK v6, `@ai-sdk/anthropic`, `@ai-sdk/openai`, `@ai-sdk/react` |
+| Models | OpenAI: GPT-4.1 nano, GPT-4o mini, GPT-4.1. Anthropic: Claude Haiku 4.5, Sonnet 4.6, Opus 4.8 |
+| UI | Tailwind CSS v4, shadcn/ui (Radix), AI Elements, lucide icons, IRAS colour palette |
+| Routing | Deterministic keyword rules (no classifier call), configurable per browser |
+| Tools | MCP-style `tool()` definitions, declarative and configurable, no eval of user input |
+| Persistence | S3 for escalations, browser localStorage for everything client-side |
+| Rate limit | Upstash Redis, fails open when unconfigured |
+| Runtime | Node 22, AWS Lambda, response streaming |
 | Hosting | CloudFront, S3, Lambda via OpenNext |
-| Database | Postgres (Neon), per app, no shared base |
-| Auth | Auth.js v5 (NextAuth), JWT sessions |
 | IaC | AWS CDK (TypeScript) |
-| CI/CD | GitHub Actions, OIDC deploys |
-| Security | CodeQL, gitleaks, npm audit, least-privilege IAM |
-| Validation | Zod at server-action boundaries |
-| Testing | Vitest, Playwright, axe, the spec-test gate |
-| Observability | Sentry, PostHog (both no-op without keys) |
-| Commits | Conventional Commits, commitlint |
+| CI/CD | GitHub Actions, OIDC deploys, no stored AWS keys |
+| Testing | Vitest, Playwright, the `@platform/spec-test` gate at 100 percent coverage |
+
+---
 
 ## Local development
 
 ```bash
-npm ci                          # install the workspace
-npm run format                  # prettier across the repo
-cd apps/_demo && npm run dev    # run the demo app locally
+cd apps/web
+npm install
+# add apps/web/.env.local with ANTHROPIC_API_KEY and OPENAI_API_KEY
+npm run dev            # http://localhost:3000
 
-cd packages/spec-test
-npm run build                   # compile the spec-test runner
-node dist/cli.js --spec samples/example.spec.yml --coverage samples/results-full.jsonl
+npm run test:spec     # build + vitest + playwright + 100% coverage gate
 ```
 
-The root has no app source, so `npm run typecheck` and `npm run lint` at the root are intentional no-ops; each app adds its own.
+Without API keys the UI still renders; only the live model calls fail. Rate limiting and the HITL store both fall back to local-friendly defaults (fail-open limiter, JSON file queue).
 
-## Testing
-
-- `packages/spec-test` is the runner: a Zod-validated YAML spec, a `specTest()` wrapper for Vitest and Playwright, a coverage CLI that gates on 100 percent, and an ESLint rule that blocks assertion-free tests.
-- CI self-tests the gate on every code change: it validates the sample spec at full coverage (expects exit 0) and at partial coverage (expects exit 1), so the gate itself cannot silently break.
-- The full protocol, category routing, and known failure modes live in `docs/TESTING.md`.
+---
 
 ## Deployment
 
-1. Create your app repo from the template, build your app at `apps/web/`, and rename `infra/cdk/_template/` to `infra/cdk/<your-app>/`.
-2. Provision the OIDC deploy role: `cd infra/cdk/_setup && npm install && npx cdk deploy -c repo=<owner>/<app>`. Copy the output role ARN.
-3. Set the GitHub secret `AWS_DEPLOY_ROLE_ARN` and the repo variables (region, app URL, allowed origins). Attach the IAM policy from `infra/iam/`.
-4. Push. `deploy.yml` builds with OpenNext, runs `cdk deploy`, and smoke-tests the live URL.
+Pushing to `main` deploys automatically via `deploy.yml` (OIDC, OpenNext build, CDK deploy, smoke test). The model keys are GitHub Actions secrets, forwarded into the synth step and baked into the Lambda environment. The escalation bucket is provisioned by the CDK stack (`infra/cdk/web/lib/web-stack.ts`) with all public access blocked.
 
-Full step by step is in `docs/SETUP.md` and `docs/DEPLOY.md`. Serverless idle cost is roughly 0 to 2 USD per month. Every production gotcha (Server Actions `allowedOrigins`, the `AUTH_URL` redirect trap, client-side sign-out, build-before-synth ordering, synth-time env baking, and more) are documented in `docs/DEPLOY.md` with the fix kept in place so you do not relearn them.
+```bash
+# one-off, from infra/cdk/web after configuring the OIDC role and repo secrets
+gh secret set ANTHROPIC_API_KEY
+gh secret set OPENAI_API_KEY
+git push   # deploy.yml builds, deploys, and smoke-tests the live URL
+```
+
+---
 
 ## Repository structure
 
 ```
-platform/
-├── apps/
-│   ├── _template/        Overlay files to drop onto create-next-app
-│   └── _demo/            Working Next.js app, CI builds and synths it
-├── infra/
-│   ├── cdk/_template/    Full CDK package; lib/constructs/NextjsServerless.ts
-│   ├── cdk/_setup/       One-time GitHub OIDC + IAM role stack
-│   └── iam/              Least-privilege cdk-deploy-policy.json
-├── packages/
-│   └── spec-test/        Spec runner, coverage CLI, ESLint rule
-├── .github/workflows/    ci.yml, security.yml, deploy.yml
-├── scripts/              verify-deploy.sh smoke test
-├── docs/                 SETUP, DEPLOY, TESTING, SSDLC, variants
-└── CLAUDE.md             Conventions and the spec-driven build protocol
+apps/web/
+  app/
+    page.tsx              Landing / guide
+    assistant/page.tsx    Chat: routing, tools, history, deep links
+    tools/page.tsx        Configurable MCP tools + custom tool builder
+    evals/page.tsx        Routing-rule + test-case workbench
+    admin/page.tsx        Advisor queue
+    api/chat              Streamed chat: route, tools, metadata
+    api/eval              Run one graded eval case on a chosen model
+    api/hitl              List and resolve escalations
+  lib/
+    routing-rules.ts      Deterministic router + config + storage
+    model-registry.ts     Six models, tiers, approximate prices
+    tools.ts / tax.ts     buildTaxTools + facts + estimate
+    builtin-tools.ts      Configurable built-in tool definitions
+    custom-tools.ts       User-defined lookup / template tools
+    conversations.ts      Chat history (localStorage)
+    hitl-store.ts         S3 (prod) or file (dev) escalation store
+    rate-limit.ts         Upstash limiter, fails open
+  specs/web.yml           24 requirements, the source of truth
+  tests/                  Vitest (data) + Playwright (ui/functional/security/a11y)
+infra/cdk/web/            NextjsServerless construct + HITL bucket stack
+.github/workflows/        deploy.yml (OIDC, OpenNext, CDK, smoke test)
 ```
 
-## Design choices
+---
 
-The template constrains the happy path on purpose. Serverless only (fork if you need always-on containers). Spec before code, every time. No shared infra base, each app is self-contained. Constructs are copied, not imported, so a breaking change never propagates without explicit action. The platform dogfoods itself through `apps/_demo/`. The smaller the surface area, the fewer wrong-by-default ways an app can diverge.
+## Provenance and disclaimer
 
-## License
+Built on the [`elleskay/platform`](https://github.com/elleskay/platform) template, and showcases three command-line projects in one browser app: an MCP tax-tool server, a tax agent, and an LLM eval harness.
 
-MIT. See `LICENSE`.
+This is an unofficial demonstration. It is not affiliated with, endorsed by, or connected to the Inland Revenue Authority of Singapore (IRAS) or the Singapore government; the name "IRAS" is used only to describe the subject matter. It provides general information about Singapore tax, not personalised tax advice. Tax figures shown are illustrative and may not reflect current IRAS rules; always confirm with IRAS or a qualified professional.

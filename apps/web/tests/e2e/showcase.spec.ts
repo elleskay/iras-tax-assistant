@@ -1,6 +1,19 @@
 import { specTest, expect } from "@platform/spec-test/playwright";
 
 specTest(
+  "IRAS-LANDING-001",
+  "Landing page guides the visitor and links into the assistant",
+  async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByText("How to use it")).toBeVisible();
+    const cta = page.getByRole("link", { name: "Start asking" }).first();
+    await expect(cta).toBeVisible();
+    await expect(cta).toHaveAttribute("href", "/assistant");
+  },
+  { category: "ui" },
+);
+
+specTest(
   "IRAS-NAV-001",
   "Primary navigation links to every showcase page",
   async ({ page }) => {

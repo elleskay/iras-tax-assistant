@@ -19,7 +19,7 @@ specTest(
   "IRAS-A11Y-002",
   "The chat message input has an accessible label",
   async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/assistant");
     // Resolves only if the textbox has a non-empty accessible name.
     await expect(
       page.getByRole("textbox", { name: /ask a tax question/i }),

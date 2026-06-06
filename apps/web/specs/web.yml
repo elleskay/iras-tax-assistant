@@ -47,6 +47,35 @@ requirements:
     tags: [chat]
     notes: The LLM is non-deterministic, so the e2e stubs /api/chat with a fixed UI message stream and asserts against the fixture.
 
+  - id: IRAS-LANDING-001
+    title: Landing page guides the visitor and links into the assistant
+    category: ui
+    severity: medium
+    given: A visitor opens the home page
+    when: The page loads
+    then: It shows the how-to-use guide and a call to action that links to the assistant
+    tags: [landing, guide]
+
+  - id: IRAS-CHAT-004
+    title: New chat clears the conversation and history keeps the previous one
+    category: functional
+    severity: medium
+    given: The assistant has a conversation with at least one message
+    when: The visitor clicks New chat
+    then: The conversation returns to the empty state and the previous one is listed in history
+    tags: [chat, history]
+    notes: The chat e2e stubs /api/chat.
+
+  - id: IRAS-CHAT-005
+    title: A question deep link asks it automatically
+    category: functional
+    severity: medium
+    given: The assistant is opened with a question in the URL
+    when: The page loads at /assistant with a q query parameter
+    then: The question is sent and appears as a user message
+    tags: [chat, landing]
+    notes: The chat e2e stubs /api/chat.
+
   - id: IRAS-CHAT-003
     title: A general-information disclaimer is always visible on the chat page
     category: ui

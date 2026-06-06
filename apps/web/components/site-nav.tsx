@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { Landmark, MessageSquare, Wrench, BarChart3, ShieldCheck } from "lucide-react";
 
 const LINKS = [
-  { href: "/", label: "Assistant", icon: MessageSquare },
+  { href: "/assistant", label: "Assistant", icon: MessageSquare },
   { href: "/tools", label: "MCP tools", icon: Wrench },
   { href: "/evals", label: "Evals", icon: BarChart3 },
   { href: "/admin", label: "Advisor queue", icon: ShieldCheck },
@@ -14,7 +14,8 @@ const LINKS = [
 export function SiteNav() {
   const pathname = usePathname();
   return (
-    <header className="flex shrink-0 items-center justify-between gap-4 border-b bg-card px-4 py-2.5 sm:px-6">
+    <header className="shrink-0 border-b bg-card">
+      <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 py-2.5">
       <Link href="/" className="flex items-center gap-2.5">
         <span
           aria-hidden
@@ -44,6 +45,7 @@ export function SiteNav() {
           );
         })}
       </nav>
+      </div>
     </header>
   );
 }

@@ -1,227 +1,147 @@
-"use client";
+import Link from "next/link";
+import {
+  MessageSquare,
+  Wrench,
+  BarChart3,
+  ShieldCheck,
+  Landmark,
+  Info,
+} from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 
-import { useEffect, useState } from "react";
-import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport, isToolUIPart } from "ai";
-import { Info } from "lucide-react";
-import {
-  Conversation,
-  ConversationContent,
-  ConversationScrollButton,
-} from "@/components/ai-elements/conversation";
-import {
-  Message,
-  MessageContent,
-  MessageResponse,
-} from "@/components/ai-elements/message";
-import {
-  PromptInput,
-  PromptInputTextarea,
-  PromptInputFooter,
-  PromptInputSubmit,
-  type PromptInputMessage,
-} from "@/components/ai-elements/prompt-input";
-import { Tool, ToolHeader } from "@/components/ai-elements/tool";
-import { loadCustomTools } from "@/lib/custom-tools";
-import { loadConfig } from "@/lib/routing-rules";
-import { loadBuiltinConfig } from "@/lib/builtin-tools";
+export const metadata = {
+  title: "IRAS Tax Assistant - how to use",
+};
 
-const TOPICS = [
-  { label: "GST", question: "What is the GST registration threshold?" },
-  { label: "Income tax", question: "When is the income tax filing deadline?" },
-  { label: "Corporate tax", question: "What is the corporate tax rate in Singapore?" },
-  { label: "SRS", question: "What is the SRS contribution cap?" },
+const STEPS = [
+  {
+    href: "/assistant",
+    icon: MessageSquare,
+    title: "Assistant",
+    body: "Ask Singapore tax questions in plain language. It looks up IRAS facts, can work out a rough chargeable-income estimate, and routes anything personal to a human advisor. Use New chat and the history sidebar to manage conversations.",
+    cta: "Start asking",
+  },
+  {
+    href: "/tools",
+    icon: Wrench,
+    title: "MCP tools",
+    body: "The tools the assistant calls (from iras-mcp-server). Run them, edit the built-in ones (enable or disable, change descriptions, edit the lookup facts), or build your own. Your edits apply to the assistant.",
+    cta: "Open MCP tools",
+  },
+  {
+    href: "/evals",
+    icon: BarChart3,
+    title: "Evals",
+    body: "Configure the model routing rules and the test cases, then click Run. Each case routes to a model and is graded against your keywords, so you can compare models and pass rates.",
+    cta: "Open Evals",
+  },
+  {
+    href: "/admin",
+    icon: ShieldCheck,
+    title: "Advisor queue",
+    body: "When the assistant escalates a personal or complex question, it lands here for a human advisor to review and resolve.",
+    cta: "Open advisor queue",
+  },
 ];
 
-export default function ChatPage() {
-  const [input, setInput] = useState("");
-  const { messages, sendMessage, status, setMessages, error } = useChat({
-    transport: new DefaultChatTransport({
-      api: "/api/chat",
-      // Attach the visitor's own tools (from the Tools page) so the Assistant
-      // can call them. The return value REPLACES the request body, so the full
-      // payload (id, messages, trigger) must be reconstructed, not just merged.
-      prepareSendMessagesRequest: ({ id, messages, trigger, messageId, body }) => ({
-        body: {
-          id,
-          messages,
-          trigger,
-          messageId,
-          ...body,
-          customTools: loadCustomTools(),
-          routingConfig: loadConfig(),
-          builtinConfig: loadBuiltinConfig(),
-        },
-      }),
-    }),
-  });
+// Each links into the assistant and asks the question (via ?q=). Chosen to show
+// a different MCP tool and model route, matching the assistant's demo chips.
+const EXAMPLES = [
+  { label: "What is the GST registration threshold?", q: "What is the GST registration threshold?" },
+  {
+    label: "Estimate chargeable income (120k income, 20k deductions)",
+    q: "Estimate the chargeable income for an annual income of 120000 with 20000 in deductions",
+  },
+  {
+    label: "Compare corporate vs top personal tax rates",
+    q: "Compare the corporate income tax rate versus the top personal income tax rate",
+  },
+  { label: "Should I contribute to SRS this year?", q: "Should I contribute to SRS this year?" },
+];
 
-  // Persist to sessionStorage so navigating to /admin and back, or a refresh,
-  // does not reset the conversation. Cleared when the tab closes.
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => {
-    const saved = sessionStorage.getItem("iras-chat");
-    if (saved) {
-      try {
-        setMessages(JSON.parse(saved));
-      } catch {
-        /* ignore malformed cache */
-      }
-    }
-    setHydrated(true);
-  }, [setMessages]);
-  useEffect(() => {
-    if (!hydrated || status === "submitted" || status === "streaming") return;
-    sessionStorage.setItem("iras-chat", JSON.stringify(messages));
-  }, [messages, hydrated, status]);
-
-  const busy = status === "submitted" || status === "streaming";
-  const empty = messages.length === 0;
-
-  function submit(text: string) {
-    const trimmed = text.trim();
-    if (!trimmed || busy) return;
-    sendMessage({ text: trimmed });
-    setInput("");
-  }
-
-  function handleSubmit(message: PromptInputMessage) {
-    submit(message.text ?? input);
-  }
-
-  const composer = (large: boolean) => (
-    <PromptInput
-      onSubmit={handleSubmit}
-      className={large ? "rounded-2xl border shadow-sm" : "rounded-xl border"}
-    >
-      <PromptInputTextarea
-        aria-label="Ask a tax question"
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        placeholder="Ask anything, e.g. what is the GST registration threshold?"
-      />
-      <PromptInputFooter>
-        <span className="flex items-center gap-1.5 pl-1 text-xs text-muted-foreground">
-          <Info className="h-3.5 w-3.5" />
-          General information only, not personalised tax advice.
-        </span>
-        <PromptInputSubmit
-          aria-label="Send"
-          status={status}
-          disabled={busy || input.trim().length === 0}
-        />
-      </PromptInputFooter>
-    </PromptInput>
-  );
-
+export default function LandingPage() {
   return (
-    <>
-      {empty ? (
-        /* Immersive landing */
-        <main
-          id="main"
-          className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center gap-8 px-4 pb-24 text-center"
+    <main id="main" className="mx-auto w-full max-w-5xl px-4 py-12 pb-20">
+      {/* Hero */}
+      <section className="flex flex-col items-center gap-5 text-center">
+        <span
+          aria-hidden
+          className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-from to-brand-to text-white shadow-soft"
         >
-          <span className="rounded-full bg-gold px-3 py-1.5 text-xs font-semibold text-gold-foreground">
-            Singapore tax, in plain language
-          </span>
-          <div className="flex flex-col gap-4">
-            <h2 className="text-4xl font-semibold tracking-tight text-navy sm:text-5xl">
-              Singapore tax,
-              <br />
-              answered.
-            </h2>
-            <p className="mx-auto max-w-md text-base leading-relaxed text-muted-foreground">
-              Ask about GST, income tax, corporate tax, or SRS. Anything personal is
-              routed to a human advisor.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap justify-center gap-2.5">
-            {TOPICS.map((t) => (
-              <button
-                key={t.label}
-                type="button"
-                onClick={() => submit(t.question)}
-                className="inline-flex cursor-pointer items-center rounded-full bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground transition-[filter] hover:brightness-95"
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="w-full max-w-xl">{composer(true)}</div>
-        </main>
-      ) : (
-        /* Active conversation */
-        <div className="flex min-h-0 flex-1 flex-col">
-          <Conversation className="flex-1">
-            <ConversationContent
-              id="main"
-              className="mx-auto w-full max-w-2xl gap-5 px-4 py-6"
-            >
-              {messages.map((message) => (
-                <Message
-                  key={message.id}
-                  from={message.role}
-                  data-testid="message"
-                  data-role={message.role}
-                  style={{ animation: "var(--animate-msg-in)" }}
-                >
-                  <MessageContent>
-                    {message.parts.map((part, i) => {
-                      if (part.type === "text") {
-                        return message.role === "assistant" ? (
-                          <MessageResponse key={i} className="prose-chat">
-                            {part.text}
-                          </MessageResponse>
-                        ) : (
-                          <span key={i} className="whitespace-pre-wrap">
-                            {part.text}
-                          </span>
-                        );
-                      }
-                      if (isToolUIPart(part)) {
-                        return (
-                          <Tool key={i} className="my-1">
-                            <ToolHeader
-                              type={part.type as `tool-${string}`}
-                              state={part.state}
-                            />
-                          </Tool>
-                        );
-                      }
-                      return null;
-                    })}
-                    {message.role === "assistant" &&
-                    (message as { metadata?: { model?: string } }).metadata?.model ? (
-                      <span className="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
-                        Routed to{" "}
-                        {(message as { metadata?: { model?: string } }).metadata!.model}
-                      </span>
-                    ) : null}
-                  </MessageContent>
-                </Message>
-              ))}
-            </ConversationContent>
-            <ConversationScrollButton />
-          </Conversation>
-
-          <div className="shrink-0 px-4 py-4">
-            <div className="mx-auto w-full max-w-2xl">
-              {error ? (
-                <p
-                  role="alert"
-                  className="mb-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-                >
-                  Something went wrong reaching the assistant. Please try again.
-                </p>
-              ) : null}
-              {composer(false)}
-            </div>
-          </div>
+          <Landmark className="h-7 w-7" />
+        </span>
+        <h2 className="max-w-2xl text-3xl font-semibold tracking-tight text-navy sm:text-4xl">
+          Singapore tax, answered in your browser
+        </h2>
+        <p className="max-w-xl text-base leading-relaxed text-muted-foreground">
+          A conversational assistant for GST, income tax, corporate tax, and SRS,
+          plus the tools and evaluations behind it. No install, no terminal, no API
+          key of your own.
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Link
+            href="/assistant"
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-gradient-to-br from-brand-from to-brand-to px-5 font-medium text-white shadow-soft transition-all hover:shadow-pop"
+          >
+            <MessageSquare className="h-4 w-4" /> Start asking
+          </Link>
+          <Link
+            href="/tools"
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg border bg-card px-5 font-medium text-foreground transition-colors hover:bg-accent"
+          >
+            <Wrench className="h-4 w-4" /> Explore the tools
+          </Link>
         </div>
-      )}
-    </>
+      </section>
+
+      {/* How to use */}
+      <section className="mt-14">
+        <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          How to use it
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {STEPS.map(({ href, icon: Icon, title, body, cta }) => (
+            <Card key={href} className="shadow-soft transition-shadow hover:shadow-card">
+              <CardContent className="flex h-full flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-md bg-accent text-primary">
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <h4 className="text-base font-semibold text-navy">{title}</h4>
+                </div>
+                <p className="flex-1 text-sm leading-relaxed text-muted-foreground">{body}</p>
+                <Link href={href} className="text-sm font-medium text-primary underline underline-offset-2">
+                  {cta}
+                </Link>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      {/* Try asking */}
+      <section className="mt-12">
+        <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Good first questions
+        </h3>
+        <div className="flex flex-wrap gap-2">
+          {EXAMPLES.map((ex) => (
+            <Link
+              key={ex.label}
+              href={`/assistant?q=${encodeURIComponent(ex.q)}`}
+              className="rounded-full bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground transition-[filter] hover:brightness-95"
+            >
+              {ex.label}
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <p className="mt-12 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
+        <Info className="h-3.5 w-3.5 shrink-0" />
+        Unofficial demo, not affiliated with IRAS. General information only, not
+        personalised tax advice. Built on iras-mcp-server, iras-tax-agent, and llm-eval-iras.
+      </p>
+    </main>
   );
 }

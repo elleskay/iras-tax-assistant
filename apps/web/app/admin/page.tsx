@@ -65,7 +65,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-8 pb-16">
+    <div className="mx-auto w-full max-w-5xl px-4 py-8 pb-16">
       <div className="mb-6">
         <h2 className="text-xl font-semibold text-navy">Advisor escalation queue</h2>
         <p className="text-sm text-muted-foreground">
