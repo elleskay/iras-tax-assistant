@@ -1,4 +1,4 @@
-import { test, expect, afterEach } from "vitest";
+import { test, expect, afterEach, type TestContext } from "vitest";
 import { recordCoverage } from "./coverage.js";
 
 export { test, expect };
@@ -44,7 +44,11 @@ export interface SpecTestOptions {
 export function specTest(
   id: string,
   title: string,
-  fn: Parameters<typeof test>[1],
+  // A plain test body. Not `Parameters<typeof test>[1]`: Vitest's `test` is
+  // overloaded, so that index resolves to `TestOptions` on current versions,
+  // which makes every specTest() call fail typecheck in a strict app. The body
+  // may be sync or async; the optional Vitest TestContext is passed through.
+  fn: (context: TestContext) => void | Promise<void>,
   opts: SpecTestOptions = {},
 ): void {
   if (opts.category) categoryById.set(id, opts.category);

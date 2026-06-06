@@ -1,9 +1,10 @@
 # Infra
 
-AWS CDK in TypeScript. Two pieces:
+AWS CDK in TypeScript. Three pieces:
 
-- `cdk/constructs/` — reusable building blocks. Copy into each app's repo.
-- `iam/` — pre-canned IAM policies for the deploy user/role.
+- `cdk/_template/`: a full CDK package you copy and rename per app. It contains the reusable `NextjsServerless` construct (`lib/constructs/`) plus the app stack (`bin/app.ts`, `lib/web-stack.ts`). See `cdk/_template/README.md`.
+- `cdk/_setup/`: a one-time stack that provisions the GitHub OIDC provider and a least-privilege deploy role. Usually run for you by `npm run setup` (`scripts/connect.sh`).
+- `iam/`: the pre-canned least-privilege IAM policy attached to the deploy role.
 
 ## Why no shared "base" stacks?
 
@@ -13,7 +14,7 @@ If you ever need shared resources (a global WAF, a shared observability stack, a
 
 ## Per-app CDK structure
 
-When you scaffold a new app:
+When you scaffold a new app, copy and rename `cdk/_template/`:
 
 ```
 apps/web/
@@ -21,18 +22,18 @@ apps/web/
 └── .open-next/                  # build output from `open-next build`
 
 infra/cdk/
-├── constructs/                  # copied from platform; shared building blocks
-│   ├── NextjsServerless.ts
-│   └── README.md
-└── app/                         # this app's CDK
-    ├── bin/app.ts
-    ├── lib/web-stack.ts
+├── _setup/                      # one-time OIDC + deploy-role stack (shared)
+└── <your-app>/                  # copied + renamed from _template/
+    ├── bin/app.ts               # rename the stack id here
+    ├── lib/web-stack.ts         # instantiates NextjsServerless
+    ├── lib/constructs/
+    │   └── NextjsServerless.ts  # the reusable construct
     ├── package.json
     ├── tsconfig.json
     └── cdk.json
 ```
 
-The CDK code reads about ~5 lines per app:
+The app stack reads about ~5 lines:
 
 ```ts
 new NextjsServerless(this, "Web", {
@@ -47,6 +48,6 @@ new NextjsServerless(this, "Web", {
 
 ## Deploy
 
-Apps inherit the `.github/workflows/deploy.yml` from this platform. Set the required GitHub secrets and variables, push to `main`, the workflow handles bootstrap → build → deploy → smoke test.
+Apps inherit `.github/workflows/deploy.yml` from this platform. Run `npm run setup` once to wire the GitHub + AWS connection, push to `main`, and the workflow handles bootstrap, build, deploy, and smoke test.
 
 See `docs/DEPLOY.md` for the full setup, including OIDC trust and the IAM policy in `infra/iam/cdk-deploy-policy.json`.

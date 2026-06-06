@@ -181,3 +181,6 @@ jobs:
             exit 1
           fi
           echo "gate correctly exits 1 on partial coverage"
+      - name: Dogfood the gate against the demo app
+        working-directory: apps/_demo
+        run: npm run test:spec

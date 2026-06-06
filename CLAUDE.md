@@ -18,8 +18,9 @@ apps/
 │       ├── PostHogProvider.tsx      # Analytics + flags (no-ops without key)
 │       ├── Toaster.tsx              # Sonner toast root
 │       └── forms-README.md          # Documents RHF vs server-action forms
-└── _demo/                           # Working demo app. Platform CI builds this and synths
-                                     # the CDK construct against it.
+└── _demo/                           # Working demo app. Platform CI builds this, synths the
+                                     # CDK construct against it, and runs the spec gate
+                                     # against its own spec (dogfoods spec-test).
 
 infra/
 ├── cdk/_template/                   # Full CDK package. Copy and rename per app.
@@ -31,7 +32,7 @@ infra/
 ├── cdk/_setup/                      # One-time stack: GitHub OIDC + IAM role
 └── iam/cdk-deploy-policy.json       # Least-privilege IAM policy
 
-scripts/verify-deploy.sh             # Post-deploy smoke test (9 checks)
+scripts/verify-deploy.sh             # Post-deploy smoke test (auth-aware: full auth suite or public subset)
 
 .github/workflows/
 ├── ci.yml                           # actionlint, typecheck, lint, demo build, cdk synth
@@ -64,7 +65,7 @@ The demo app at `apps/_demo/` exists to test the construct, not to ship features
 ## Stack conventions
 
 - Next.js (App Router) + TypeScript strict
-- Node 20+
+- Node 22+
 - Postgres (Neon for serverless connection pooling)
 - AWS Lambda + S3 + CloudFront via OpenNext
 - AWS CDK for IaC
@@ -101,13 +102,15 @@ All documented in `docs/DEPLOY.md`. Don't undo the fixes:
 8. **Refactoring resources into a construct changes logical IDs.** Use `logicalIdOverrides` for in-place upgrades.
 9. **CloudFront deletes take 10-15 minutes.** Not a bug.
 10. **`public/` files are auto-routed to S3** by the construct (it scans `.open-next/assets` at synth). A root `public/` file like `robots.txt` would otherwise 404 via the server Lambda. Bundled assets (e.g. a pdf.js worker) should use `new URL("pkg/worker.mjs", import.meta.url)` to land under `/_next/static`. See `docs/DEPLOY.md` #12.
+11. **App-specific runtime secrets (e.g. an AI key) must be wired in two places**: the app's CDK `web-stack.ts` `environment` AND the deploy workflow's CDK-deploy step. A GitHub secret nothing forwards never reaches the Lambda (env is baked at synth, #5). The smoke test also adapts to non-auth apps. See `docs/DEPLOY.md` #13.
+12. **Slow routes are killed at 30s** (server Lambda + CloudFront origin read timeout both default to 30s; a route `maxDuration` is only a hint). For AI/long-running routes pass `serverTimeoutSeconds` (up to 60) to the `NextjsServerless` construct, which raises both. See `docs/DEPLOY.md` #14.
 
 ## When adding a new app to a cloned repo
 
 1. Create your real app at `apps/web/` (or copy `apps/_demo/` and grow it). Leave `apps/_demo/` in place for CI's self-test.
 2. If scaffolding with `create-next-app`, overlay files from `apps/_template/`
 3. Rename `infra/cdk/_template/` to `infra/cdk/<your-app>/`, edit `bin/app.ts` stack id
-4. Configure GitHub secrets/vars per `docs/DEPLOY.md`, push, verify smoke test passes
+4. Run `npm run setup` (`scripts/connect.sh`) to wire the GitHub + AWS connection (OIDC role, database, secrets), or configure secrets/vars manually per `docs/SETUP.md`. Then push and verify the smoke test passes.
 5. Copy `apps/_template/specs/`, `apps/_template/tests/`, `apps/_template/vitest.config.ts`, `apps/_template/playwright.config.ts`, and `apps/_template/.github/workflows/test.yml` into the new app. Wire the spec-test ESLint rule into the app's flat config. See `docs/TESTING.md`.
 
 ## Spec-driven build protocol (mandatory)

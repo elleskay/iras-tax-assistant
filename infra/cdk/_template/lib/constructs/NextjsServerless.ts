@@ -54,6 +54,15 @@ export interface NextjsServerlessProps {
   readonly serverMemoryMb?: number;
 
   /**
+   * Timeout (seconds) for the server Lambda AND the CloudFront origin read.
+   * Default 30. Raise it for routes that run slow work such as multi-pass LLM
+   * calls or large report generation, otherwise the request is cut off (the
+   * Next.js route `maxDuration` is only a hint and does not change this).
+   * CloudFront allows up to 60 without a quota increase.
+   */
+  readonly serverTimeoutSeconds?: number;
+
+  /**
    * CloudFront price class. Default PRICE_CLASS_200 (NA, EU, AP).
    */
   readonly priceClass?: cloudfront.PriceClass;
@@ -186,7 +195,7 @@ export class NextjsServerless extends Construct {
       handler: "index.handler",
       code: lambda.Code.fromAsset(path.join(openNextDir, "server-functions", "default")),
       memorySize: props.serverMemoryMb ?? 1024,
-      timeout: cdk.Duration.seconds(30),
+      timeout: cdk.Duration.seconds(props.serverTimeoutSeconds ?? 30),
       architecture: lambda.Architecture.ARM_64,
       environment: {
         NODE_ENV: "production",
@@ -276,7 +285,9 @@ export class NextjsServerless extends Construct {
     const distributionProps: cloudfront.DistributionProps = {
       defaultBehavior: {
         origin: new origins.FunctionUrlOrigin(serverFunctionUrl, {
-          readTimeout: cdk.Duration.seconds(30),
+          // Match the server Lambda timeout so a slow response is not cut off at
+          // the CDN before the function finishes.
+          readTimeout: cdk.Duration.seconds(props.serverTimeoutSeconds ?? 30),
         }),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,

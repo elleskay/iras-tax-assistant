@@ -17,6 +17,10 @@ export class WebStack extends cdk.Stack {
         DATABASE_URL: process.env.DATABASE_URL ?? "",
         AUTH_SECRET: process.env.AUTH_SECRET ?? "",
         AUTH_URL: process.env.AUTH_URL ?? "",
+        // App-specific runtime secrets go here too (baked at synth, see
+        // docs/DEPLOY.md #13). You must ALSO forward them in the deploy
+        // workflow's CDK-deploy step, or the value never reaches the Lambda:
+        //   MY_API_KEY: process.env.MY_API_KEY ?? "",
       },
       // Optional: provide a custom domain so AUTH_URL is known up front.
       // customDomain: {

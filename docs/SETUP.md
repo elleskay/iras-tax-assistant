@@ -75,9 +75,38 @@ cd ../../..
 - [ ] Create an access key, configure `~/.aws/credentials`
 - [ ] Bootstrap CDK once: `npx cdk bootstrap aws://<account>/<region>`
 
-## 6. GitHub Actions OIDC and variables
+## 6. Connect GitHub and AWS (one command)
 
-For automated deploys via `.github/workflows/deploy.yml`. The fastest path is the platform's setup CDK stack which provisions the AWS side in one command:
+For automated deploys via `.github/workflows/deploy.yml`, run the connect
+script. You (or your AI coding agent) run it once per repo, and it wires the
+whole GitHub + AWS connection: it ensures the OIDC provider, deploys the
+`_setup` role, provisions a database (Neon), generates `AUTH_SECRET`, and sets
+every GitHub Actions secret and variable.
+
+```bash
+npm run setup
+# or: scripts/connect.sh --region ap-southeast-1
+# preview without changing anything: scripts/connect.sh --dry-run
+```
+
+Prerequisites: `gh` (authenticated), `aws` (credentials allowed to create an
+IAM role + OIDC provider and to bootstrap CDK), and Node 22+. Optional:
+`neonctl` to auto-provision the database (otherwise the script asks for a
+`DATABASE_URL`). Re-running is safe.
+
+After it finishes there is nothing else to set by hand. It configures:
+
+- **secrets**: `AWS_DEPLOY_ROLE_ARN`, `DATABASE_URL`, `AUTH_SECRET`
+- **variables**: `AWS_REGION`, `ALLOWED_ORIGINS` (wildcards for the first deploy),
+  plus `CDK_DIR` / `APP_DIR` if you passed non-default paths.
+
+`APP_URL` is set after your first deploy, once you know the CloudFront URL
+(NextAuth needs the canonical URL). The script prints the exact command. To
+skip the two-pass dance, pass a `customDomain` to `NextjsServerless` up front
+(see `docs/DEPLOY.md` gotcha #7).
+
+<details>
+<summary>Prefer to do it by hand?</summary>
 
 ```bash
 cd infra/cdk/_setup
@@ -85,22 +114,12 @@ npm install
 npx cdk deploy -c repo=<your-github-org>/<your-app>
 ```
 
-That creates the OIDC trust + IAM role with the `cdk-deploy-policy.json` attached, and outputs the `DeployRoleArn`. See `infra/cdk/_setup/README.md` for the manual prerequisites (creating the OIDC provider if your account doesn't have one).
-
-Then set these on the app repo:
-
-- [ ] GitHub Actions **secrets**:
-  - `AWS_DEPLOY_ROLE_ARN` (the role ARN from the setup stack output)
-  - `DATABASE_URL` (Postgres connection string)
-  - `AUTH_SECRET` (`openssl rand -base64 32` output)
-- [ ] GitHub Actions **variables**:
-  - `AWS_REGION` (e.g. `ap-southeast-1`)
-  - `APP_URL` (https://your-cf-url-or-custom-domain)
-  - `ALLOWED_ORIGINS` (CloudFront host + Lambda URL host, comma-separated)
-  - `CDK_DIR` (only if you renamed CDK dir to something other than the default; e.g. `infra/cdk/armoury`)
-  - `APP_DIR` (only if your app is not at `apps/web`)
-
-For `ALLOWED_ORIGINS`, you won't know the Lambda URL until first deploy. For the first build, use `*.cloudfront.net,*.lambda-url.<region>.on.aws` (wildcards work). After first deploy, refine to specific hosts.
+That creates the OIDC trust + IAM role and outputs the `DeployRoleArn`. See
+`infra/cdk/_setup/README.md` for prerequisites. Then set the secrets/variables
+listed above on the app repo manually (`gh secret set` / `gh variable set`).
+For `ALLOWED_ORIGINS` on the first build, use
+`*.cloudfront.net,*.lambda-url.<region>.on.aws`, then refine to specific hosts.
+</details>
 
 ## 7. First deploy
 

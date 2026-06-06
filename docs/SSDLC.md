@@ -19,13 +19,13 @@ What this template gives you out of the box, and what each app is expected to ma
 
 | Control | How |
 |---|---|
-| Security headers | Helmet middleware (Express/NestJS) or `next.config.ts` `headers()` |
-| Input validation | Zod schemas at every API boundary |
-| Auth | Auth.js / Passport.js / Clerk — never roll your own |
-| Authorization | Per-route guards, principle of least privilege |
-| Rate limiting | Upstash Redis or AWS WAF on auth and payment routes |
-| CSRF protection | Framework default (Next.js Server Actions, NestJS CSRF middleware) |
-| HTTPS only | Enforced via AWS ALB / CloudFront |
+| Security headers | `next.config.ts` `headers()` (see `apps/_template/next.config.ts`) |
+| Input validation | Zod schemas at every server-action boundary |
+| Auth | Auth.js v5 (or Clerk), never roll your own |
+| Authorization | Per-route guards in `middleware.ts`, principle of least privilege |
+| Rate limiting | Upstash Redis on auth and sensitive routes |
+| CSRF protection | Next.js Server Actions `allowedOrigins` (see `docs/DEPLOY.md` gotcha #1) |
+| HTTPS only | Enforced via CloudFront |
 | Secrets in prod | AWS Secrets Manager, never env files |
 | Error tracking | Sentry (catches unhandled exceptions that may leak info) |
 | Logging | Structured JSON logs, no PII, no secrets |

@@ -45,12 +45,13 @@ See `apps/_template/README.md` for why each one exists.
 
 ## CDK setup
 
+Copy and rename the CDK package that ships with the template:
+
 ```bash
-mkdir -p infra/cdk/app/{bin,lib}
-cp -r <platform>/infra/cdk/constructs infra/cdk/
+mv infra/cdk/_template infra/cdk/<your-app>
 ```
 
-Write `infra/cdk/app/bin/app.ts` and `infra/cdk/app/lib/web-stack.ts` that instantiate `NextjsServerless`. See `infra/cdk/constructs/README.md` for the exact 5-line usage.
+Edit `infra/cdk/<your-app>/bin/app.ts` to rename the stack id. The app stack at `lib/web-stack.ts` already instantiates `NextjsServerless` (the construct lives at `lib/constructs/NextjsServerless.ts`). See `infra/cdk/_template/README.md` for the exact 5-line usage.
 
 ## Seed strategy
 

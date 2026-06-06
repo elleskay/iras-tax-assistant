@@ -1,0 +1,11 @@
+app: demo
+version: 1
+requirements:
+  - id: DEMO-RATELIMIT-001
+    title: Rate limiting fails open when Upstash is not configured
+    category: data
+    severity: high
+    given: No UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN is set (local dev, smoke tests)
+    when: makeLimiter() is called and isAllowed(identifier, limiter) is awaited
+    then: makeLimiter returns null and isAllowed resolves true, so requests are allowed
+    tags: [rate-limit, infra]
