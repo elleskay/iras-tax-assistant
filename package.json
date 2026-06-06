@@ -1,8 +1,8 @@
 {
-  "name": "platform",
+  "name": "iras-tax-assistant",
   "version": "0.7.0",
   "private": true,
-  "description": "TypeScript platform template for Next.js apps on AWS serverless.",
+  "description": "IRAS Singapore tax assistant: conversational agent with tax lookup, estimates, and human-in-the-loop escalation. Built on the AWS serverless platform template.",
   "workspaces": [
     "apps/*",
     "packages/*"

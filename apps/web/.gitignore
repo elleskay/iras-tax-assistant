@@ -1,0 +1,13 @@
+# Next
+/.next/
+/.open-next/
+next-env.d.ts
+
+# Test + coverage artifacts
+/.spec-coverage/
+/spec-coverage.md
+/playwright-report/
+/test-results/
+
+# Prototype HITL queue (file-backed; see lib/hitl-store.ts)
+hitl-queue.json

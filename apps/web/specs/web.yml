@@ -1,0 +1,157 @@
+app: web
+version: 1
+requirements:
+  - id: IRAS-TAX-001
+    title: Chargeable income is gross income minus deductions, floored at zero
+    category: data
+    severity: high
+    given: A gross income and a deductions figure in SGD
+    when: calculateChargeableIncome(income, deductions) is called
+    then: It returns max(0, income - deductions), never negative
+    tags: [tax, estimate]
+
+  - id: IRAS-TAX-002
+    title: Tax lookup returns the known fact for a supported topic
+    category: data
+    severity: high
+    given: A topic string such as GST, income tax, corporate tax, or SRS
+    when: lookupTaxFact(topic) is called
+    then: It returns the matching fact for known topics and a guidance fallback listing available topics for unknown ones
+    tags: [tax, lookup]
+
+  - id: IRAS-HITL-001
+    title: Escalation store supports create, list, and resolve
+    category: data
+    severity: high
+    given: An empty escalation queue
+    when: addEscalation is called, then listEscalations, then resolveEscalation on the new id
+    then: The entry is created as pending, listed, and then marked resolved
+    tags: [hitl, store]
+
+  - id: IRAS-CHAT-001
+    title: Home page renders the chat interface
+    category: ui
+    severity: critical
+    given: A visitor opens the home page
+    when: The page loads
+    then: It shows a single h1, a message input, and a send button
+    tags: [chat, ui]
+
+  - id: IRAS-CHAT-002
+    title: Sending a message shows the user message and the assistant reply
+    category: functional
+    severity: critical
+    given: The chat page is open and the chat API is reachable
+    when: The user types a question and submits it
+    then: The user message appears, followed by the assistant reply text
+    tags: [chat]
+    notes: The LLM is non-deterministic, so the e2e stubs /api/chat with a fixed UI message stream and asserts against the fixture.
+
+  - id: IRAS-CHAT-003
+    title: A general-information disclaimer is always visible on the chat page
+    category: ui
+    severity: high
+    given: The chat page is open
+    when: The page loads
+    then: A disclaimer states this is general information, not personalised tax advice
+    tags: [chat, compliance]
+
+  - id: IRAS-HITL-002
+    title: Admin page lists pending escalations from the queue
+    category: functional
+    severity: high
+    given: At least one pending escalation exists in the queue
+    when: An advisor opens the admin page
+    then: The pending escalation is listed with its reason and original query
+    tags: [hitl, admin]
+
+  - id: IRAS-HITL-003
+    title: Resolving an escalation marks it resolved end to end
+    category: functional
+    severity: high
+    given: A pending escalation has been created via the escalation API
+    when: The advisor opens the admin page and clicks Resolve on that escalation
+    then: The escalation is shown as resolved after the action
+    tags: [hitl, admin, journey]
+    depends_on: [IRAS-HITL-002]
+
+  - id: IRAS-A11Y-001
+    title: Page exposes a skip-to-content link and a single h1
+    category: a11y
+    severity: high
+    given: A keyboard user lands on the chat page
+    when: They inspect the landmark structure
+    then: A skip-to-content link targets the main region and exactly one h1 is present
+    tags: [a11y]
+
+  - id: IRAS-A11Y-002
+    title: The chat message input has an accessible label
+    category: a11y
+    severity: high
+    given: A screen reader user focuses the chat input
+    when: The accessible name is computed
+    then: The input exposes a non-empty accessible label
+    tags: [a11y, forms]
+
+  - id: IRAS-SEC-001
+    title: Responses carry baseline security headers
+    category: security
+    severity: high
+    given: Any page is requested over HTTP
+    when: The response headers are inspected
+    then: X-Frame-Options is DENY and X-Content-Type-Options is nosniff
+    tags: [security, headers]
+
+  - id: IRAS-NAV-001
+    title: Primary navigation links to every showcase page
+    category: functional
+    severity: high
+    given: A visitor is anywhere on the site
+    when: They look at the primary navigation
+    then: There are links to Assistant, Tools, Evals, and the Advisor queue
+    tags: [nav, showcase]
+
+  - id: IRAS-TOOLS-001
+    title: Tools page lists the MCP server tools
+    category: ui
+    severity: high
+    given: A visitor opens the Tools page
+    when: The page loads
+    then: It shows the lookup_tax_info, calculate_tax_estimate, and escalate_to_human tools
+    tags: [tools, showcase]
+
+  - id: IRAS-TOOLS-002
+    title: A visitor can run the lookup tool and see a result
+    category: functional
+    severity: high
+    given: The Tools page is open with a topic of GST
+    when: The visitor runs the lookup tool
+    then: The deterministic IRAS fact for GST is shown, including the SGD 1,000,000 threshold
+    tags: [tools, mcp]
+
+  - id: IRAS-EVAL-001
+    title: Evals page shows the pass rate and the models compared
+    category: ui
+    severity: medium
+    given: A visitor opens the Evals page
+    when: The page loads
+    then: It shows the overall pass rate and both evaluated model names
+    tags: [evals, showcase]
+
+  - id: IRAS-TOOLS-003
+    title: A visitor can create a custom tool and run it
+    category: functional
+    severity: high
+    given: The Tools page is open
+    when: The visitor builds a lookup tool with a keyword-to-answer pair and runs it
+    then: The tool is created and returns the configured answer for that keyword
+    tags: [tools, builder]
+
+  - id: IRAS-RATELIMIT-001
+    title: Rate limiting fails open when Upstash is not configured
+    category: data
+    severity: high
+    given: No UPSTASH_REDIS_REST_URL or token is set (local dev, smoke tests)
+    when: makeLimiter is called and isAllowed is awaited
+    then: makeLimiter returns null and isAllowed resolves true, so requests are allowed
+    tags: [rate-limit, infra]

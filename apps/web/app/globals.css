@@ -1,0 +1,190 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design system: shadcn/ui token structure carrying our brand.
+ * Brand: "Accessible and Ethical" (WCAG-oriented, the right fit for a tax /
+ * government product), high-contrast navy + blue, never AI-purple gradients.
+ * UI patterns (ui-ux-pro-max): AI-Native chat + Soft UI Evolution depth.
+ * Type: Lexend (headings, engineered for reading) + Source Sans 3 (body).
+ */
+@theme inline {
+  --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-lexend), ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-brand-from: var(--brand-from);
+  --color-brand-to: var(--brand-to);
+  --color-navy: var(--navy);
+  --color-gold: var(--gold);
+  --color-gold-foreground: var(--gold-foreground);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+
+  --shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.06);
+  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.05), 0 10px 28px rgba(15, 23, 42, 0.07);
+  --shadow-pop: 0 10px 30px rgba(3, 105, 161, 0.22);
+
+  --animate-msg-in: msg-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root {
+  /* Palette sampled from iras.gov.sg:
+     navy #142e4f (hero/headings), blue #2d7bb9 (buttons/links),
+     gold #ffce00 (accent), pale-blue pill #d6edff, light surface #f2f5fa. */
+  --radius: 0.5rem;
+
+  --background: #f2f5fa; /* IRAS light surface */
+  --foreground: #2a3138; /* IRAS body text */
+  --heading: #142e4f; /* IRAS navy, used for headings */
+  --navy: #142e4f;
+  --gold: #ffce00; /* IRAS gold accent */
+  --gold-foreground: #142e4f;
+  --card: #ffffff;
+  --card-foreground: #2a3138;
+  --popover: #ffffff;
+  --popover-foreground: #2a3138;
+
+  --primary: #2d7bb9; /* IRAS blue */
+  --primary-foreground: #ffffff;
+  --secondary: #d6edff; /* IRAS pale-blue category pill */
+  --secondary-foreground: #142e4f;
+  --muted: #eef2f8;
+  --muted-foreground: #5c6672; /* >= 4.5:1 on background */
+  --accent: #d6edff; /* IRAS pale blue for hovers/tints */
+  --accent-foreground: #142e4f;
+
+  --destructive: #b91c1c;
+  --success: #047857;
+  --success-foreground: #ffffff;
+  --warning: #fdf2d1; /* IRAS pale gold */
+  --warning-foreground: #6b4e07;
+
+  --border: #d2dce8;
+  --input: #c4d2e2;
+  --ring: #2d7bb9;
+
+  /* Brand-mark gradient (IRAS navy to blue) */
+  --brand-from: #142e4f;
+  --brand-to: #2d7bb9;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #2a3138;
+  --sidebar-primary: #2d7bb9;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #d6edff;
+  --sidebar-accent-foreground: #142e4f;
+  --sidebar-border: #d2dce8;
+  --sidebar-ring: #2d7bb9;
+}
+
+.dark {
+  --background: #0b1220;
+  --foreground: #e8eef7;
+  --card: #111a2e;
+  --card-foreground: #e8eef7;
+  --popover: #111a2e;
+  --popover-foreground: #e8eef7;
+  --primary: #38bdf8;
+  --primary-foreground: #06121f;
+  --secondary: #1b2740;
+  --secondary-foreground: #e8eef7;
+  --muted: #1b2740;
+  --muted-foreground: #93a4bf;
+  --accent: #14233c;
+  --accent-foreground: #e8eef7;
+  --destructive: #f87171;
+  --success: #34d399;
+  --success-foreground: #06121f;
+  --warning: #2a2410;
+  --warning-foreground: #fcd34d;
+  --border: #22304b;
+  --input: #2a3a59;
+  --ring: #38bdf8;
+  --brand-from: #0ea5e9;
+  --brand-to: #38bdf8;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  html {
+    @apply font-sans;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.01em;
+    color: var(--heading);
+  }
+}
+
+/* Visible focus ring for keyboard users (3px, Accessible and Ethical) */
+:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@keyframes msg-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes typing-dot {
+  0%, 100% { opacity: 0.25; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-2px); }
+}
+
+/* Markdown rendered inside assistant messages */
+.prose-chat > * + * { margin-top: 0.6rem; }
+.prose-chat h2 { font-size: 1rem; font-weight: 600; margin-top: 0.4rem; }
+.prose-chat h3 { font-size: 0.95rem; font-weight: 600; }
+.prose-chat ul { list-style: disc; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.3rem; }
+.prose-chat ol { list-style: decimal; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.3rem; }
+.prose-chat strong { font-weight: 600; }
+.prose-chat a { color: var(--primary); text-decoration: underline; text-underline-offset: 2px; }
+.prose-chat blockquote { border-left: 3px solid var(--border); padding-left: 0.75rem; color: var(--muted-foreground); }
+.prose-chat code { background: var(--muted); padding: 0.1rem 0.35rem; border-radius: 6px; font-size: 0.85em; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

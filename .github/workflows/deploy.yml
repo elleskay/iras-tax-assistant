@@ -30,7 +30,7 @@ concurrency:
 env:
   # Override with repo variables if your paths differ from the convention.
   APP_DIR: ${{ vars.APP_DIR || 'apps/web' }}
-  CDK_DIR: ${{ vars.CDK_DIR || 'infra/cdk/_template' }}
+  CDK_DIR: ${{ vars.CDK_DIR || 'infra/cdk/web' }}
   NODE_VERSION: "22"
 
 jobs:
@@ -133,9 +133,11 @@ jobs:
       - name: CDK deploy
         working-directory: ${{ env.CDK_DIR }}
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
-          AUTH_URL: ${{ vars.APP_URL }}
+          # Env vars are baked into the Lambda at synth time (docs/DEPLOY.md #5),
+          # so the chat agent's key must be present in THIS step, not just stored
+          # as a secret. web-stack.ts reads ANTHROPIC_API_KEY from here.
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
         run: npx cdk deploy --all --require-approval never --outputs-file cdk-outputs.json
 
       - name: Extract deployed URL
