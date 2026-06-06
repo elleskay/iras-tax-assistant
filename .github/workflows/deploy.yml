@@ -138,6 +138,7 @@ jobs:
           # as a secret. web-stack.ts reads ANTHROPIC_API_KEY from here.
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: npx cdk deploy --all --require-approval never --outputs-file cdk-outputs.json
 
       - name: Extract deployed URL

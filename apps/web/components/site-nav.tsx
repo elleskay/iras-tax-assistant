@@ -6,7 +6,7 @@ import { Landmark, MessageSquare, Wrench, BarChart3, ShieldCheck } from "lucide-
 
 const LINKS = [
   { href: "/", label: "Assistant", icon: MessageSquare },
-  { href: "/tools", label: "Tools", icon: Wrench },
+  { href: "/tools", label: "MCP tools", icon: Wrench },
   { href: "/evals", label: "Evals", icon: BarChart3 },
   { href: "/admin", label: "Advisor queue", icon: ShieldCheck },
 ];

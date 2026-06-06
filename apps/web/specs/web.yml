@@ -108,7 +108,7 @@ requirements:
     severity: high
     given: A visitor is anywhere on the site
     when: They look at the primary navigation
-    then: There are links to Assistant, Tools, Evals, and the Advisor queue
+    then: There are links to Assistant, MCP tools, Evals, and the Advisor queue
     tags: [nav, showcase]
 
   - id: IRAS-TOOLS-001
@@ -130,13 +130,13 @@ requirements:
     tags: [tools, mcp]
 
   - id: IRAS-EVAL-001
-    title: Evals page shows the pass rate and the models compared
+    title: Evals page shows configurable routing rules and test cases
     category: ui
     severity: medium
     given: A visitor opens the Evals page
     when: The page loads
-    then: It shows the overall pass rate and both evaluated model names
-    tags: [evals, showcase]
+    then: It shows the Model routing rules section and the Test cases section
+    tags: [evals, workbench]
 
   - id: IRAS-TOOLS-003
     title: A visitor can create a custom tool and run it
@@ -146,6 +146,43 @@ requirements:
     when: The visitor builds a lookup tool with a keyword-to-answer pair and runs it
     then: The tool is created and returns the configured answer for that keyword
     tags: [tools, builder]
+
+  - id: IRAS-ROUTER-001
+    title: The deterministic routing rules pick the right model per query
+    category: data
+    severity: high
+    given: The default routing config and queries with factual, personalised, PII, or no signal
+    when: applyRoutingRules is called
+    then: Factual lookups route to the OpenAI model, personalised and PII to Anthropic, others to the fallback, with the right reason
+    tags: [evals, router]
+
+  - id: IRAS-EVAL-002
+    title: The route preview shows where a query routes
+    category: functional
+    severity: medium
+    given: The Evals page is open
+    when: The visitor types a factual query into the route preview
+    then: It shows the query routing to the configured factual-lookup model
+    tags: [evals, router]
+
+  - id: IRAS-EVAL-003
+    title: Running the test cases populates the result stats
+    category: functional
+    severity: medium
+    given: The Evals page is open and the eval API is reachable
+    when: The visitor clicks Run
+    then: The result stats populate with an overall pass rate
+    tags: [evals, workbench]
+    notes: Running calls the routed model per case, so the e2e stubs /api/eval with a fixed result.
+
+  - id: IRAS-TOOLS-004
+    title: Built-in tools respect their configuration
+    category: data
+    severity: high
+    given: A built-in tools configuration
+    when: buildTaxTools is called and lookupFromPairs is used
+    then: Disabled tools are omitted from the tool set and the lookup returns the configured fact
+    tags: [tools, config]
 
   - id: IRAS-RATELIMIT-001
     title: Rate limiting fails open when Upstash is not configured

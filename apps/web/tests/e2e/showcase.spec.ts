@@ -6,7 +6,7 @@ specTest(
   async ({ page }) => {
     await page.goto("/");
     const nav = page.getByRole("navigation", { name: "Primary" });
-    for (const label of ["Assistant", "Tools", "Evals", "Advisor queue"]) {
+    for (const label of ["Assistant", "MCP tools", "Evals", "Advisor queue"]) {
       await expect(nav.getByRole("link", { name: label })).toBeVisible();
     }
   },
@@ -59,13 +59,51 @@ specTest(
 );
 
 specTest(
-  "IRAS-EVAL-001",
-  "Evals page shows the pass rate and the models compared",
+  "IRAS-EVAL-002",
+  "The route preview shows where a query routes",
   async ({ page }) => {
     await page.goto("/evals");
-    await expect(page.getByText("85%").first()).toBeVisible();
-    await expect(page.getByText("Anthropic Claude Haiku 4.5").first()).toBeVisible();
-    await expect(page.getByText("OpenAI GPT-4o mini").first()).toBeVisible();
+    // Deterministic, client-side, no model call.
+    await page.getByLabel("Try a query").fill("What is the corporate tax rate?");
+    const preview = page.getByTestId("route-preview");
+    await expect(preview).toContainText("GPT-4o mini");
+    await expect(preview).toContainText("factual-lookup");
+  },
+  { category: "functional" },
+);
+
+specTest(
+  "IRAS-EVAL-003",
+  "Running the test cases populates the result stats",
+  async ({ page }) => {
+    // Running calls the routed model per case, so stub /api/eval.
+    await page.route("**/api/eval", async (route) => {
+      await route.fulfill({
+        status: 200,
+        json: {
+          answer: "The GST registration threshold is SGD 1,000,000 in taxable turnover.",
+          checks: [{ keyword: "1,000,000", pass: true }],
+          pass: true,
+          model: "GPT-4o mini",
+        },
+      });
+    });
+    await page.goto("/evals");
+    await page.getByRole("button", { name: "Run" }).click();
+    const stats = page.getByTestId("eval-stats");
+    await expect(stats).toBeVisible();
+    await expect(stats).toContainText("Pass rate");
+  },
+  { category: "functional" },
+);
+
+specTest(
+  "IRAS-EVAL-001",
+  "Evals page shows configurable routing rules and test cases",
+  async ({ page }) => {
+    await page.goto("/evals");
+    await expect(page.getByRole("heading", { name: "Model routing rules" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Test cases" })).toBeVisible();
   },
   { category: "ui" },
 );

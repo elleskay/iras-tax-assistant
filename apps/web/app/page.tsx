@@ -23,6 +23,8 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import { Tool, ToolHeader } from "@/components/ai-elements/tool";
 import { loadCustomTools } from "@/lib/custom-tools";
+import { loadConfig } from "@/lib/routing-rules";
+import { loadBuiltinConfig } from "@/lib/builtin-tools";
 
 const TOPICS = [
   { label: "GST", question: "What is the GST registration threshold?" },
@@ -47,6 +49,8 @@ export default function ChatPage() {
           messageId,
           ...body,
           customTools: loadCustomTools(),
+          routingConfig: loadConfig(),
+          builtinConfig: loadBuiltinConfig(),
         },
       }),
     }),
@@ -189,6 +193,13 @@ export default function ChatPage() {
                       }
                       return null;
                     })}
+                    {message.role === "assistant" &&
+                    (message as { metadata?: { model?: string } }).metadata?.model ? (
+                      <span className="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+                        Routed to{" "}
+                        {(message as { metadata?: { model?: string } }).metadata!.model}
+                      </span>
+                    ) : null}
                   </MessageContent>
                 </Message>
               ))}
