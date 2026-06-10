@@ -235,6 +235,23 @@ new NextjsServerless(this, "Web", {
 
 For work that genuinely needs longer than 60s, move it off the request path (a queue/async job) rather than holding the HTTP connection open.
 
+### 15. `next build` fails on a package with inlined WASM (QuickJS sandbox)
+
+**Symptom:** `next build` fails with `SyntaxError: Octal escape sequences are not allowed in template strings` (or similar bundler parse errors) in a route that imports the sandbox, e.g. `Failed to collect page data for /api/tools/run`.
+
+**Cause:** Turbopack tries to bundle `@jitl/quickjs-singlefile-cjs-release-sync`, whose JS module inlines the entire WASM binary as a string. The bundler cannot re-serialize that string safely.
+
+**Fix:** Mark the QuickJS packages as external in `next.config.ts` so they load from `node_modules` at runtime (OpenNext traces and ships externals with the server function):
+
+```ts
+serverExternalPackages: [
+  "quickjs-emscripten-core",
+  "@jitl/quickjs-singlefile-cjs-release-sync",
+],
+```
+
+The singlefile variant is still the right choice: there is no separate `.wasm` asset to route (see #12), and the same module works in vitest, `next start`, and on Lambda.
+
 ## Environments
 
 Default: `production`. Add `staging` by:

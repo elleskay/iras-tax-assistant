@@ -32,6 +32,10 @@ export class WebStack extends cdk.Stack {
         ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL ?? "",
         // Used by the model router (factual lookups and the cheap classifier).
         OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? "",
+        // Optional bearer token for the MCP endpoint's escalate_to_human tool.
+        // Empty means the tool is open (no-op-without-key convention). Same
+        // two-place wiring rule as ANTHROPIC_API_KEY above.
+        MCP_API_KEY: process.env.MCP_API_KEY ?? "",
         // HITL escalation store. Resolved at deploy time (a CDK token).
         HITL_BUCKET: hitlBucket.bucketName,
       },

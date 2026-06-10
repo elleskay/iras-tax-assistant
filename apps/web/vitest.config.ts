@@ -16,6 +16,8 @@ export default defineConfig({
       "server-only": fileURLToPath(
         new URL("./tests/unit/stubs/empty.ts", import.meta.url),
       ),
+      // Mirror the tsconfig "@/*" path so route handlers can be unit-tested.
+      "@": fileURLToPath(new URL(".", import.meta.url)),
     },
   },
 });

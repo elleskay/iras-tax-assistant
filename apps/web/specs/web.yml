@@ -360,3 +360,127 @@ requirements:
     when: A write request carries an invalid name, empty content, or an unknown version activation
     then: The API rejects it with 400 (404 for unknown activation targets) and never persists the payload; writes share the rate limiter, which fails open only when Upstash is not configured
     tags: [prompts, security]
+
+  - id: IRAS-SANDBOX-001
+    title: Sandboxed code tools run user JavaScript and return a JSON result
+    category: data
+    severity: high
+    given: A code custom tool whose run(input) returns a JSON-serializable value
+    when: runSandboxed executes it with an input object
+    then: It returns ok true with the function's result, parsed from JSON, and a duration
+    tags: [sandbox, tools]
+
+  - id: IRAS-SANDBOX-002
+    title: Runaway sandbox code is interrupted by hard time and memory limits
+    category: security
+    severity: critical
+    given: Code containing an infinite loop or an unbounded allocation
+    when: runSandboxed executes it
+    then: The infinite loop is interrupted at the deadline (about one second) and the allocation bomb fails at the memory cap (about 32MB); both return ok false with a safe error message instead of hanging or crashing the process
+    tags: [sandbox, security]
+
+  - id: IRAS-SANDBOX-003
+    title: The sandbox exposes no host capabilities
+    category: security
+    severity: critical
+    given: Code that probes for fetch, require, process, fs, or other host globals
+    when: runSandboxed executes it
+    then: None of the host capabilities exist inside the sandbox; the probes find no escape surface
+    tags: [sandbox, security]
+
+  - id: IRAS-SANDBOX-004
+    title: Sandbox output is capped with a truncation marker
+    category: data
+    severity: medium
+    given: Code whose result serializes larger than the output cap (about 8KB)
+    when: runSandboxed executes it
+    then: The returned result is truncated to the cap and carries a truncation marker
+    tags: [sandbox, limits]
+
+  - id: IRAS-TOOLS-005
+    title: A visitor can build a sandboxed code tool and run it end to end
+    category: functional
+    severity: high
+    given: The Tools page is open
+    when: The visitor creates a code tool with a run(input) function and runs it with an input
+    then: The tool executes server-side in the sandbox and the computed result is shown
+    tags: [tools, sandbox, journey]
+    depends_on: [IRAS-SANDBOX-001]
+    notes: Deterministic, no LLM. The run goes through POST /api/tools/run against the real sandbox.
+
+  - id: IRAS-MCP-001
+    title: The MCP endpoint answers a JSON-RPC initialize
+    category: functional
+    severity: high
+    given: The Streamable HTTP MCP endpoint at /api/mcp
+    when: A client POSTs a JSON-RPC initialize request
+    then: The response carries the server name and a protocol version
+    tags: [mcp, server]
+    notes: Streamable HTTP may frame single replies as SSE; the test parses both JSON and event-stream bodies.
+
+  - id: IRAS-MCP-002
+    title: tools/list exposes the four tax tools with schemas
+    category: functional
+    severity: high
+    given: The MCP endpoint is reachable
+    when: A client requests tools/list
+    then: lookup_tax_info, calculate_tax_estimate, escalate_to_human, and run_javascript are listed, each with an input schema
+    tags: [mcp, tools]
+
+  - id: IRAS-MCP-003
+    title: Calling lookup_tax_info over MCP returns the GST threshold
+    category: functional
+    severity: high
+    given: The MCP endpoint is reachable
+    when: A client calls the lookup_tax_info tool with topic GST via tools/call
+    then: The tool result text includes the SGD 1,000,000 registration threshold
+    tags: [mcp, journey]
+    notes: Full over-the-wire journey against the real endpoint and the real tax data; no LLM involved.
+
+  - id: IRAS-MCP-004
+    title: Escalation over MCP requires the API key when one is configured
+    category: security
+    severity: high
+    given: MCP_API_KEY is set in the environment
+    when: tools/call escalate_to_human arrives without (or with a wrong) bearer token
+    then: The request is rejected with 401 before reaching the tool, using a constant-time comparison; with no MCP_API_KEY configured the tool stays open
+    tags: [mcp, security]
+    notes: Vitest with stubbed env against the route handler and the pure guard, no live server needed.
+
+  - id: IRAS-TOOLS-006
+    title: The Tools page shows how to connect via MCP
+    category: ui
+    severity: medium
+    given: A visitor opens the Tools page
+    when: The page loads
+    then: A Connect via MCP section shows the HTTP endpoint and a copyable client configuration snippet
+    tags: [tools, mcp]
+
+  - id: IRAS-AGENT-001
+    title: The agent loop chains tools across steps until the answer
+    category: data
+    severity: high
+    given: A compound question that needs a lookup and then a calculation
+    when: The agent pipeline runs with a mock model that requests lookup_tax_info, then calculate_tax_estimate, then answers
+    then: All three steps execute in order, each tool runs against the real deterministic implementation, and the final text is produced
+    tags: [agent, loop]
+    notes: Vitest with an ai/test MockLanguageModelV3 driving lib/run-agent.ts directly; zero network.
+
+  - id: IRAS-AGENT-002
+    title: Assistant replies show a numbered step trace of tool use
+    category: ui
+    severity: medium
+    given: An assistant reply that used tools
+    when: The message renders
+    then: A collapsed step trace is shown; expanding it lists each step numbered with the tool name, input, and output
+    tags: [agent, trace]
+
+  - id: IRAS-AGENT-003
+    title: A multi-step reply renders the full trace and the answer
+    category: functional
+    severity: high
+    given: The assistant page with a stubbed /api/chat stream
+    when: The stream carries two chained tool invocations and a final answer
+    then: The reply shows the answer and a step trace with both tools in order, including their inputs and outputs
+    tags: [agent, journey]
+    notes: Stubbed UI message stream (no LLM); exercises the same client rendering path as a live multi-step run.

@@ -1,10 +1,13 @@
 import { z } from "zod";
 
 /*
- * User-defined ("bring your own") MCP-style tools. Declarative only: no code is
- * ever evaluated. A tool is either a keyword lookup table or a fixed response
- * template with {placeholder} substitution. Stored per-browser in localStorage
- * and (optionally) sent to the chat API so the Assistant can call them.
+ * User-defined ("bring your own") MCP-style tools. A tool is a keyword lookup
+ * table, a fixed response template with {placeholder} substitution, or a code
+ * tool: a run(input) function executed server-side in the QuickJS sandbox
+ * (lib/sandbox.ts) with hard time/memory/output limits. Code is NEVER
+ * evaluated in the browser or on the host runtime; see lib/run-tool.ts for
+ * the server-side executor. Stored per-browser in localStorage and
+ * (optionally) sent to the chat API so the Assistant can call them.
  */
 
 export const MAX_CUSTOM_TOOLS = 10;
@@ -42,16 +45,30 @@ export const CustomToolSchema = z.discriminatedUnion("kind", [
     params: z.array(ToolParamSchema).min(1).max(6),
     template: z.string().min(1).max(1000),
   }),
+  z.object({
+    ...Base,
+    kind: z.literal("code"),
+    params: z.array(ToolParamSchema).min(1).max(6),
+    code: z.string().min(1).max(4000),
+  }),
 ]);
 
 export type CustomTool = z.infer<typeof CustomToolSchema>;
 export const CustomToolsSchema = z.array(CustomToolSchema).max(MAX_CUSTOM_TOOLS);
 
-/** Run a tool against an input object. Pure, deterministic, no eval. */
+/**
+ * Run a declarative tool against an input object. Pure, deterministic, no
+ * eval; safe to call anywhere. Code tools must go through executeCustomTool
+ * in lib/run-tool.ts (server-side sandbox), which this never imports so the
+ * client bundle stays free of the WASM module.
+ */
 export function runCustomTool(
   tool: CustomTool,
   input: Record<string, unknown>,
 ): string {
+  if (tool.kind === "code") {
+    return "Code tools run server-side. Use POST /api/tools/run.";
+  }
   if (tool.kind === "lookup") {
     const raw = String(input[tool.paramName] ?? "").trim();
     const key = raw.toLowerCase().replace(/\s+/g, "_");

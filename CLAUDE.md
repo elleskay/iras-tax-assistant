@@ -104,6 +104,7 @@ All documented in `docs/DEPLOY.md`. Don't undo the fixes:
 10. **`public/` files are auto-routed to S3** by the construct (it scans `.open-next/assets` at synth). A root `public/` file like `robots.txt` would otherwise 404 via the server Lambda. Bundled assets (e.g. a pdf.js worker) should use `new URL("pkg/worker.mjs", import.meta.url)` to land under `/_next/static`. See `docs/DEPLOY.md` #12.
 11. **App-specific runtime secrets (e.g. an AI key) must be wired in two places**: the app's CDK `web-stack.ts` `environment` AND the deploy workflow's CDK-deploy step. A GitHub secret nothing forwards never reaches the Lambda (env is baked at synth, #5). The smoke test also adapts to non-auth apps. See `docs/DEPLOY.md` #13.
 12. **Slow routes are killed at 30s** (server Lambda + CloudFront origin read timeout both default to 30s; a route `maxDuration` is only a hint). For AI/long-running routes pass `serverTimeoutSeconds` (up to 60) to the `NextjsServerless` construct, which raises both. See `docs/DEPLOY.md` #14.
+13. **Turbopack cannot bundle packages with inlined WASM** (e.g. the QuickJS singlefile sandbox variant): `next build` fails with an octal-escape SyntaxError. Add them to `serverExternalPackages` in `next.config.ts`; OpenNext ships externals with the server function. See `docs/DEPLOY.md` #15.
 
 ## When adding a new app to a cloned repo
 

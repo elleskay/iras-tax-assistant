@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport, isToolUIPart } from "ai";
+import { DefaultChatTransport, isToolUIPart, type UIMessage } from "ai";
 import { Info, Plus, MessageSquare, Trash2 } from "lucide-react";
 import {
   Conversation,
@@ -21,7 +21,8 @@ import {
   PromptInputSubmit,
   type PromptInputMessage,
 } from "@/components/ai-elements/prompt-input";
-import { Tool, ToolHeader } from "@/components/ai-elements/tool";
+import { StepTrace } from "@/components/ai-elements/step-trace";
+import type { ToolPart } from "@/components/ai-elements/tool";
 import { loadCustomTools } from "@/lib/custom-tools";
 import { loadConfig } from "@/lib/routing-rules";
 import { loadBuiltinConfig } from "@/lib/builtin-tools";
@@ -59,6 +60,36 @@ const TOPICS = [
     question: "Should I contribute to SRS this year?",
   },
 ];
+
+// Group a message's parts so consecutive tool invocations render as one
+// numbered step trace (the agent loop made visible) between text segments.
+type AnyPart = UIMessage["parts"][number];
+type PartGroup =
+  | { kind: "tools"; parts: ToolPart[] }
+  | { kind: "other"; part: AnyPart };
+
+function groupParts(parts: AnyPart[]): PartGroup[] {
+  const groups: PartGroup[] = [];
+  for (const part of parts) {
+    // Step boundaries are markers, not content. Skipping them keeps a chain
+    // of tool calls (one per step) in a single numbered trace.
+    if (part.type === "step-start") continue;
+    if (isToolUIPart(part)) {
+      const last = groups[groups.length - 1];
+      if (last?.kind === "tools") last.parts.push(part);
+      else groups.push({ kind: "tools", parts: [part] });
+    } else {
+      groups.push({ kind: "other", part });
+    }
+  }
+  return groups;
+}
+
+interface ReplyMetadata {
+  model?: string;
+  usage?: { input: number; output: number };
+  costUsd?: number;
+}
 
 export default function ChatPage() {
   const [input, setInput] = useState("");
@@ -379,7 +410,11 @@ export default function ChatPage() {
                     style={{ animation: "var(--animate-msg-in)" }}
                   >
                     <MessageContent>
-                      {message.parts.map((part, i) => {
+                      {groupParts(message.parts).map((group, i) => {
+                        if (group.kind === "tools") {
+                          return <StepTrace key={i} parts={group.parts} />;
+                        }
+                        const part = group.part;
                         if (part.type === "text") {
                           return message.role === "assistant" ? (
                             <MessageResponse key={i} className="prose-chat">
@@ -391,25 +426,25 @@ export default function ChatPage() {
                             </span>
                           );
                         }
-                        if (isToolUIPart(part)) {
-                          return (
-                            <Tool key={i} className="my-1">
-                              <ToolHeader
-                                type={part.type as `tool-${string}`}
-                                state={part.state}
-                              />
-                            </Tool>
-                          );
-                        }
                         return null;
                       })}
-                      {message.role === "assistant" &&
-                      (message as { metadata?: { model?: string } }).metadata?.model ? (
-                        <span className="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
-                          Routed to{" "}
-                          {(message as { metadata?: { model?: string } }).metadata!.model}
-                        </span>
-                      ) : null}
+                      {(() => {
+                        if (message.role !== "assistant") return null;
+                        const meta = (message as { metadata?: ReplyMetadata }).metadata;
+                        if (!meta?.model) return null;
+                        const tokens = meta.usage
+                          ? meta.usage.input + meta.usage.output
+                          : null;
+                        return (
+                          <span className="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+                            Routed to {meta.model}
+                            {tokens !== null ? ` · ${tokens.toLocaleString()} tokens` : ""}
+                            {typeof meta.costUsd === "number"
+                              ? ` · $${meta.costUsd.toFixed(4)}`
+                              : ""}
+                          </span>
+                        );
+                      })()}
                     </MessageContent>
                   </Message>
                 ))}

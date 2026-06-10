@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, Calculator, UserCheck, Wrench, Plus, Trash2, Play, Sparkles, RotateCcw } from "lucide-react";
+import { Search, Calculator, UserCheck, Wrench, Plus, Trash2, Play, Plug, Sparkles, RotateCcw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { lookupFromPairs, formatEstimate } from "@/lib/tax";
@@ -18,7 +18,6 @@ import {
   MAX_CUSTOM_TOOLS,
   loadCustomTools,
   saveCustomTools,
-  runCustomTool,
   toolParams,
 } from "@/lib/custom-tools";
 
@@ -37,7 +36,70 @@ export default function ToolsPage() {
 
       <BuiltinTools />
       <CustomTools />
+      <McpConnect />
     </main>
+  );
+}
+
+/* ---------- connect via MCP ---------- */
+
+function McpConnect() {
+  const [origin, setOrigin] = useState("https://your-deployment");
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
+
+  const endpoint = `${origin}/api/mcp`;
+  const config = JSON.stringify(
+    { mcpServers: { "iras-tax": { type: "http", url: endpoint } } },
+    null,
+    2,
+  );
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(config);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard unavailable (permissions, non-secure context): leave the
+      // snippet selectable instead.
+    }
+  }
+
+  return (
+    <section className="mt-10" data-testid="mcp-connect">
+      <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <Plug className="h-4 w-4" /> Connect via MCP
+      </h3>
+      <Card className="shadow-soft">
+        <CardContent className="flex flex-col gap-3">
+          <p className="text-sm text-muted-foreground">
+            These tools are also served over the Model Context Protocol, so any
+            MCP client (Claude Code, the MCP inspector) can call them directly.
+            The Streamable HTTP endpoint is:
+          </p>
+          <code data-testid="mcp-endpoint" className="w-fit rounded-md border bg-secondary/40 px-2 py-1 font-mono text-sm text-foreground">
+            {endpoint}
+          </code>
+          <p className="text-sm text-muted-foreground">
+            Add it to a client with this <span className="font-mono">.mcp.json</span> entry:
+          </p>
+          <pre data-testid="mcp-config" className="overflow-x-auto rounded-md border bg-secondary/40 p-3 font-mono text-xs text-foreground">
+            {config}
+          </pre>
+          <div className="flex items-center gap-3">
+            <Button onClick={copy}>{copied ? "Copied" : "Copy config"}</Button>
+            <p className="text-xs text-muted-foreground">
+              lookup and calculate are public (rate limited); escalation requires
+              a bearer token when the server sets MCP_API_KEY.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </section>
   );
 }
 
@@ -277,7 +339,7 @@ function CustomTools() {
               <Sparkles className="h-7 w-7 text-muted-foreground" />
               <p className="text-sm font-medium text-foreground">No custom tools yet</p>
               <p className="max-w-xs text-sm text-muted-foreground">
-                Build a keyword lookup or a response template. It stays in your browser and the Assistant can call it.
+                Build a keyword lookup, a response template, or a sandboxed code tool. It stays in your browser and the Assistant can call it.
               </p>
             </CardContent>
           </Card>
@@ -294,11 +356,27 @@ function CustomToolCard({ tool, onEdit, onDelete }: { tool: CustomTool; onEdit: 
   const params = toolParams(tool);
   const [input, setInput] = useState<Record<string, string>>({});
   const [result, setResult] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
 
-  function run() {
-    const coerced: Record<string, unknown> = {};
-    for (const p of params) coerced[p.name] = p.type === "number" ? Number(input[p.name] ?? "") : input[p.name] ?? "";
-    setResult(runCustomTool(tool, coerced));
+  // All kinds run server-side via /api/tools/run; code tools execute in the
+  // QuickJS sandbox there and are never evaluated in the browser.
+  async function run() {
+    const coerced: Record<string, string | number> = {};
+    for (const p of params) coerced[p.name] = p.type === "number" ? Number(input[p.name] ?? "") || 0 : (input[p.name] ?? "");
+    setRunning(true);
+    try {
+      const res = await fetch("/api/tools/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tool, input: coerced }),
+      });
+      const data = await res.json();
+      setResult(res.ok ? data.result : (data.error ?? "Run failed."));
+    } catch {
+      setResult("Run failed.");
+    } finally {
+      setRunning(false);
+    }
   }
   const sig = `(${params.map((p) => `${p.name}: ${p.type}`).join(", ")})`;
 
@@ -330,7 +408,7 @@ function CustomToolCard({ tool, onEdit, onDelete }: { tool: CustomTool; onEdit: 
               <input id={`${tool.id}-${p.name}`} inputMode={p.type === "number" ? "numeric" : "text"} value={input[p.name] ?? ""} onChange={(e) => setInput({ ...input, [p.name]: e.target.value })} placeholder={p.description || p.name} className="min-h-10 w-full rounded-md border bg-card px-3 text-sm outline-none focus:border-primary" />
             </div>
           ))}
-          <Button onClick={run}><Play className="h-4 w-4" /> Run</Button>
+          <Button onClick={run} disabled={running}><Play className="h-4 w-4" /> {running ? "Running..." : "Run"}</Button>
         </div>
         <Result value={result} testid="custom-tool-result" />
       </CardContent>
@@ -342,6 +420,11 @@ function genId() {
   return `t_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e6).toString(36)}`;
 }
 
+const CODE_STARTER = `function run(input) {
+  // input carries your declared parameters. Return any JSON value.
+  return { echo: input };
+}`;
+
 function ToolBuilder({ initial, onSave, onCancel }: { initial: CustomTool | null; onSave: (t: CustomTool) => void; onCancel: () => void }) {
   const [kind, setKind] = useState<CustomTool["kind"]>(initial?.kind ?? "lookup");
   const [name, setName] = useState(initial?.name ?? "");
@@ -349,8 +432,11 @@ function ToolBuilder({ initial, onSave, onCancel }: { initial: CustomTool | null
   const [paramName, setParamName] = useState(initial?.kind === "lookup" ? initial.paramName : "query");
   const [pairs, setPairs] = useState<{ key: string; value: string }[]>(initial?.kind === "lookup" ? initial.pairs : [{ key: "", value: "" }]);
   const [fallback, setFallback] = useState(initial?.kind === "lookup" ? (initial.fallback ?? "") : "");
-  const [params, setParams] = useState<{ name: string; type: "string" | "number" }[]>(initial?.kind === "template" ? initial.params.map((p) => ({ name: p.name, type: p.type })) : [{ name: "name", type: "string" }]);
+  const [params, setParams] = useState<{ name: string; type: "string" | "number" }[]>(
+    initial && initial.kind !== "lookup" ? initial.params.map((p) => ({ name: p.name, type: p.type })) : [{ name: "name", type: "string" }],
+  );
   const [template, setTemplate] = useState(initial?.kind === "template" ? initial.template : "");
+  const [code, setCode] = useState(initial?.kind === "code" ? initial.code : CODE_STARTER);
   const [error, setError] = useState<string | null>(null);
 
   function save() {
@@ -359,9 +445,12 @@ function ToolBuilder({ initial, onSave, onCancel }: { initial: CustomTool | null
       draft.paramName = paramName.trim() || "query";
       draft.pairs = pairs.filter((p) => p.key.trim() && p.value.trim());
       if (fallback.trim()) draft.fallback = fallback.trim();
-    } else {
+    } else if (kind === "template") {
       draft.params = params.filter((p) => p.name.trim());
       draft.template = template;
+    } else {
+      draft.params = params.filter((p) => p.name.trim());
+      draft.code = code;
     }
     const parsed = CustomToolSchema.safeParse(draft);
     if (!parsed.success) { setError(parsed.error.issues[0]?.message ?? "Please check the fields."); return; }
@@ -371,10 +460,10 @@ function ToolBuilder({ initial, onSave, onCancel }: { initial: CustomTool | null
   return (
     <Card className="border-primary/40 shadow-soft">
       <CardContent className="flex flex-col gap-4">
-        <div className="flex gap-2">
-          {(["lookup", "template"] as const).map((k) => (
+        <div className="flex flex-wrap gap-2">
+          {(["lookup", "template", "code"] as const).map((k) => (
             <button key={k} type="button" onClick={() => setKind(k)} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${kind === k ? "border-primary bg-accent text-accent-foreground" : "text-muted-foreground"}`}>
-              {k === "lookup" ? "Lookup table" : "Response template"}
+              {k === "lookup" ? "Lookup table" : k === "template" ? "Response template" : "Code (sandboxed)"}
             </button>
           ))}
         </div>
@@ -432,9 +521,21 @@ function ToolBuilder({ initial, onSave, onCancel }: { initial: CustomTool | null
                 <button type="button" onClick={() => setParams([...params, { name: "", type: "string" }])} className="self-start text-sm font-medium text-primary">+ Add parameter</button>
               </div>
             </Field>
-            <Field label="Response template (use {param} placeholders)">
-              <textarea aria-label="Response template" value={template} onChange={(e) => setTemplate(e.target.value)} placeholder="Hello {name}, your reference is {ref}." rows={3} className="w-full rounded-md border bg-card px-3 py-2 text-sm outline-none focus:border-primary" />
-            </Field>
+            {kind === "template" ? (
+              <Field label="Response template (use {param} placeholders)">
+                <textarea aria-label="Response template" value={template} onChange={(e) => setTemplate(e.target.value)} placeholder="Hello {name}, your reference is {ref}." rows={3} className="w-full rounded-md border bg-card px-3 py-2 text-sm outline-none focus:border-primary" />
+              </Field>
+            ) : (
+              <>
+                <Field label="JavaScript (must define run(input))">
+                  <textarea aria-label="Tool code" value={code} onChange={(e) => setCode(e.target.value)} rows={8} spellCheck={false} className="w-full rounded-md border bg-card px-3 py-2 font-mono text-xs outline-none focus:border-primary" />
+                </Field>
+                <p className="text-xs text-muted-foreground">
+                  Runs server-side in a QuickJS WASM sandbox: 1 second deadline, 32MB
+                  memory cap, no network, filesystem, or host access.
+                </p>
+              </>
+            )}
           </>
         )}
         {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}

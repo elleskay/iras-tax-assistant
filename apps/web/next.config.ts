@@ -18,6 +18,14 @@ const nextConfig: NextConfig = {
   // standalone makes `next start` refuse to serve on Next 16 (which the
   // Playwright e2e webServer relies on).
   poweredByHeader: false,
+  // The QuickJS sandbox packages are loaded at runtime from node_modules
+  // instead of being bundled: Turbopack cannot bundle the singlefile variant
+  // (its inlined WASM string trips the bundler), and the sandbox only runs
+  // server-side anyway.
+  serverExternalPackages: [
+    "quickjs-emscripten-core",
+    "@jitl/quickjs-singlefile-cjs-release-sync",
+  ],
   experimental: {
     serverActions: {
       allowedOrigins,

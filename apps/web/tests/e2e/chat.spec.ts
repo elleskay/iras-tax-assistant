@@ -17,6 +17,65 @@ function uiMessageStream(text: string): string {
 const ASSISTANT_REPLY =
   "The GST registration threshold is SGD 1,000,000 in taxable turnover over 12 months. This is general information, not personalised tax advice.";
 
+// A multi-step agent turn: two chained tool invocations, then the answer.
+// Same UI message stream protocol, exercising the step-trace rendering path.
+const MULTI_STEP_ANSWER =
+  "Your chargeable income is SGD 100,000, and the GST registration threshold is SGD 1,000,000.";
+
+function multiStepStream(): string {
+  const events = [
+    { type: "start", messageId: "stub-2" },
+    { type: "start-step" },
+    { type: "tool-input-start", toolCallId: "c1", toolName: "lookup_tax_info" },
+    {
+      type: "tool-input-available",
+      toolCallId: "c1",
+      toolName: "lookup_tax_info",
+      input: { topic: "GST" },
+    },
+    {
+      type: "tool-output-available",
+      toolCallId: "c1",
+      output: "GST registration threshold: SGD 1,000,000 in taxable turnover.",
+    },
+    { type: "finish-step" },
+    { type: "start-step" },
+    {
+      type: "tool-input-start",
+      toolCallId: "c2",
+      toolName: "calculate_tax_estimate",
+    },
+    {
+      type: "tool-input-available",
+      toolCallId: "c2",
+      toolName: "calculate_tax_estimate",
+      input: { income: 120000, deductions: 20000 },
+    },
+    {
+      type: "tool-output-available",
+      toolCallId: "c2",
+      output: "Estimated chargeable income: SGD 100,000.",
+    },
+    { type: "finish-step" },
+    { type: "start-step" },
+    { type: "text-start", id: "t1" },
+    { type: "text-delta", id: "t1", delta: MULTI_STEP_ANSWER },
+    { type: "text-end", id: "t1" },
+    { type: "finish-step" },
+    {
+      type: "finish",
+      messageMetadata: {
+        model: "Claude Haiku 4.5",
+        tier: "fast",
+        reason: "default",
+        usage: { input: 180, output: 60 },
+        costUsd: 0.00048,
+      },
+    },
+  ];
+  return events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join("") + "data: [DONE]\n\n";
+}
+
 specTest(
   "IRAS-CHAT-001",
   "Home page renders the chat interface",
@@ -127,6 +186,90 @@ specTest(
     await expect(
       page.locator('[data-testid="message"][data-role="assistant"]'),
     ).toContainText("GST registration threshold");
+  },
+  { category: "functional" },
+);
+
+specTest(
+  "IRAS-AGENT-002",
+  "Assistant replies show a numbered step trace of tool use",
+  async ({ page }) => {
+    await page.route("**/api/chat", async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: {
+          "content-type": "text/event-stream",
+          "x-vercel-ai-ui-message-stream": "v1",
+        },
+        body: multiStepStream(),
+      });
+    });
+
+    await page.goto("/assistant");
+    await page.getByLabel("Ask a tax question").fill("GST threshold and my estimate?");
+    await page.getByRole("button", { name: "Send" }).click();
+
+    // Collapsed by default: the trace header is visible, the steps are not.
+    const trace = page.getByTestId("step-trace");
+    await expect(trace).toBeVisible();
+    await expect(trace).toContainText("Agent steps (2)");
+    await expect(page.getByTestId("step")).toHaveCount(0);
+
+    // Expanding lists each step, numbered, with tool name, input, and output.
+    await trace.getByRole("button", { name: /Agent steps/ }).click();
+    const steps = page.getByTestId("step");
+    await expect(steps).toHaveCount(2);
+    await expect(steps.nth(0)).toContainText("1");
+    await expect(steps.nth(0)).toContainText("lookup_tax_info");
+    await expect(steps.nth(0).getByTestId("step-input")).toContainText("GST");
+    await expect(steps.nth(0).getByTestId("step-output")).toContainText(
+      "SGD 1,000,000",
+    );
+    await expect(steps.nth(1)).toContainText("2");
+    await expect(steps.nth(1)).toContainText("calculate_tax_estimate");
+  },
+  { category: "ui" },
+);
+
+specTest(
+  "IRAS-AGENT-003",
+  "A multi-step reply renders the full trace and the answer",
+  async ({ page }) => {
+    await page.route("**/api/chat", async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: {
+          "content-type": "text/event-stream",
+          "x-vercel-ai-ui-message-stream": "v1",
+        },
+        body: multiStepStream(),
+      });
+    });
+
+    await page.goto("/assistant");
+    await page
+      .getByLabel("Ask a tax question")
+      .fill("What is the GST threshold, and my chargeable income on 120000 with 20000 deductions?");
+    await page.getByRole("button", { name: "Send" }).click();
+
+    // The answer text arrives after the chained tool steps.
+    const reply = page.locator('[data-testid="message"][data-role="assistant"]');
+    await expect(reply).toContainText("Your chargeable income is SGD 100,000");
+
+    // The full trace: both tools in order with inputs and outputs.
+    await reply.getByRole("button", { name: /Agent steps/ }).click();
+    const steps = page.getByTestId("step");
+    await expect(steps).toHaveCount(2);
+    await expect(steps.nth(0)).toContainText("lookup_tax_info");
+    await expect(steps.nth(1)).toContainText("calculate_tax_estimate");
+    await expect(steps.nth(1).getByTestId("step-input")).toContainText("120000");
+    await expect(steps.nth(1).getByTestId("step-output")).toContainText(
+      "SGD 100,000",
+    );
+
+    // The reply badge carries the routing and cost metadata from the stream.
+    await expect(reply).toContainText("Routed to Claude Haiku 4.5");
+    await expect(reply).toContainText("240 tokens");
   },
   { category: "functional" },
 );

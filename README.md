@@ -4,7 +4,7 @@
 
 **A conversational Singapore tax assistant that answers GST, income tax, corporate tax, and SRS questions in plain language, calls real MCP-style tools, routes every query to the cheapest capable model across OpenAI and Anthropic, and escalates anything personal to a human.**
 
-[![Live](https://img.shields.io/badge/live-d1yl1box414d2i.cloudfront.net-1668B0)](https://d1yl1box414d2i.cloudfront.net) &nbsp;![Spec gate](https://img.shields.io/badge/spec%20gate-24%2F24%20covered-2e9e44) &nbsp;![Next.js](https://img.shields.io/badge/Next.js%2016-App%20Router-000000) &nbsp;![AI SDK](https://img.shields.io/badge/Vercel%20AI%20SDK-v6-0A0A0A) &nbsp;![AWS](https://img.shields.io/badge/AWS-CloudFront%20%2B%20Lambda%20%2B%20S3-FF9900) &nbsp;![IaC](https://img.shields.io/badge/IaC-CDK%20%2B%20OpenNext-4F46E5)
+[![Live](https://img.shields.io/badge/live-d1yl1box414d2i.cloudfront.net-1668B0)](https://d1yl1box414d2i.cloudfront.net) &nbsp;![Spec gate](https://img.shields.io/badge/spec%20gate-52%2F52%20covered-2e9e44) &nbsp;![Next.js](https://img.shields.io/badge/Next.js%2016-App%20Router-000000) &nbsp;![AI SDK](https://img.shields.io/badge/Vercel%20AI%20SDK-v6-0A0A0A) &nbsp;![AWS](https://img.shields.io/badge/AWS-CloudFront%20%2B%20Lambda%20%2B%20S3-FF9900) &nbsp;![IaC](https://img.shields.io/badge/IaC-CDK%20%2B%20OpenNext-4F46E5)
 
 <a href="https://d1yl1box414d2i.cloudfront.net"><img src="docs/img/hero-v3.png" alt="IRAS Tax Assistant: Singapore tax, answered" width="100%"></a>
 
@@ -17,7 +17,9 @@
 ## Table of contents
 
 - [What it is](#what-it-is)
+- [AI-native architecture](#ai-native-architecture)
 - [Feature tour](#feature-tour)
+- [Connect via MCP](#connect-via-mcp)
 - [How a question flows](#how-a-question-flows)
 - [Sequence: a chat turn](#sequence-a-chat-turn)
 - [Sequence: human escalation](#sequence-human-escalation)
@@ -41,10 +43,33 @@ Three command-line projects, an MCP tool server, a tax agent, and an LLM eval ha
 - **Assistant.** Ask a Singapore tax question. It grounds factual answers in IRAS facts via a tool, can work out a rough chargeable-income estimate, and routes anything personal to a human advisor. Conversations have history and a New chat button, stored per browser.
 - **Cheapest capable routing.** A deterministic rule engine picks a model per query from six models across OpenAI and Anthropic, so a simple lookup uses a cheap model and a complex comparison uses a premium one. Each answer shows which model handled it.
 - **Configurable MCP tools.** The three built-in tools can be enabled, disabled, redescribed, and (for the lookup tool) have their facts edited. Visitors can also build their own lookup or template tools. Edits apply to the live assistant.
-- **An eval workbench.** Edit the routing rules and the test cases, click Run, and watch each case route to a model and get graded, with a per-model pass-rate comparison.
+- **An eval workbench.** Edit the routing rules and the test cases, click Run, and watch each case route to a model and get graded (keyword or LLM-as-judge), with a per-model comparison and a persisted run history. The same suite runs in CI as a regression gate against a committed baseline.
+- **A model gateway.** Every model call (chat, evals, the judge) flows through one gateway that times it, counts tokens, computes USD cost from list prices, falls back across providers on error, and logs it to the `/gateway` page.
+- **Prompt management.** The system prompt is versioned: immutable versions, an activation pointer, a line diff between versions, and the live assistant resolves the active one.
+- **A secure sandbox.** Visitors can write JavaScript tools that run server-side in a QuickJS WASM sandbox with hard time, memory, and output limits and no host capabilities.
+- **A real MCP server.** The tax tools are exposed over Streamable HTTP at `/api/mcp` and over stdio, so Claude Code or any MCP client can call them.
+- **A visible agent loop.** Multi-step replies show a numbered step trace: each tool call with its input and output, plus tokens and cost per reply.
 - **Human in the loop.** Personalised questions are escalated to an advisor queue that a human resolves.
 
 It is built on the [`elleskay/platform`](https://github.com/elleskay/platform) template: a Next.js to AWS serverless monorepo with a mandatory spec-driven test gate.
+
+---
+
+## AI-native architecture
+
+Seven artifacts of AI-native engineering, each a working feature in this app:
+
+| Artifact | What it does here | Where |
+|---|---|---|
+| Model gateway | Wraps every model call: latency, tokens, USD cost from registry prices, cross-provider fallback, persisted logs | `lib/gateway.ts`, `/gateway` |
+| Prompt management | Immutable prompt versions, activation pointer, line diff, live resolution with compiled-in fallback | `lib/prompt-store.ts`, `/prompts` |
+| Evaluation harness | Keyword and LLM-as-judge graders, persisted run history with trend, prompt-version targeting, CLI baseline gate | `lib/graders.ts`, `scripts/run-eval.ts`, `/evals` |
+| AI-assisted code review | Claude reviews every PR against this repo's conventions; an eval gate blocks prompt regressions | `.github/workflows/ai-review.yml`, `eval-gate.yml` |
+| Secure sandbox runtime | User JavaScript in QuickJS WASM: 1s deadline, 32MB cap, 8KB output cap, zero host globals | `lib/sandbox.ts`, `/api/tools/run` |
+| Internal MCP server | The four tax tools over Streamable HTTP and stdio, bearer-gated escalation | `app/api/[transport]/route.ts`, `mcp/stdio.ts` |
+| Agent architecture | Bounded multi-step tool loop with a visible numbered step trace, tokens, and cost per reply | `lib/run-agent.ts`, `/assistant` |
+
+CI never calls an LLM from tests. The live-LLM workflows (AI review, eval gate) run only when `ANTHROPIC_API_KEY` is present and skip cleanly otherwise, so forks stay green.
 
 ---
 
@@ -70,15 +95,58 @@ Enable or disable each built-in tool, edit its description, and edit the lookup 
 
 ### Evals: configurable rules, runnable test cases, model comparison
 
-Edit the routing rules (each model shows its approximate price) and the test cases, then Run. Each case routes to a model, is graded against keywords, and the results compare models side by side.
+Edit the routing rules (each model shows its approximate price) and the test cases, pick a grader (keyword or LLM judge) and a prompt version, then Run. Each case routes to a model and is graded; results compare models side by side, and every run lands in a persisted history with a pass-rate trend.
 
 <img src="docs/img/evals.png" alt="Eval workbench with routing rules, test cases, and a populated results comparison" width="100%">
+
+### Gateway: every model call, observed
+
+`/gateway` lists recent model calls from the gateway log: model, latency, input and output tokens, USD cost, and whether the cross-provider fallback fired. Chat answers carry the same numbers in their metadata chip.
+
+### Prompts: versioned system prompt
+
+`/prompts` lists the system prompt's immutable versions with the active one marked, shows a line diff between any version and its predecessor, and lets you save and activate new versions. The assistant resolves the active version on the next turn.
 
 ### Advisor queue: human in the loop
 
 Escalated questions land here for a human to review and resolve.
 
 <img src="docs/img/admin.png" alt="Advisor queue listing escalations" width="100%">
+
+---
+
+## Connect via MCP
+
+The tax tools are a real MCP server, not just in-process `tool()` definitions. Two transports, same tools (`lookup_tax_info`, `calculate_tax_estimate`, `escalate_to_human`, `run_javascript`):
+
+**Streamable HTTP** at `/api/mcp`. Add to `.mcp.json` in any MCP client:
+
+```json
+{
+  "mcpServers": {
+    "iras-tax": {
+      "type": "http",
+      "url": "https://d1yl1box414d2i.cloudfront.net/api/mcp"
+    }
+  }
+}
+```
+
+**stdio** for local use (for example Claude Code):
+
+```json
+{
+  "mcpServers": {
+    "iras-tax": {
+      "command": "npx",
+      "args": ["tsx", "mcp/stdio.ts"],
+      "cwd": "apps/web"
+    }
+  }
+}
+```
+
+Lookup and calculation are public (rate limited). When the optional `MCP_API_KEY` env var is set, `escalate_to_human` requires `Authorization: Bearer <key>` (constant-time compare); unset means open. The Tools page shows the endpoint and a copyable config.
 
 ---
 
@@ -130,12 +198,12 @@ sequenceDiagram
   API->>API: rate limit, validate, bound input size
   API->>R: applyRoutingRules(config, latest question)
   R-->>API: { modelId, reason }
-  API->>M: streamText(system, messages, tools)
+  API->>M: runAgent: streamText via the gateway (timed, costed, logged, fallback)
   M->>T: lookup_tax_info / calculate_tax_estimate
   T-->>M: deterministic fact or estimate
-  M-->>API: streamed tokens
-  API-->>B: UI message stream + metadata (routed model, reason)
-  B-->>B: render answer, "Routed to X", persist conversation to localStorage
+  M-->>API: streamed tokens (bounded multi-step loop)
+  API-->>B: UI message stream + metadata (routed model, tokens, cost)
+  B-->>B: render answer, step trace, "Routed to X", persist to localStorage
 ```
 
 ---
@@ -173,44 +241,56 @@ Pages, API routes, the pure domain libraries they call, and the external provide
 flowchart TD
   subgraph UI["Next.js App Router pages"]
     L["/ landing guide"]
-    A["/assistant: chat, history"]
-    TL["/tools: configurable MCP tools"]
-    E["/evals: rules + cases workbench"]
+    A["/assistant: chat, step trace"]
+    TL["/tools: MCP tools + sandbox builder"]
+    E["/evals: rules, cases, history"]
+    GW["/gateway: model call log"]
+    PR["/prompts: versions + diff"]
     AD["/admin: advisor queue"]
   end
 
   subgraph APIRoutes["API routes"]
-    C["/api/chat: stream, route, tools"]
-    EV["/api/eval: run one graded case"]
+    C["/api/chat: agent loop"]
+    EV["/api/eval: one graded case"]
+    MCP["/api/mcp: MCP over HTTP"]
+    TR["/api/tools/run: sandbox exec"]
+    PA["/api/prompts: versions API"]
     HI["/api/hitl: list and resolve"]
   end
 
   subgraph Lib[Domain libraries]
-    RR[routing-rules: applyRoutingRules]
+    GA[gateway: wrap, time, cost, fallback]
+    RR[routing-rules]
     MR[model-registry: 6 models + prices]
     TO[tools: buildTaxTools]
     TX[tax: facts + estimate]
-    CT[custom-tools]
-    HS[hitl-store]
-    RT[rate-limit]
+    SB[sandbox: QuickJS WASM]
+    PS[prompt-store]
+    ST[store: generic JSON store]
   end
 
   A --> C
   E --> EV
+  TL --> TR
+  PR --> PA
   AD --> HI
-  TL -. client-side run .-> TX
 
   C --> RR --> MR
+  C --> GA
   C --> TO --> TX
-  C --> RT
-  EV --> MR
-  HI --> HS
+  C --> PS
+  EV --> GA
+  MCP --> TO
+  MCP --> SB
+  TR --> SB
+  PA --> PS
 
-  C --> ANTH[Anthropic API]
-  C --> OAI[OpenAI API]
-  EV --> ANTH
-  EV --> OAI
-  HS --> S3[(S3 escalations)]
+  GA --> ANTH[Anthropic API]
+  GA --> OAI[OpenAI API]
+  GA --> ST
+  PS --> ST
+  HI --> ST
+  ST --> S3[(Private S3 bucket)]
   A -. per browser .-> LS[(localStorage)]
   TL -. per browser .-> LS
   E -. per browser .-> LS
@@ -252,7 +332,7 @@ flowchart LR
   G --> H[Live]
 ```
 
-Secrets baked at synth and forwarded in the deploy step: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_MODEL`. The HITL bucket name is a CDK token resolved at deploy time.
+Secrets baked at synth and forwarded in the deploy step: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_MODEL`, and the optional `MCP_API_KEY` (gates the MCP escalation tool; unset means open). The HITL bucket name is a CDK token resolved at deploy time.
 
 ---
 
@@ -260,7 +340,7 @@ Secrets baked at synth and forwarded in the deploy step: `ANTHROPIC_API_KEY`, `O
 
 No relational database. Two stores, chosen for what each needs:
 
-- **Escalations** live in a private S3 bucket, one JSON object per case under `escalations/`, so concurrent Lambda writes never race on a shared file (locally and in tests, a JSON file is used instead). This is the only server-persisted entity.
+- **Server-side state** lives in one private S3 bucket through a generic JSON store (`lib/store.ts`): one object per record, prefix per entity, reverse-chronological ids so listing is newest-first without a sort key. Prefixes: `escalations/` (advisor queue), `gateway/` (model call logs), `prompts/` (versioned system prompt), `eval-runs/` (run history). Concurrent Lambda writes never race on a shared file. Locally and in tests, the same store writes JSON files instead.
 - **Everything else is per browser** in `localStorage`: conversation history, the routing config, the eval test cases, the built-in tool config, and any custom tools. Nothing personal is stored server-side beyond an escalation the user explicitly triggers.
 
 ```mermaid
@@ -311,7 +391,7 @@ erDiagram
   ESCALATION }o--|| CONVERSATION : "raised from a chat turn"
 ```
 
-Server-persisted (S3): `ESCALATION`. Client-persisted (localStorage): `CONVERSATION`, `ROUTING_CONFIG`, `ROUTING_RULE`, `TEST_CASE`, `BUILTIN_TOOLS_CONFIG`, `CUSTOM_TOOL`.
+Server-persisted (S3): `ESCALATION`, plus gateway call logs, prompt versions, and eval runs under their own prefixes. Client-persisted (localStorage): `CONVERSATION`, `ROUTING_CONFIG`, `ROUTING_RULE`, `TEST_CASE`, `BUILTIN_TOOLS_CONFIG`, `CUSTOM_TOOL`.
 
 ---
 
@@ -333,10 +413,10 @@ flowchart TD
   H -->|no| J[Exit 1, blocked]
 ```
 
-The 24 requirements currently covered:
+The 52 requirements currently covered:
 
 <details>
-<summary><strong>Show all 24 requirements</strong></summary>
+<summary><strong>Show all 52 requirements</strong></summary>
 
 | ID | Category | Requirement |
 |---|---|---|
@@ -346,24 +426,52 @@ The 24 requirements currently covered:
 | IRAS-ROUTER-001 | data | The deterministic routing rules pick the right model per query |
 | IRAS-TOOLS-004 | data | Built-in tools respect their configuration (enable/disable, facts) |
 | IRAS-RATELIMIT-001 | data | Rate limiting fails open when Upstash is not configured |
+| IRAS-STORE-001 | data | Generic JSON store round-trips values and lists newest-first |
+| IRAS-GATEWAY-001 | data | The gateway records model, latency, and token usage per call |
+| IRAS-GATEWAY-002 | data | Gateway cost is computed from registry prices (generate and stream) |
+| IRAS-GATEWAY-003 | data | A provider error falls back to the alternate provider and is flagged |
+| IRAS-EVAL-004 | data | Eval runs persist and list newest-first |
+| IRAS-EVAL-005 | data | The LLM judge grades to a structured verdict and fails closed |
+| IRAS-EVAL-007 | data | Baseline comparison flags regressions beyond the tolerance |
+| IRAS-EVAL-008 | data | A persisted run records the prompt version and grader it targeted |
+| IRAS-PROMPT-001 | data | Prompt store keeps immutable versions behind an activation pointer |
+| IRAS-PROMPT-002 | data | System prompt resolves from the active version, falls back to default |
+| IRAS-SANDBOX-001 | data | Sandboxed code tools run user JavaScript and return a JSON result |
+| IRAS-SANDBOX-004 | data | Sandbox output is capped with a truncation marker |
+| IRAS-AGENT-001 | data | The agent loop chains tools across steps until the answer |
 | IRAS-CHAT-001 | ui | Home page (assistant) renders the chat interface |
 | IRAS-CHAT-003 | ui | A general-information disclaimer is always visible |
 | IRAS-LANDING-001 | ui | Landing page guides the visitor and links into the assistant |
 | IRAS-TOOLS-001 | ui | Tools page lists the MCP server tools |
+| IRAS-TOOLS-006 | ui | The Tools page shows how to connect via MCP |
 | IRAS-EVAL-001 | ui | Evals page shows configurable routing rules and test cases |
+| IRAS-GATEWAY-004 | ui | The gateway page lists recent model calls |
+| IRAS-PROMPT-003 | ui | The prompts page lists versions and shows a line diff between them |
+| IRAS-AGENT-002 | ui | Assistant replies show a numbered step trace of tool use |
 | IRAS-CHAT-002 | functional | Sending a message shows the user message and the assistant reply |
 | IRAS-CHAT-004 | functional | New chat clears the conversation and history keeps the previous one |
 | IRAS-CHAT-005 | functional | A question deep link (`/assistant?q=`) asks it automatically |
 | IRAS-NAV-001 | functional | Primary navigation links to every page |
 | IRAS-TOOLS-002 | functional | A visitor can run the lookup tool and see a result |
 | IRAS-TOOLS-003 | functional | A visitor can create a custom tool and run it |
+| IRAS-TOOLS-005 | functional | A visitor can build a sandboxed code tool and run it end to end |
 | IRAS-EVAL-002 | functional | The route preview shows where a query routes |
 | IRAS-EVAL-003 | functional | Running the test cases populates the result stats |
+| IRAS-EVAL-006 | functional | Run history shows past runs with a pass-rate trend |
+| IRAS-PROMPT-004 | functional | Creating and activating a prompt version works end to end |
 | IRAS-HITL-002 | functional | Admin page lists pending escalations |
 | IRAS-HITL-003 | functional | Resolving an escalation marks it resolved end to end |
+| IRAS-MCP-001 | functional | The MCP endpoint answers a JSON-RPC initialize |
+| IRAS-MCP-002 | functional | tools/list exposes the four tax tools with schemas |
+| IRAS-MCP-003 | functional | Calling lookup_tax_info over MCP returns the GST threshold |
+| IRAS-AGENT-003 | functional | A multi-step reply renders the full trace and the answer |
 | IRAS-A11Y-001 | a11y | Page exposes a skip-to-content link and a single h1 |
 | IRAS-A11Y-002 | a11y | The chat message input has an accessible label |
 | IRAS-SEC-001 | security | Responses carry baseline security headers |
+| IRAS-PROMPT-005 | security | The prompts write API validates input and is rate limited |
+| IRAS-SANDBOX-002 | security | Runaway sandbox code is interrupted by hard time and memory limits |
+| IRAS-SANDBOX-003 | security | The sandbox exposes no host capabilities |
+| IRAS-MCP-004 | security | Escalation over MCP requires the API key when one is configured |
 
 </details>
 
@@ -378,8 +486,12 @@ The 24 requirements currently covered:
 | Models | OpenAI: GPT-4.1 nano, GPT-4o mini, GPT-4.1. Anthropic: Claude Haiku 4.5, Sonnet 4.6, Opus 4.8 |
 | UI | Tailwind CSS v4, shadcn/ui (Radix), AI Elements, lucide icons, IRAS colour palette |
 | Routing | Deterministic keyword rules (no classifier call), configurable per browser |
-| Tools | MCP-style `tool()` definitions, declarative and configurable, no eval of user input |
-| Persistence | S3 for escalations, browser localStorage for everything client-side |
+| Gateway | `wrapLanguageModel` middleware: latency, tokens, cost, cross-provider fallback, persisted logs |
+| Tools | Configurable `tool()` definitions plus a real MCP server (`mcp-handler`, `@modelcontextprotocol/sdk`) over Streamable HTTP and stdio |
+| Sandbox | QuickJS WASM (`quickjs-emscripten-core`, singlefile sync variant): hard time, memory, and output limits |
+| Evals | Keyword and LLM-as-judge graders, persisted history, CLI baseline gate in CI |
+| Prompts | Versioned store with activation pointer and line diff (`diff`) |
+| Persistence | One private S3 bucket via a generic JSON store (escalations, gateway logs, prompts, eval runs), browser localStorage for everything client-side |
 | Rate limit | Upstash Redis, fails open when unconfigured |
 | Runtime | Node 22, AWS Lambda, response streaming |
 | Hosting | CloudFront, S3, Lambda via OpenNext |
@@ -397,7 +509,9 @@ npm install
 # add apps/web/.env.local with ANTHROPIC_API_KEY and OPENAI_API_KEY
 npm run dev            # http://localhost:3000
 
-npm run test:spec     # build + vitest + playwright + 100% coverage gate
+npm run test:spec      # build + vitest + playwright + 100% coverage gate
+npm run eval           # run the committed eval suite against the baseline (needs ANTHROPIC_API_KEY)
+npm run mcp:stdio      # serve the tax tools over MCP stdio
 ```
 
 Without API keys the UI still renders; only the live model calls fail. Rate limiting and the HITL store both fall back to local-friendly defaults (fail-open limiter, JSON file queue).
@@ -423,26 +537,39 @@ git push   # deploy.yml builds, deploys, and smoke-tests the live URL
 apps/web/
   app/
     page.tsx              Landing / guide
-    assistant/page.tsx    Chat: routing, tools, history, deep links
-    tools/page.tsx        Configurable MCP tools + custom tool builder
-    evals/page.tsx        Routing-rule + test-case workbench
+    assistant/page.tsx    Chat: routing, step trace, history, deep links
+    tools/page.tsx        Configurable tools + sandbox builder + MCP connect
+    evals/page.tsx        Routing-rule + test-case workbench + run history
+    gateway/page.tsx      Model call log: latency, tokens, cost, fallback
+    prompts/page.tsx      Versioned system prompt with line diff
     admin/page.tsx        Advisor queue
-    api/chat              Streamed chat: route, tools, metadata
+    api/chat              The agent loop: route, tools, stream, metadata
     api/eval              Run one graded eval case on a chosen model
+    api/eval/runs         Persist and list eval runs
+    api/prompts           List, create, and activate prompt versions
+    api/tools/run         Server-side tool execution (sandbox included)
+    api/[transport]       MCP server over Streamable HTTP (/api/mcp)
     api/hitl              List and resolve escalations
   lib/
+    run-agent.ts          Bounded multi-step agent loop (streamText)
+    gateway.ts            Model wrapper: time, cost, log, fallback
+    store.ts              Generic JSON store: S3 (prod) or file (dev)
+    prompt-store.ts       Immutable prompt versions + activation pointer
+    graders.ts            Keyword and LLM-as-judge grading
+    sandbox.ts            QuickJS WASM sandbox with hard limits
+    mcp-tools.ts          The four MCP tools + escalation auth guard
     routing-rules.ts      Deterministic router + config + storage
     model-registry.ts     Six models, tiers, approximate prices
     tools.ts / tax.ts     buildTaxTools + facts + estimate
-    builtin-tools.ts      Configurable built-in tool definitions
-    custom-tools.ts       User-defined lookup / template tools
-    conversations.ts      Chat history (localStorage)
-    hitl-store.ts         S3 (prod) or file (dev) escalation store
+    hitl-store.ts         Escalation store on lib/store.ts
     rate-limit.ts         Upstash limiter, fails open
-  specs/web.yml           24 requirements, the source of truth
+  mcp/stdio.ts            MCP server over stdio (npm run mcp:stdio)
+  scripts/run-eval.ts     Eval CLI: suite vs committed baseline, CI gate
+  evals/                  Committed suite.json + baseline.json
+  specs/web.yml           52 requirements, the source of truth
   tests/                  Vitest (data) + Playwright (ui/functional/security/a11y)
-infra/cdk/web/            NextjsServerless construct + HITL bucket stack
-.github/workflows/        deploy.yml (OIDC, OpenNext, CDK, smoke test)
+infra/cdk/web/            NextjsServerless construct + private bucket stack
+.github/workflows/        deploy.yml, ai-review.yml, eval-gate.yml
 ```
 
 ---
