@@ -19,7 +19,7 @@ specTest(
   async ({ page }) => {
     await page.goto("/");
     const nav = page.getByRole("navigation", { name: "Primary" });
-    for (const label of ["Assistant", "MCP tools", "Evals", "Advisor queue"]) {
+    for (const label of ["Assistant", "MCP tools", "Evals", "Gateway", "Prompts", "Advisor queue"]) {
       await expect(nav.getByRole("link", { name: label })).toBeVisible();
     }
   },

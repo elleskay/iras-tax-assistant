@@ -137,7 +137,7 @@ requirements:
     severity: high
     given: A visitor is anywhere on the site
     when: They look at the primary navigation
-    then: There are links to Assistant, MCP tools, Evals, and the Advisor queue
+    then: There are links to Assistant, MCP tools, Evals, Gateway, Prompts, and the Advisor queue
     tags: [nav, showcase]
 
   - id: IRAS-TOOLS-001
@@ -221,3 +221,95 @@ requirements:
     when: makeLimiter is called and isAllowed is awaited
     then: makeLimiter returns null and isAllowed resolves true, so requests are allowed
     tags: [rate-limit, infra]
+
+  - id: IRAS-STORE-001
+    title: Generic JSON store round-trips values and lists newest-first
+    category: data
+    severity: high
+    given: A store created with createJsonStore in file mode
+    when: Values are put, fetched, and listed
+    then: get returns what was put, list returns values newest-first (reverse-chronological ids sort ascending), and reverseChronoId of a later time sorts before an earlier one
+    tags: [store, infra]
+
+  - id: IRAS-GATEWAY-001
+    title: The gateway records model, latency, and token usage for a completed call
+    category: data
+    severity: high
+    given: A model call routed through gatewayModel (mock model, no network)
+    when: The call completes
+    then: A gateway log entry exists with the model id, a non-negative latency, and the input and output token counts from the provider usage
+    tags: [gateway, observability]
+
+  - id: IRAS-GATEWAY-002
+    title: Gateway cost is computed from the registry prices for generate and stream
+    category: data
+    severity: high
+    given: A registry entry with known per-1M-token prices and a call with known usage
+    when: The call completes via the generate path and via the stream path
+    then: The logged costUsd equals tokens divided by 1M times the registry price, summed over input and output
+    tags: [gateway, cost]
+
+  - id: IRAS-GATEWAY-003
+    title: A provider error falls back to the alternate provider and is flagged
+    category: data
+    severity: high
+    given: A primary model whose call throws and a fallback model that succeeds
+    when: The call is made through the gateway
+    then: The fallback model answers, and the log entry records the fallback model id with fallbackUsed true
+    tags: [gateway, resilience]
+
+  - id: IRAS-GATEWAY-004
+    title: The gateway page lists recent model calls
+    category: ui
+    severity: medium
+    given: Gateway log entries exist in the store
+    when: A visitor opens the gateway page
+    then: Recent calls are listed with model, tokens, latency, and cost
+    tags: [gateway, observability]
+
+  - id: IRAS-PROMPT-001
+    title: Prompt store keeps immutable versions behind an activation pointer
+    category: data
+    severity: high
+    given: A prompt with an existing version
+    when: A new version is added and later activated
+    then: Versions are append-only with increasing numbers, earlier content is unchanged, and activeVersion moves only when a version is explicitly activated (activating a missing version fails)
+    tags: [prompts, store]
+
+  - id: IRAS-PROMPT-002
+    title: The system prompt resolves from the active version and falls back to the compiled-in default
+    category: data
+    severity: high
+    given: The prompt store may be empty, unreadable, or hold an active version
+    when: resolveSystemPrompt() is called
+    then: It returns the active version's content when one exists and the compiled-in SYSTEM prompt otherwise, never throwing
+    tags: [prompts, agent]
+
+  - id: IRAS-PROMPT-003
+    title: The prompts page lists versions and shows a line diff between them
+    category: ui
+    severity: medium
+    given: A prompt with at least two versions exists in the store
+    when: A visitor opens the prompts page and selects a later version
+    then: The versions are listed with the active one marked, and a line diff against the previous version highlights added and removed lines
+    tags: [prompts, ui]
+
+  - id: IRAS-PROMPT-004
+    title: Creating and activating a prompt version works end to end
+    category: functional
+    severity: high
+    given: The prompts page is open
+    when: The visitor saves a new version through the form and activates it
+    then: The new version appears in the list and is marked active after activation
+    tags: [prompts, journey]
+    depends_on: [IRAS-PROMPT-001]
+    notes: Real API, no LLM involved. The journey covers create, activate, and read-back in one pass.
+
+  - id: IRAS-PROMPT-005
+    title: The prompts write API validates input and is rate limited
+    category: security
+    severity: high
+    given: The prompts API is reachable
+    when: A write request carries an invalid name, empty content, or an unknown version activation
+    then: The API rejects it with 400 (404 for unknown activation targets) and never persists the payload; writes share the rate limiter, which fails open only when Upstash is not configured
+    tags: [prompts, security]

@@ -1,4 +1,5 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
+import { getActivePromptContent } from "./prompt-store";
 
 /*
  * Shared agent config so the chat route and the eval runner use the exact same
@@ -33,3 +34,28 @@ Treat the lookup_tax_info result as the authoritative source of truth. Base fact
 Keep answers concise and always remind users that this is general information, not personalised tax advice.
 
 Formatting rules: do NOT use emojis, em dashes, or arrow characters. Use commas, periods, parentheses, or colons instead. Plain markdown only (headings, bold, lists).`;
+
+/** Prompt-store name for the assistant's system prompt. */
+export const SYSTEM_PROMPT_NAME = "assistant-system";
+
+let cachedPrompt: { value: string; at: number } | null = null;
+const PROMPT_CACHE_MS = 60_000;
+
+/**
+ * Resolve the system prompt from the prompt store's active version, falling
+ * back to the compiled-in SYSTEM when no version exists or the store is
+ * unreadable. Cached for 60s per Lambda instance so chat requests do not pay
+ * a store read each time (tests bypass the cache).
+ */
+export async function resolveSystemPrompt(): Promise<string> {
+  const fresh = cachedPrompt && Date.now() - cachedPrompt.at < PROMPT_CACHE_MS;
+  if (fresh && process.env.NODE_ENV !== "test") return cachedPrompt!.value;
+  let value = SYSTEM;
+  try {
+    value = (await getActivePromptContent(SYSTEM_PROMPT_NAME)) ?? SYSTEM;
+  } catch {
+    // Store unreadable: serve the compiled-in default rather than failing.
+  }
+  cachedPrompt = { value, at: Date.now() };
+  return value;
+}
