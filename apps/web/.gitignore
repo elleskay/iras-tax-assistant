@@ -11,3 +11,8 @@ next-env.d.ts
 
 # Prototype HITL queue (file-backed; see lib/hitl-store.ts)
 hitl-queue.json
+
+# Local JSON store files (file backend of lib/store.ts)
+gateway.json
+prompts.json
+eval-runs.json

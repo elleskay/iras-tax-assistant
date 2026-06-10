@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   GitBranch,
   FlaskConical,
+  History,
   Play,
   Plus,
   Trash2,
@@ -36,7 +37,21 @@ interface CaseResult {
   pass: boolean;
   checks: { keyword: string; pass: boolean }[];
   answer: string;
+  score?: number;
+  rationale?: string;
   error?: string;
+}
+
+type Grader = "keyword" | "judge";
+
+interface RunSummary {
+  id: string;
+  timestamp: string;
+  grader: Grader;
+  promptVersion?: number;
+  total: number;
+  passed: number;
+  passRate: number;
 }
 
 const modelLabel = (id: string) => MODELS.find((m) => m.id === id)?.label ?? id;
@@ -52,12 +67,35 @@ export function EvalsWorkbench() {
   const [testQuery, setTestQuery] = useState("What is the GST registration threshold?");
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<CaseResult[] | null>(null);
+  const [grader, setGrader] = useState<Grader>("keyword");
+  const [promptVersion, setPromptVersion] = useState<string>("");
+  const [promptVersions, setPromptVersions] = useState<number[]>([]);
+  const [history, setHistory] = useState<RunSummary[]>([]);
+
+  const loadHistory = useCallback(async () => {
+    try {
+      const res = await fetch("/api/eval/runs", { cache: "no-store" });
+      const data = await res.json();
+      setHistory(data.runs ?? []);
+    } catch {
+      setHistory([]);
+    }
+  }, []);
 
   useEffect(() => {
     setConfig(loadConfig());
     setCases(loadCases());
     setHydrated(true);
-  }, []);
+    void loadHistory();
+    // Offer the stored versions of the assistant prompt for pinned-version runs.
+    void fetch("/api/prompts", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data: { prompts?: { name: string; versions: { version: number }[] }[] }) => {
+        const record = data.prompts?.find((p) => p.name === "assistant-system");
+        setPromptVersions(record?.versions.map((v) => v.version) ?? []);
+      })
+      .catch(() => setPromptVersions([]));
+  }, [loadHistory]);
 
   function updateConfig(next: RoutingConfig) {
     setConfig(next);
@@ -73,6 +111,7 @@ export function EvalsWorkbench() {
   async function run() {
     setRunning(true);
     setResults(null);
+    const pinnedVersion = promptVersion ? Number(promptVersion) : undefined;
     const out = await Promise.all(
       cases.map(async (c): Promise<CaseResult> => {
         const route = applyRoutingRules(config, c.query);
@@ -80,7 +119,13 @@ export function EvalsWorkbench() {
           const res = await fetch("/api/eval", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ question: c.query, expects: c.expects, modelId: route.modelId }),
+            body: JSON.stringify({
+              question: c.query,
+              expects: c.expects,
+              modelId: route.modelId,
+              grader,
+              ...(pinnedVersion !== undefined ? { promptVersion: pinnedVersion } : {}),
+            }),
           });
           if (!res.ok) {
             return {
@@ -93,6 +138,8 @@ export function EvalsWorkbench() {
           return {
             id: c.id, query: c.query, modelLabel: data.model ?? modelLabel(route.modelId),
             reason: route.reason, pass: data.pass, checks: data.checks ?? [], answer: data.answer ?? "",
+            ...(typeof data.score === "number" ? { score: data.score } : {}),
+            ...(data.rationale ? { rationale: data.rationale } : {}),
           };
         } catch {
           return {
@@ -103,6 +150,28 @@ export function EvalsWorkbench() {
       }),
     );
     setResults(out);
+    // Persist the run for the history trend, then refresh it. Errored cases
+    // count as fails; storage failures only affect the history panel.
+    try {
+      await fetch("/api/eval/runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          grader,
+          ...(pinnedVersion !== undefined ? { promptVersion: pinnedVersion } : {}),
+          cases: out.map((r) => ({
+            query: r.query,
+            modelLabel: r.modelLabel,
+            pass: r.pass,
+            ...(typeof r.score === "number" ? { score: r.score } : {}),
+            ...(r.rationale ? { rationale: r.rationale } : {}),
+          })),
+        }),
+      });
+      await loadHistory();
+    } catch {
+      // History is best-effort; the in-page results are already shown.
+    }
     setRunning(false);
   }
 
@@ -274,7 +343,7 @@ export function EvalsWorkbench() {
                 </button>
               </div>
             ))}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               {cases.length < 8 ? (
                 <button
                   type="button"
@@ -284,10 +353,34 @@ export function EvalsWorkbench() {
                   + Add case
                 </button>
               ) : <span />}
-              <Button onClick={run} disabled={running || cases.length === 0}>
-                {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                {running ? "Running..." : "Run"}
-              </Button>
+              <span className="flex flex-wrap items-center gap-2">
+                <select
+                  aria-label="Grader"
+                  value={grader}
+                  onChange={(e) => setGrader(e.target.value as Grader)}
+                  className="min-h-9 rounded-md border bg-card px-2 text-sm outline-none focus:border-primary"
+                >
+                  <option value="keyword">Keyword grader</option>
+                  <option value="judge">LLM judge</option>
+                </select>
+                {promptVersions.length > 0 ? (
+                  <select
+                    aria-label="Prompt version"
+                    value={promptVersion}
+                    onChange={(e) => setPromptVersion(e.target.value)}
+                    className="min-h-9 rounded-md border bg-card px-2 text-sm outline-none focus:border-primary"
+                  >
+                    <option value="">Active prompt</option>
+                    {promptVersions.map((v) => (
+                      <option key={v} value={v}>Prompt v{v}</option>
+                    ))}
+                  </select>
+                ) : null}
+                <Button onClick={run} disabled={running || cases.length === 0}>
+                  {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                  {running ? "Running..." : "Run"}
+                </Button>
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -371,6 +464,64 @@ export function EvalsWorkbench() {
               ))}
             </ul>
           </div>
+        )}
+      </section>
+
+      {/* Run history (persisted server-side) */}
+      <section>
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          <History className="h-4 w-4" /> Run history
+        </h3>
+        {history.length === 0 ? (
+          <Card className="border-dashed shadow-none">
+            <CardContent className="py-8 text-center text-sm text-muted-foreground">
+              No runs recorded yet. Completed runs are stored server-side and the
+              pass-rate trend appears here.
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="shadow-soft" data-testid="run-history">
+            <CardContent className="flex flex-col gap-4">
+              {/* Oldest to newest, left to right */}
+              <div className="flex h-16 items-end gap-1">
+                {[...history].reverse().map((r) => (
+                  <div
+                    key={r.id}
+                    data-testid="run-bar"
+                    title={`${r.passRate}%`}
+                    style={{ height: `${Math.max(8, r.passRate)}%` }}
+                    className="w-3 rounded-sm bg-primary/70"
+                  />
+                ))}
+              </div>
+              <ul className="flex flex-col gap-2">
+                {history.map((r) => (
+                  <li
+                    key={r.id}
+                    data-testid="run-entry"
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-background px-3 py-2 text-sm"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="text-muted-foreground">
+                        {new Date(r.timestamp).toLocaleString()}
+                      </span>
+                      <Badge className="bg-secondary font-mono text-secondary-foreground hover:bg-secondary">
+                        {r.grader}
+                      </Badge>
+                      {r.promptVersion !== undefined ? (
+                        <Badge className="bg-accent font-mono text-accent-foreground hover:bg-accent">
+                          Prompt v{r.promptVersion}
+                        </Badge>
+                      ) : null}
+                    </span>
+                    <span className="tabular-nums text-muted-foreground">
+                      {r.passed}/{r.total} <b className="text-navy">{r.passRate}%</b>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
         )}
       </section>
     </div>

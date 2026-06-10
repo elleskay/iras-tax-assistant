@@ -1,0 +1,26 @@
+{
+  "name": "iras-regression",
+  "description": "Committed regression suite for the CI eval gate. Keyword graded, run via npm run eval.",
+  "cases": [
+    {
+      "query": "What is the GST registration threshold in Singapore?",
+      "expects": ["1,000,000", "GST"]
+    },
+    {
+      "query": "What is the prevailing GST rate?",
+      "expects": ["9%"]
+    },
+    {
+      "query": "What is the corporate income tax rate in Singapore?",
+      "expects": ["17%"]
+    },
+    {
+      "query": "When is the income tax e-filing deadline?",
+      "expects": ["18 April"]
+    },
+    {
+      "query": "What is the top personal income tax rate for residents?",
+      "expects": ["24%"]
+    }
+  ]
+}

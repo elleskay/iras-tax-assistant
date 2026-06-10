@@ -1,0 +1,74 @@
+name: AI review
+
+# AI-assisted code review on every PR. Uses the same preflight pattern as
+# deploy.yml: when ANTHROPIC_API_KEY is not configured (template forks, fork
+# PRs where secrets are withheld), the review job skips cleanly instead of
+# failing.
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+  id-token: write
+
+concurrency:
+  group: ai-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preflight:
+    name: Preflight (skip if not configured)
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    steps:
+      - id: check
+        env:
+          API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -n "$API_KEY" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "AI review is configured. Proceeding."
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::ANTHROPIC_API_KEY secret is not set. Skipping AI review. This is normal for forks and PRs from forks."
+          fi
+
+  review:
+    name: Claude review
+    needs: preflight
+    if: needs.preflight.outputs.configured == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Run Claude Code review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Review this pull request against the repo conventions in CLAUDE.md.
+            Focus on real problems, not style nits. Specifically check:
+
+            1. Spec-first protocol: new behavior must have a requirement in
+               apps/web/specs/web.yml and a specTest() covering it. Flag code
+               changes that add behavior with no spec entry or test.
+            2. Security: Zod validation on every server action and API route
+               boundary, rate limiting on write endpoints, no secrets in code
+               or workflow files.
+            3. Known production gotchas from CLAUDE.md (env baked at synth
+               time, two-place secret wiring in web-stack.ts AND deploy.yml,
+               awaited writes before stream close on Lambda).
+            4. Conventions: no em dashes anywhere, no emojis in code or docs,
+               helpers no-op cleanly when their API keys are absent.
+
+            Leave inline comments on specific lines where possible, and a
+            short summary comment. If everything looks good, say so briefly.
+          claude_args: |
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"

@@ -267,6 +267,53 @@ requirements:
     then: Recent calls are listed with model, tokens, latency, and cost
     tags: [gateway, observability]
 
+  - id: IRAS-EVAL-004
+    title: Eval runs persist and list newest-first
+    category: data
+    severity: high
+    given: Completed eval runs with stats
+    when: They are saved through the eval-run store and listed
+    then: Runs round-trip with their stats, listing returns newest first, and a limit caps the result
+    tags: [evals, store]
+
+  - id: IRAS-EVAL-005
+    title: The LLM judge grades to a structured verdict and fails closed
+    category: data
+    severity: high
+    given: A judge model that returns either a valid JSON verdict or unparseable output (mock model, no network)
+    when: judgeGrade is called with a question, answer, and rubric
+    then: A valid verdict yields pass, score, and rationale; unparseable output fails closed with pass false and score 0 instead of throwing
+    tags: [evals, judge]
+
+  - id: IRAS-EVAL-006
+    title: Run history shows past runs with a pass-rate trend
+    category: functional
+    severity: medium
+    given: The evals page is open and the per-case eval API is stubbed
+    when: The visitor runs the test cases
+    then: The completed run is persisted through the runs API and appears in the run history with a pass-rate trend bar
+    tags: [evals, history]
+    notes: /api/eval is stubbed (it calls the LLM); /api/eval/runs is exercised for real against the file-backed store.
+
+  - id: IRAS-EVAL-007
+    title: Baseline comparison flags regressions beyond the tolerance
+    category: data
+    severity: high
+    given: A run pass rate, a committed baseline pass rate, and a tolerance
+    when: compareToBaseline is called
+    then: It reports a regression only when the rate is more than the tolerance below the baseline, with the delta; the eval CLI exits non-zero on regression
+    tags: [evals, baseline, ci]
+    notes: The CLI's live-model path runs in CI when ANTHROPIC_API_KEY is present and skips cleanly otherwise.
+
+  - id: IRAS-EVAL-008
+    title: A persisted run records the prompt version and grader it targeted
+    category: data
+    severity: medium
+    given: An eval run executed with a chosen grader against a chosen prompt version
+    when: The run is persisted and listed
+    then: The run entry carries the grader and promptVersion it was executed with
+    tags: [evals, prompts]
+
   - id: IRAS-PROMPT-001
     title: Prompt store keeps immutable versions behind an activation pointer
     category: data

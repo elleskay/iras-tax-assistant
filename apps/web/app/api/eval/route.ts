@@ -8,6 +8,7 @@ import {
   SYSTEM_PROMPT_NAME,
 } from "@/lib/agent";
 import { getPromptVersionContent } from "@/lib/prompt-store";
+import { keywordGrade, judgeGrade } from "@/lib/graders";
 import { resolveById } from "@/lib/model-router";
 import { gatewayModel } from "@/lib/gateway";
 import { findModel } from "@/lib/model-registry";
@@ -28,6 +29,10 @@ const schema = z.object({
   // Optional: evaluate against a specific stored prompt version instead of
   // the active one, so prompt changes can be compared before activation.
   promptVersion: z.number().int().positive().optional(),
+  // keyword (default): deterministic icontains checks against expects.
+  // judge: LLM-as-judge against the rubric, returns score and rationale.
+  grader: z.enum(["keyword", "judge"]).optional(),
+  rubric: z.string().max(2000).optional(),
 });
 
 export async function POST(req: Request) {
@@ -38,7 +43,8 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid input" }, { status: 400 });
   }
-  const { question, expects, modelId, promptVersion } = parsed.data;
+  const { question, expects, modelId, promptVersion, grader, rubric } =
+    parsed.data;
 
   // Resolve through the gateway so eval calls are logged and costed like chat
   // calls. Falls back to the raw client only if the model is not in the
@@ -69,13 +75,20 @@ export async function POST(req: Request) {
   });
 
   const answer = result.text ?? "";
-  const lower = answer.toLowerCase();
-  // icontains assertions, the same style as the llm-eval-iras suite.
-  const checks = expects.map((k) => ({
-    keyword: k,
-    pass: lower.includes(k.toLowerCase()),
-  }));
-  const pass = checks.length > 0 && checks.every((c) => c.pass);
 
+  if (grader === "judge") {
+    const verdict = await judgeGrade(question, answer, rubric);
+    return NextResponse.json({
+      answer,
+      checks: [],
+      pass: verdict.pass,
+      score: verdict.score,
+      rationale: verdict.rationale,
+      model: modelLabel,
+    });
+  }
+
+  // icontains assertions, the same style as the llm-eval-iras suite.
+  const { pass, checks } = keywordGrade(answer, expects);
   return NextResponse.json({ answer, checks, pass, model: modelLabel });
 }
