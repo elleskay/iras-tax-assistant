@@ -2,11 +2,11 @@
 
 # Unofficial IRAS Tax Assistant
 
-**A conversational Singapore tax assistant that answers GST, income tax, corporate tax, and SRS questions in plain language, calls real MCP-style tools, routes every query to the cheapest capable model across OpenAI and Anthropic, and escalates anything personal to a human.**
+**A multi-step Singapore tax agent that answers GST, income tax, corporate tax, and SRS questions in plain language. It chains real MCP tools with a visible step trace, applies cost-aware model routing across OpenAI and Anthropic through an observed gateway, runs visitor-built tools in a secure sandbox, and escalates anything personal to a human.**
 
-[![Live](https://img.shields.io/badge/live-d1yl1box414d2i.cloudfront.net-1668B0)](https://d1yl1box414d2i.cloudfront.net) &nbsp;![Spec gate](https://img.shields.io/badge/spec%20gate-52%2F52%20covered-2e9e44) &nbsp;![Next.js](https://img.shields.io/badge/Next.js%2016-App%20Router-000000) &nbsp;![AI SDK](https://img.shields.io/badge/Vercel%20AI%20SDK-v6-0A0A0A) &nbsp;![AWS](https://img.shields.io/badge/AWS-CloudFront%20%2B%20Lambda%20%2B%20S3-FF9900) &nbsp;![IaC](https://img.shields.io/badge/IaC-CDK%20%2B%20OpenNext-4F46E5)
+[![Live](https://img.shields.io/badge/live-iras.soonkeong.dev-1668B0)](https://iras.soonkeong.dev) &nbsp;![Spec gate](https://img.shields.io/badge/spec%20gate-57%2F57%20covered-2e9e44) &nbsp;![Next.js](https://img.shields.io/badge/Next.js%2016-App%20Router-000000) &nbsp;![AI SDK](https://img.shields.io/badge/Vercel%20AI%20SDK-v6-0A0A0A) &nbsp;![AWS](https://img.shields.io/badge/AWS-CloudFront%20%2B%20Lambda%20%2B%20S3-FF9900) &nbsp;![IaC](https://img.shields.io/badge/IaC-CDK%20%2B%20OpenNext-4F46E5)
 
-<a href="https://d1yl1box414d2i.cloudfront.net"><img src="docs/img/hero-v3.png" alt="IRAS Tax Assistant: Singapore tax, answered" width="100%"></a>
+<a href="https://iras.soonkeong.dev"><img src="docs/img/hero-v4.png" alt="IRAS Tax Assistant: Singapore tax, answered by a multi-step agent" width="100%"></a>
 
 </div>
 
@@ -41,15 +41,16 @@
 Three command-line projects, an MCP tool server, a tax agent, and an LLM eval harness, made usable by anyone in a browser. No install, no terminal, no API key of your own.
 
 - **Assistant.** Ask a Singapore tax question. It grounds factual answers in IRAS facts via a tool, can work out a rough chargeable-income estimate, and routes anything personal to a human advisor. Conversations have history and a New chat button, stored per browser.
-- **Cheapest capable routing.** A deterministic rule engine picks a model per query from six models across OpenAI and Anthropic, so a simple lookup uses a cheap model and a complex comparison uses a premium one. Each answer shows which model handled it.
-- **Configurable MCP tools.** The three built-in tools can be enabled, disabled, redescribed, and (for the lookup tool) have their facts edited. Visitors can also build their own lookup or template tools. Edits apply to the live assistant.
-- **An eval workbench.** Edit the routing rules and the test cases, click Run, and watch each case route to a model and get graded (keyword or LLM-as-judge), with a per-model comparison and a persisted run history. The same suite runs in CI as a regression gate against a committed baseline.
+- **Cost-aware model routing.** A deterministic rule engine picks a model per query from six models across OpenAI and Anthropic, so a simple lookup uses a cheap model and a complex comparison uses a premium one. Each answer shows which model handled it.
+- **Configurable MCP tools.** The three built-in tools can be enabled, disabled, redescribed, and (for the lookup tool) have their facts edited. Visitors can also build their own lookup, template, or sandboxed code tools; three examples are preloaded so there is something to run immediately. Edits apply to the live assistant.
+- **An eval workbench.** Edit the routing rules and the test cases, click Run, and watch each case route to a model and get graded (keyword or LLM-as-judge), with a per-model comparison and a persisted run history. Failed cases say why: the missed keywords, or the judge's score and rationale. The same suite runs in CI as a regression gate against a committed baseline.
 - **A model gateway.** Every model call (chat, evals, the judge) flows through one gateway that times it, counts tokens, computes USD cost from list prices, falls back across providers on error, and logs it to the `/gateway` page.
 - **Prompt management.** The system prompt is versioned: immutable versions, an activation pointer, a line diff between versions, and the live assistant resolves the active one.
 - **A secure sandbox.** Visitors can write JavaScript tools that run server-side in a QuickJS WASM sandbox with hard time, memory, and output limits and no host capabilities.
 - **A real MCP server.** The tax tools are exposed over Streamable HTTP at `/api/mcp` and over stdio, so Claude Code or any MCP client can call them.
 - **A visible agent loop.** Multi-step replies show a numbered step trace: each tool call with its input and output, plus tokens and cost per reply.
 - **Human in the loop.** Personalised questions are escalated to an advisor queue that a human resolves.
+- **Follow-along guides.** Every page opens with a collapsible how-to panel, and six example chips (lookup, calculation, multi-step, comparison, escalation, PII) cover every scenario and stay available mid-chat.
 
 It is built on the [`elleskay/platform`](https://github.com/elleskay/platform) template: a Next.js to AWS serverless monorepo with a mandatory spec-driven test gate.
 
@@ -77,25 +78,25 @@ CI never calls an LLM from tests. The live-LLM workflows (AI review, eval gate) 
 
 ### Landing: a guided entry point
 
-A plain-language guide to each part of the app, with example questions that open the assistant and ask them.
+One card per page and six example questions, together covering every scenario: lookup, calculation, the multi-step agent loop, complex reasoning, human escalation, and PII routing. Each feature page also opens with its own collapsible follow-along guide.
 
-<img src="docs/img/landing.png" alt="IRAS Tax Assistant landing page" width="100%">
+<img src="docs/img/landing.png" alt="IRAS Tax Assistant landing page with six feature cards and example questions" width="100%">
 
-### Assistant: tools and per-query model routing
+### Assistant: tools, routing, and the visible agent loop
 
-A factual question calls the `lookup_tax_info` tool and is answered by the cheapest model the rules pick (here, GPT-4o mini). The chip under each answer reports the routed model.
+A factual question calls the `lookup_tax_info` tool and is answered by the inexpensive model the rules pick for lookups (here, GPT-4o mini). Each reply carries a step trace of the tool calls and a chip with the routed model, tokens, and cost. The scenario chips stay above the composer, so every scenario can be tried in the same chat.
 
-<img src="docs/img/assistant.png" alt="Assistant answering a GST question, showing the tool call and the routed model" width="100%">
+<img src="docs/img/assistant.png" alt="Assistant answering a GST question, showing the step trace and the routed model with tokens and cost" width="100%">
 
 ### MCP tools: configurable, and they drive the assistant
 
-Enable or disable each built-in tool, edit its description, and edit the lookup tool's facts. Build your own tools too. Everything is sent with each chat request, so edits change the live assistant.
+Enable or disable each built-in tool, edit its description, and edit the lookup tool's facts. Build your own tools too (three examples are preloaded, including a sandboxed code tool), and connect any MCP client via the config at the bottom of the page. Everything is sent with each chat request, so edits change the live assistant.
 
-<img src="docs/img/tools.png" alt="MCP tools page with editable built-in tools" width="100%">
+<img src="docs/img/tools.png" alt="MCP tools page with the follow-along guide, editable built-in tools, and preloaded example tools" width="100%">
 
 ### Evals: configurable rules, runnable test cases, model comparison
 
-Edit the routing rules (each model shows its approximate price) and the test cases, pick a grader (keyword or LLM judge) and a prompt version, then Run. Each case routes to a model and is graded; results compare models side by side, and every run lands in a persisted history with a pass-rate trend.
+Edit the routing rules (each model shows its approximate price) and the test cases, pick a grader (keyword or LLM judge) and a prompt version, then Run. Each case routes to a model and is graded; failed cases name the missed keywords or show the judge's rationale. Results compare models side by side, and every run lands in a persisted history with a pass-rate trend.
 
 <img src="docs/img/evals.png" alt="Eval workbench with routing rules, test cases, and a populated results comparison" width="100%">
 
@@ -126,7 +127,7 @@ The tax tools are a real MCP server, not just in-process `tool()` definitions. T
   "mcpServers": {
     "iras-tax": {
       "type": "http",
-      "url": "https://d1yl1box414d2i.cloudfront.net/api/mcp"
+      "url": "https://iras.soonkeong.dev/api/mcp"
     }
   }
 }
@@ -341,7 +342,7 @@ Secrets baked at synth and forwarded in the deploy step: `ANTHROPIC_API_KEY`, `O
 No relational database. Two stores, chosen for what each needs:
 
 - **Server-side state** lives in one private S3 bucket through a generic JSON store (`lib/store.ts`): one object per record, prefix per entity, reverse-chronological ids so listing is newest-first without a sort key. Prefixes: `escalations/` (advisor queue), `gateway/` (model call logs), `prompts/` (versioned system prompt), `eval-runs/` (run history). Concurrent Lambda writes never race on a shared file. Locally and in tests, the same store writes JSON files instead.
-- **Everything else is per browser** in `localStorage`: conversation history, the routing config, the eval test cases, the built-in tool config, and any custom tools. Nothing personal is stored server-side beyond an escalation the user explicitly triggers.
+- **Everything else is per browser** in `localStorage`: conversation history, the routing config, the eval test cases, the built-in tool config, and any custom tools (seeded with three runnable examples on first visit). Nothing personal is stored server-side beyond an escalation the user explicitly triggers.
 
 ```mermaid
 erDiagram
@@ -413,10 +414,10 @@ flowchart TD
   H -->|no| J[Exit 1, blocked]
 ```
 
-The 52 requirements currently covered:
+The 57 requirements currently covered:
 
 <details>
-<summary><strong>Show all 52 requirements</strong></summary>
+<summary><strong>Show all 57 requirements</strong></summary>
 
 | ID | Category | Requirement |
 |---|---|---|
@@ -441,7 +442,10 @@ The 52 requirements currently covered:
 | IRAS-AGENT-001 | data | The agent loop chains tools across steps until the answer |
 | IRAS-CHAT-001 | ui | Home page (assistant) renders the chat interface |
 | IRAS-CHAT-003 | ui | A general-information disclaimer is always visible |
+| IRAS-CHAT-006 | ui | Assistant example chips cover each scenario and stay available mid-chat |
 | IRAS-LANDING-001 | ui | Landing page guides the visitor and links into the assistant |
+| IRAS-LANDING-002 | ui | Landing example questions exercise the different scenarios |
+| IRAS-GUIDE-001 | ui | Every feature page has a follow-along guide at the top |
 | IRAS-TOOLS-001 | ui | Tools page lists the MCP server tools |
 | IRAS-TOOLS-006 | ui | The Tools page shows how to connect via MCP |
 | IRAS-EVAL-001 | ui | Evals page shows configurable routing rules and test cases |
@@ -455,9 +459,11 @@ The 52 requirements currently covered:
 | IRAS-TOOLS-002 | functional | A visitor can run the lookup tool and see a result |
 | IRAS-TOOLS-003 | functional | A visitor can create a custom tool and run it |
 | IRAS-TOOLS-005 | functional | A visitor can build a sandboxed code tool and run it end to end |
+| IRAS-TOOLS-007 | functional | Example tools are preloaded and runnable on first visit |
 | IRAS-EVAL-002 | functional | The route preview shows where a query routes |
 | IRAS-EVAL-003 | functional | Running the test cases populates the result stats |
 | IRAS-EVAL-006 | functional | Run history shows past runs with a pass-rate trend |
+| IRAS-EVAL-009 | functional | A failed eval case explains why it failed |
 | IRAS-PROMPT-004 | functional | Creating and activating a prompt version works end to end |
 | IRAS-HITL-002 | functional | Admin page lists pending escalations |
 | IRAS-HITL-003 | functional | Resolving an escalation marks it resolved end to end |
@@ -537,8 +543,8 @@ git push   # deploy.yml builds, deploys, and smoke-tests the live URL
 apps/web/
   app/
     page.tsx              Landing / guide
-    assistant/page.tsx    Chat: routing, step trace, history, deep links
-    tools/page.tsx        Configurable tools + sandbox builder + MCP connect
+    assistant/page.tsx    Chat: agent loop, step trace, scenario chips, history
+    tools/page.tsx        Configurable tools, builder with seeded examples, MCP connect
     evals/page.tsx        Routing-rule + test-case workbench + run history
     gateway/page.tsx      Model call log: latency, tokens, cost, fallback
     prompts/page.tsx      Versioned system prompt with line diff
@@ -563,10 +569,13 @@ apps/web/
     tools.ts / tax.ts     buildTaxTools + facts + estimate
     hitl-store.ts         Escalation store on lib/store.ts
     rate-limit.ts         Upstash limiter, fails open
+  components/
+    page-guide.tsx        Collapsible follow-along guide on every page
+    ai-elements/step-trace.tsx   Numbered step trace inside assistant replies
   mcp/stdio.ts            MCP server over stdio (npm run mcp:stdio)
   scripts/run-eval.ts     Eval CLI: suite vs committed baseline, CI gate
   evals/                  Committed suite.json + baseline.json
-  specs/web.yml           52 requirements, the source of truth
+  specs/web.yml           57 requirements, the source of truth
   tests/                  Vitest (data) + Playwright (ui/functional/security/a11y)
 infra/cdk/web/            NextjsServerless construct + private bucket stack
 .github/workflows/        deploy.yml, ai-review.yml, eval-gate.yml

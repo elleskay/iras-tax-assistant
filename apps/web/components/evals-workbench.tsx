@@ -443,9 +443,17 @@ export function EvalsWorkbench() {
                         <p className="pl-6 text-xs text-destructive">{r.error}</p>
                       ) : (
                         <>
-                          <p className="pl-6 text-xs text-muted-foreground">
-                            {r.checks.map((c) => `${c.pass ? "ok" : "miss"}: ${c.keyword}`).join("  |  ")}
-                          </p>
+                          {r.checks.length > 0 ? (
+                            <p className="pl-6 text-xs text-muted-foreground">
+                              {r.checks.map((c) => `${c.pass ? "ok" : "miss"}: ${c.keyword}`).join("  |  ")}
+                            </p>
+                          ) : null}
+                          {r.rationale ? (
+                            <p className={`pl-6 text-xs ${r.pass ? "text-muted-foreground" : "text-destructive"}`}>
+                              {typeof r.score === "number" ? `Judge score ${r.score}: ` : ""}
+                              {r.rationale}
+                            </p>
+                          ) : null}
                           {r.answer ? (
                             <details className="pl-6 text-xs">
                               <summary className="cursor-pointer text-primary">

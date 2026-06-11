@@ -9,6 +9,21 @@ specTest(
     const cta = page.getByRole("link", { name: "Start asking" }).first();
     await expect(cta).toBeVisible();
     await expect(cta).toHaveAttribute("href", "/assistant");
+
+    // One guide card per showcase page, each linking to it.
+    const guides: [string, string][] = [
+      ["Open the assistant", "/assistant"],
+      ["Open the tools", "/tools"],
+      ["Open Evals", "/evals"],
+      ["Open the gateway", "/gateway"],
+      ["Open Prompts", "/prompts"],
+      ["Open the advisor queue", "/admin"],
+    ];
+    for (const [name, href] of guides) {
+      const link = page.getByRole("link", { name });
+      await expect(link).toBeVisible();
+      await expect(link).toHaveAttribute("href", href);
+    }
   },
   { category: "ui" },
 );
@@ -24,6 +39,54 @@ specTest(
     }
   },
   { category: "functional" },
+);
+
+specTest(
+  "IRAS-LANDING-002",
+  "Landing example questions exercise the different scenarios",
+  async ({ page }) => {
+    await page.goto("/");
+    // Six scenario chips, each deep-linking into the assistant via ?q=.
+    const chips = [
+      /GST registration threshold/,
+      /Estimate chargeable income/,
+      /Multi-step/,
+      /corporate vs top personal/,
+      /SRS/,
+      /PII routing/,
+    ];
+    for (const name of chips) {
+      const link = page.getByRole("link", { name });
+      await expect(link).toBeVisible();
+      expect(await link.getAttribute("href")).toContain("/assistant?q=");
+    }
+  },
+  { category: "ui" },
+);
+
+specTest(
+  "IRAS-GUIDE-001",
+  "Every feature page has a follow-along guide at the top",
+  async ({ page }) => {
+    // Expanded with numbered steps on every feature page, first visit.
+    for (const path of ["/assistant", "/tools", "/evals", "/gateway", "/prompts", "/admin"]) {
+      await page.goto(path);
+      const guide = page.getByTestId("page-guide");
+      await expect(guide).toBeVisible();
+      await expect(guide).toContainText("How to use this page");
+      expect(await guide.locator("ol li").count()).toBeGreaterThanOrEqual(3);
+    }
+
+    // Collapsing is remembered across a reload.
+    await page.goto("/tools");
+    const guide = page.getByTestId("page-guide");
+    await guide.getByRole("button", { name: /How to use this page/ }).click();
+    await expect(guide.locator("ol")).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByTestId("page-guide")).toBeVisible();
+    await expect(page.getByTestId("page-guide").locator("ol")).toHaveCount(0);
+  },
+  { category: "ui" },
 );
 
 specTest(

@@ -17,17 +17,17 @@ What's shared, what's per-app:
 
 The primary color drives the sidebar accent, primary buttons, focus ring, and Chart-1. Set it in `apps/web/app/globals.css` as an OKLCH value.
 
-Examples for the OGP product set:
+Examples by product domain:
 
-| App | Color | OKLCH |
+| Domain | Color | OKLCH |
 |---|---|---|
-| Armoury (frontline safety) | Safety orange | `oklch(0.62 0.21 35)` |
-| HAS (health appointments) | Healthcare teal | `oklch(0.62 0.14 200)` |
-| ScamShield (alerts) | Alert red | `oklch(0.58 0.22 25)` |
-| KampungSpirit (community) | Warm gold | `oklch(0.72 0.16 80)` |
-| ActiveSG (sports) | Energetic green | `oklch(0.65 0.18 145)` |
-| Postman (gov comms) | Trust blue | `oklch(0.55 0.18 250)` |
-| TEALS (traffic) | Authoritative navy | `oklch(0.45 0.15 250)` |
+| Frontline safety | Safety orange | `oklch(0.62 0.21 35)` |
+| Health appointments | Healthcare teal | `oklch(0.62 0.14 200)` |
+| Fraud alerts | Alert red | `oklch(0.58 0.22 25)` |
+| Community | Warm gold | `oklch(0.72 0.16 80)` |
+| Sports and fitness | Energetic green | `oklch(0.65 0.18 145)` |
+| Official comms | Trust blue | `oklch(0.55 0.18 250)` |
+| Traffic and transport | Authoritative navy | `oklch(0.45 0.15 250)` |
 
 Pick once per app. Override `--primary`, `--primary-foreground`, `--ring`, `--sidebar-primary`, `--sidebar-ring`, `--chart-1` in both `:root` and `.dark` blocks.
 

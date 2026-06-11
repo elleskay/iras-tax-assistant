@@ -89,6 +89,57 @@ specTest(
 );
 
 specTest(
+  "IRAS-CHAT-006",
+  "Assistant example chips cover each scenario and stay available mid-chat",
+  async ({ page }) => {
+    await page.route("**/api/chat", async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: {
+          "content-type": "text/event-stream",
+          "x-vercel-ai-ui-message-stream": "v1",
+        },
+        body: uiMessageStream(ASSISTANT_REPLY),
+      });
+    });
+
+    await page.goto("/assistant");
+    // Label and route hint per scenario: lookup, calculation, multi-step,
+    // complex reasoning, escalation, PII.
+    const chips: [string, string][] = [
+      ["GST", "lookup tool"],
+      ["Income tax", "estimate tool"],
+      ["Multi-step", "two tools chained, step trace"],
+      ["Corporate tax", "complex reasoning"],
+      ["SRS", "escalates to a human"],
+      ["PII", "pii-sensitive route"],
+    ];
+    for (const [label, hint] of chips) {
+      const chip = page.getByRole("button", { name: new RegExp(`^${label}\\b`) });
+      await expect(chip).toBeVisible();
+      await expect(chip).toContainText(hint);
+    }
+
+    // Start a chat from a chip, then try another scenario in the SAME chat:
+    // the chips stay above the composer, no New chat needed.
+    await page.getByRole("button", { name: /^GST\b/ }).click();
+    await expect(
+      page.locator('[data-testid="message"][data-role="assistant"]'),
+    ).toBeVisible();
+    for (const [label] of chips) {
+      await expect(
+        page.getByRole("button", { name: label, exact: true }),
+      ).toBeVisible();
+    }
+    await page.getByRole("button", { name: "Multi-step", exact: true }).click();
+    await expect(
+      page.locator('[data-testid="message"][data-role="user"]'),
+    ).toHaveCount(2);
+  },
+  { category: "ui" },
+);
+
+specTest(
   "IRAS-CHAT-003",
   "A general-information disclaimer is always visible on the chat page",
   async ({ page }) => {

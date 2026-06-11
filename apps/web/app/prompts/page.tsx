@@ -14,6 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { PageGuide } from "@/components/page-guide";
 
 interface PromptVersion {
   version: number;
@@ -161,7 +162,7 @@ export default function PromptsPage() {
     <div className="mx-auto w-full max-w-5xl px-4 py-8 pb-16">
       <div className="mb-6">
         <h2 className="flex items-center gap-2 text-xl font-semibold text-navy">
-          <FileText className="h-5 w-5" /> Prompt management
+          <FileText className="h-5 w-5" /> Prompts
         </h2>
         <p className="text-sm text-muted-foreground">
           The assistant&apos;s system prompt is versioned here: versions are
@@ -170,6 +171,8 @@ export default function PromptsPage() {
           when none exists).
         </p>
       </div>
+
+      <PageGuide page="prompts" className="mb-6" />
 
       <main id="main" className="flex flex-col gap-8">
         {/* Existing prompts */}

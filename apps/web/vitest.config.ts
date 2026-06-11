@@ -7,6 +7,7 @@ export default defineConfig({
     environment: "node",
     globals: false,
     reporters: ["default"],
+    globalSetup: ["./tests/unit/global-setup.ts"],
     setupFiles: ["./tests/unit/setup.ts"],
   },
   resolve: {

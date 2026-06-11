@@ -53,7 +53,7 @@ requirements:
     severity: medium
     given: A visitor opens the home page
     when: The page loads
-    then: It shows the how-to-use guide and a call to action that links to the assistant
+    then: It shows the how-to-use guide with a card linking to every showcase page (Assistant, MCP tools, Evals, Gateway, Prompts, Advisor queue) and a call to action that links to the assistant
     tags: [landing, guide]
 
   - id: IRAS-CHAT-004
@@ -455,6 +455,53 @@ requirements:
     when: The page loads
     then: A Connect via MCP section shows the HTTP endpoint and a copyable client configuration snippet
     tags: [tools, mcp]
+
+  - id: IRAS-TOOLS-007
+    title: Example tools are preloaded and runnable on first visit
+    category: functional
+    severity: high
+    given: A first-time visitor with no saved custom tools
+    when: They open the Tools page
+    then: One example tool per kind (lookup, template, code) is listed, and running the example code tool returns its computed result from the server sandbox
+    tags: [tools, examples, journey]
+    notes: Deterministic, no LLM. The code example runs through POST /api/tools/run against the real sandbox. Examples behave like user tools (editable, deletable); any save replaces the seed.
+
+  - id: IRAS-CHAT-006
+    title: Assistant example chips cover each scenario and stay available mid-chat
+    category: ui
+    severity: medium
+    given: A visitor on the assistant page
+    when: The empty state renders, and again after a conversation has started
+    then: Example chips cover a factual lookup, a calculation, a multi-step two-tool question, a complex comparison, a personalised escalation, and a PII-sensitive question (with route hints in the empty state); during a conversation the chips remain above the composer so each scenario can be tried in the same chat
+    tags: [chat, examples]
+
+  - id: IRAS-LANDING-002
+    title: Landing example questions exercise the different scenarios
+    category: ui
+    severity: medium
+    given: A visitor opens the home page
+    when: The good-first-questions section renders
+    then: The example links cover lookup, calculation, multi-step, comparison, escalation, and PII scenarios, each deep-linking into the assistant
+    tags: [landing, examples]
+
+  - id: IRAS-GUIDE-001
+    title: Every feature page has a follow-along guide at the top
+    category: ui
+    severity: medium
+    given: A first-time visitor opens any feature page (assistant, tools, evals, gateway, prompts, admin)
+    when: The page loads
+    then: A how-to-use panel near the top lists numbered follow-along steps for that page; collapsing it is remembered, so it stays collapsed on the next visit
+    tags: [guide, docs]
+
+  - id: IRAS-EVAL-009
+    title: A failed eval case explains why it failed
+    category: functional
+    severity: medium
+    given: Eval results containing failed cases
+    when: The results render after a run
+    then: A keyword-graded failure lists the missed keywords, and a judge-graded failure shows the judge's score and rationale
+    tags: [evals, workbench]
+    notes: /api/eval is stubbed (it calls the LLM); the miss list and the judge verdict come from the stubbed responses.
 
   - id: IRAS-AGENT-001
     title: The agent loop chains tools across steps until the answer

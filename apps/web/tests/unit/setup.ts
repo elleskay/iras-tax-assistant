@@ -1,7 +1,6 @@
-import { resetCoverage } from "@platform/spec-test";
 import { setupSpecCoverage } from "@platform/spec-test/vitest";
 
-// Vitest runs first in the test:spec pipeline, so it resets the shared JSONL.
-// Playwright then appends its results, and the coverage gate reads the union.
-resetCoverage();
+// Per-file setup: registers the afterEach coverage recorder. The JSONL reset
+// lives in global-setup.ts (once per run); resetting here would run once per
+// test file and delete entries appended by files that already finished.
 setupSpecCoverage();

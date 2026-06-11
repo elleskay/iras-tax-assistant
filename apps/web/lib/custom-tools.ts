@@ -104,6 +104,51 @@ export function toolParams(
   }));
 }
 
+// ---- example tools (seeded on first visit) ----
+
+// One per kind, so a first-time visitor has something to run immediately.
+// They behave exactly like user tools: editable, deletable, sent to the
+// assistant. The first save (including deleting one) replaces the seed.
+export const EXAMPLE_TOOLS: CustomTool[] = [
+  {
+    id: "example_filing_deadlines",
+    kind: "lookup",
+    name: "filing_deadlines",
+    description: "Example lookup table: Singapore filing deadlines by taxpayer type.",
+    paramName: "taxpayer",
+    paramDescription: "individual, corporate, or gst",
+    pairs: [
+      { key: "individual", value: "Individuals e-file income tax by 18 Apr each year (15 Apr on paper)." },
+      { key: "corporate", value: "Companies file Form C-S or Form C by 30 Nov each year." },
+      { key: "gst", value: "GST returns are due one month after the end of each accounting period." },
+    ],
+    fallback: "Known taxpayer types: individual, corporate, gst.",
+  },
+  {
+    id: "example_filing_reminder",
+    kind: "template",
+    name: "filing_reminder",
+    description: "Example response template: compose a filing reminder message.",
+    params: [
+      { name: "name", type: "string", description: "Taxpayer name" },
+      { name: "deadline", type: "string", description: "Filing deadline" },
+    ],
+    template:
+      "Reminder for {name}: your Singapore tax filing is due by {deadline}. File early at myTax Portal to avoid penalties.",
+  },
+  {
+    id: "example_gst_calculator",
+    kind: "code",
+    name: "gst_calculator",
+    description: "Example code tool: add 9 percent GST, runs in the QuickJS sandbox.",
+    params: [{ name: "amount", type: "number", description: "Amount in SGD before GST" }],
+    code: `function run(input) {
+  const gst = Math.round(input.amount * 9) / 100;
+  return { amount: input.amount, gst: gst, total: input.amount + gst };
+}`,
+  },
+];
+
 // ---- localStorage (client only) ----
 
 const STORAGE_KEY = "iras-custom-tools";
@@ -111,9 +156,10 @@ const STORAGE_KEY = "iras-custom-tools";
 export function loadCustomTools(): CustomTool[] {
   if (typeof window === "undefined") return [];
   try {
-    const parsed = CustomToolsSchema.safeParse(
-      JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]"),
-    );
+    const raw = localStorage.getItem(STORAGE_KEY);
+    // First visit (nothing ever saved): seed the runnable examples.
+    if (raw === null) return EXAMPLE_TOOLS;
+    const parsed = CustomToolsSchema.safeParse(JSON.parse(raw));
     return parsed.success ? parsed.data : [];
   } catch {
     return [];

@@ -43,12 +43,14 @@ export class WebStack extends cdk.Stack {
       // Raises both the Lambda timeout and the CloudFront origin read timeout
       // (docs/DEPLOY.md #14). Matches the route's maxDuration = 60.
       serverTimeoutSeconds: 60,
-      // Optional: provide a custom domain.
-      // customDomain: {
-      //   domainName: "iras-tax.example.com",
-      //   certificateArn: "arn:aws:acm:us-east-1:...",
-      //   hostedZoneId: "Z123ABCDE",
-      // },
+      // Custom domain on the CloudFront distribution. DNS lives on Vercel
+      // (soonkeong.dev), so no hostedZoneId here: a CNAME record points
+      // iras.soonkeong.dev at the distribution. The cert ARN is not a secret.
+      customDomain: {
+        domainName: "iras.soonkeong.dev",
+        certificateArn:
+          "arn:aws:acm:us-east-1:281639842383:certificate/6b80f74c-e6b2-4ade-b57f-7db2b2d30771",
+      },
     });
 
     // Let the server Lambda read and write escalations.

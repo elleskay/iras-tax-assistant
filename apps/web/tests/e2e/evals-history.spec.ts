@@ -52,3 +52,61 @@ specTest(
   },
   { category: "functional" },
 );
+
+specTest(
+  "IRAS-EVAL-009",
+  "A failed eval case explains why it failed",
+  async ({ page }) => {
+    rmSync(storePath, { force: true });
+    try {
+      // Phase 1: keyword grader, a case that misses an expected keyword.
+      await page.route("**/api/eval", async (route) => {
+        await route.fulfill({
+          status: 200,
+          json: {
+            answer: "GST registration depends on turnover.",
+            checks: [
+              { keyword: "threshold", pass: true },
+              { keyword: "1,000,000", pass: false },
+            ],
+            pass: false,
+            model: "GPT-4o mini",
+          },
+        });
+      });
+
+      await page.goto("/evals");
+      await page.getByRole("button", { name: "Run" }).click();
+      await expect(page.getByTestId("eval-stats")).toBeVisible();
+      // The miss is named, not just a red icon.
+      await expect(page.getByText("miss: 1,000,000").first()).toBeVisible();
+
+      // Phase 2: judge grader, a failing verdict with score and rationale.
+      await page.unroute("**/api/eval");
+      await page.route("**/api/eval", async (route) => {
+        await route.fulfill({
+          status: 200,
+          json: {
+            answer: "GST registration depends on turnover.",
+            checks: [],
+            pass: false,
+            score: 35,
+            rationale: "The answer omits the SGD 1,000,000 registration threshold.",
+            model: "Claude Haiku 4.5",
+          },
+        });
+      });
+
+      await page.getByLabel("Grader").selectOption("judge");
+      await page.getByRole("button", { name: "Run" }).click();
+      // The judge's verdict is shown on the failed case.
+      await expect(
+        page.getByText("omits the SGD 1,000,000 registration threshold").first(),
+      ).toBeVisible();
+      await expect(page.getByText(/Judge score 35/).first()).toBeVisible();
+    } finally {
+      rmSync(storePath, { force: true });
+    }
+  },
+  { category: "functional" },
+);

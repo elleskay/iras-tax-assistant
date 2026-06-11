@@ -22,6 +22,7 @@ import {
   type PromptInputMessage,
 } from "@/components/ai-elements/prompt-input";
 import { StepTrace } from "@/components/ai-elements/step-trace";
+import { PageGuide } from "@/components/page-guide";
 import type { ToolPart } from "@/components/ai-elements/tool";
 import { loadCustomTools } from "@/lib/custom-tools";
 import { loadConfig } from "@/lib/routing-rules";
@@ -36,8 +37,9 @@ import {
   titleFromMessages,
 } from "@/lib/conversations";
 
-// Each example is chosen to exercise a different MCP tool and a different model
-// route, so the chips double as a live demo of the routing and the tools.
+// Each example exercises a different scenario: a tool, a model route, or the
+// multi-step agent loop. Together the chips cover every routing rule and the
+// step trace, so they double as a live demo of the whole stack.
 const TOPICS = [
   // lookup_tax_info tool, factual-lookup route -> GPT-4o mini
   { label: "GST", hint: "lookup tool, GPT-4o mini", question: "What is the GST registration threshold?" },
@@ -46,6 +48,14 @@ const TOPICS = [
     label: "Income tax",
     hint: "estimate tool, GPT-4.1",
     question: "Estimate the chargeable income for an annual income of 120000 with 20000 in deductions",
+  },
+  // Two tools in one turn: the agent loop chains lookup then calculate, and
+  // the reply shows the numbered step trace.
+  {
+    label: "Multi-step",
+    hint: "two tools chained, step trace",
+    question:
+      "What is the GST registration threshold, and calculate my chargeable income for an income of 120000 with 20000 in deductions",
   },
   // complex-reasoning route -> Claude Opus 4.8
   {
@@ -58,6 +68,12 @@ const TOPICS = [
     label: "SRS",
     hint: "escalates to a human, Claude Sonnet 4.6",
     question: "Should I contribute to SRS this year?",
+  },
+  // pii-sensitive route -> Claude Haiku 4.5 (NRIC keyword)
+  {
+    label: "PII",
+    hint: "pii-sensitive route, Claude Haiku 4.5",
+    question: "My NRIC is S1234567D, do I need to file a tax return?",
   },
 ];
 
@@ -396,6 +412,7 @@ export default function ChatPage() {
               ))}
             </div>
             <div className="w-full max-w-xl">{composer(true)}</div>
+            <PageGuide page="assistant" className="w-full max-w-xl bg-card" />
           </main>
         ) : (
           <div className="flex min-h-0 flex-1 flex-col">
@@ -462,6 +479,21 @@ export default function ChatPage() {
                     Something went wrong reaching the assistant. Please try again.
                   </p>
                 ) : null}
+                {/* Scenario chips stay available mid-chat so each one can be
+                    tried in the same conversation. */}
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {TOPICS.map((t) => (
+                    <button
+                      key={t.label}
+                      type="button"
+                      onClick={() => submit(t.question)}
+                      title={`${t.question} (${t.hint})`}
+                      className="cursor-pointer rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground transition-[filter] hover:brightness-95"
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
                 {composer(false)}
               </div>
             </div>

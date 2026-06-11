@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Search, Calculator, UserCheck, Wrench, Plus, Trash2, Play, Plug, Sparkles, RotateCcw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { PageGuide } from "@/components/page-guide";
 import { lookupFromPairs, formatEstimate } from "@/lib/tax";
 import {
   type BuiltinToolsConfig,
@@ -24,15 +25,17 @@ import {
 export default function ToolsPage() {
   return (
     <main id="main" className="mx-auto w-full max-w-5xl px-4 py-8 pb-16">
-      <div className="mb-2 flex items-center gap-2 text-sm font-medium text-primary">
-        <Wrench className="h-4 w-4" /> iras-mcp-server
-      </div>
-      <h2 className="text-xl font-semibold text-navy">MCP tools</h2>
+      <h2 className="flex items-center gap-2 text-xl font-semibold text-navy">
+        <Wrench className="h-5 w-5" /> MCP tools
+      </h2>
       <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
         The built-in tools are configurable: enable or disable each one, edit its
         description, and edit the lookup facts. Your edits apply to the assistant.
-        You can also build your own tools below.
+        Below them, your own tools (three examples are preloaded) and how to
+        connect over MCP.
       </p>
+
+      <PageGuide page="tools" className="mt-4" />
 
       <BuiltinTools />
       <CustomTools />

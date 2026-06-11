@@ -6,6 +6,8 @@ import {
   ShieldCheck,
   Landmark,
   Info,
+  Gauge,
+  FileText,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -18,34 +20,50 @@ const STEPS = [
     href: "/assistant",
     icon: MessageSquare,
     title: "Assistant",
-    body: "Ask Singapore tax questions in plain language. It looks up IRAS facts, can work out a rough chargeable-income estimate, and routes anything personal to a human advisor. Use New chat and the history sidebar to manage conversations.",
-    cta: "Start asking",
+    body: "Ask Singapore tax questions in plain language. The agent chains tools across steps (look up a fact, then run a calculation) and each reply shows the step trace, the routed model, tokens, and cost. Personal questions escalate to a human advisor.",
+    cta: "Open the assistant",
   },
   {
     href: "/tools",
     icon: Wrench,
     title: "MCP tools",
-    body: "The tools the assistant calls (from iras-mcp-server). Run them, edit the built-in ones (enable or disable, change descriptions, edit the lookup facts), or build your own. Your edits apply to the assistant.",
-    cta: "Open MCP tools",
+    body: "Run and configure the tools the assistant calls, or build your own: lookup tables, response templates, or JavaScript that executes server-side in a locked-down sandbox. Any MCP client can call the same tools over HTTP.",
+    cta: "Open the tools",
   },
   {
     href: "/evals",
     icon: BarChart3,
     title: "Evals",
-    body: "Configure the model routing rules and the test cases, then click Run. Each case routes to a model and is graded against your keywords, so you can compare models and pass rates.",
+    body: "Configure the routing rules and test cases, then run them with keyword or LLM-judge grading. Failed cases explain why, every run lands in a history with a pass-rate trend, and you can pin the prompt version a run targets.",
     cta: "Open Evals",
+  },
+  {
+    href: "/gateway",
+    icon: Gauge,
+    title: "Gateway",
+    body: "Every model call (chat, evals, the judge) flows through one gateway that records latency, tokens, and USD cost from list prices, and falls back to the other provider on errors. The log of recent calls lives here.",
+    cta: "Open the gateway",
+  },
+  {
+    href: "/prompts",
+    icon: FileText,
+    title: "Prompts",
+    body: "The assistant's system prompt is versioned: save new versions, diff them line by line, and activate the one to use. The live assistant resolves the active version on its next reply.",
+    cta: "Open Prompts",
   },
   {
     href: "/admin",
     icon: ShieldCheck,
     title: "Advisor queue",
     body: "When the assistant escalates a personal or complex question, it lands here for a human advisor to review and resolve.",
-    cta: "Open advisor queue",
+    cta: "Open the advisor queue",
   },
 ];
 
-// Each links into the assistant and asks the question (via ?q=). Chosen to show
-// a different MCP tool and model route, matching the assistant's demo chips.
+// Each links into the assistant and asks the question (via ?q=). Together they
+// cover every scenario: lookup, calculation, the multi-step agent loop with its
+// step trace, complex reasoning, human escalation, and PII routing. They match
+// the assistant's demo chips.
 const EXAMPLES = [
   { label: "What is the GST registration threshold?", q: "What is the GST registration threshold?" },
   {
@@ -53,10 +71,18 @@ const EXAMPLES = [
     q: "Estimate the chargeable income for an annual income of 120000 with 20000 in deductions",
   },
   {
+    label: "Multi-step: GST threshold + my estimate (watch the step trace)",
+    q: "What is the GST registration threshold, and calculate my chargeable income for an income of 120000 with 20000 in deductions",
+  },
+  {
     label: "Compare corporate vs top personal tax rates",
     q: "Compare the corporate income tax rate versus the top personal income tax rate",
   },
   { label: "Should I contribute to SRS this year?", q: "Should I contribute to SRS this year?" },
+  {
+    label: "PII routing: a question containing an NRIC",
+    q: "My NRIC is S1234567D, do I need to file a tax return?",
+  },
 ];
 
 export default function LandingPage() {
@@ -74,9 +100,10 @@ export default function LandingPage() {
           Singapore tax, answered in your browser
         </h2>
         <p className="max-w-xl text-base leading-relaxed text-muted-foreground">
-          A conversational assistant for GST, income tax, corporate tax, and SRS,
-          plus the tools and evaluations behind it. No install, no terminal, no API
-          key of your own.
+          A multi-step tax agent for GST, income tax, corporate tax, and SRS, plus
+          everything behind it: the MCP tool server, a sandboxed code runtime, a
+          model gateway with cost tracking, versioned prompts, and an eval
+          workbench. No install, no terminal, no API key of your own.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Link
@@ -99,7 +126,7 @@ export default function LandingPage() {
         <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           How to use it
         </h3>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {STEPS.map(({ href, icon: Icon, title, body, cta }) => (
             <Card key={href} className="shadow-soft transition-shadow hover:shadow-card">
               <CardContent className="flex h-full flex-col gap-3">
