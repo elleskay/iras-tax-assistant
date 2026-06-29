@@ -1,6 +1,8 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { tool } from "ai";
+import { z } from "zod";
 import { MockLanguageModelV3, simulateReadableStream } from "ai/test";
 import type {
   LanguageModelV3FinishReason,
@@ -10,14 +12,14 @@ import type {
 import { specTest, expect } from "@platform/spec-test/vitest";
 import { runAgent, MAX_STEPS } from "../../lib/run-agent";
 import { SYSTEM } from "../../lib/agent";
-import { taxTools } from "../../lib/tools";
 import { findModel, DEFAULT_MODEL_ID } from "../../lib/model-registry";
 
 /*
  * IRAS-AGENT-001: the agent loop chains tools across steps. A mock model
- * scripts the conversation (lookup, then calculate, then the answer); the
- * tools themselves are the real deterministic implementations from
- * lib/tax.ts. Zero network, zero LLM.
+ * scripts the conversation (a lookup, then a calculation, then the answer)
+ * against two real deterministic tools defined here. Zero network, zero LLM.
+ * Tools are defined inline because the assistant no longer ships built-in tax
+ * tools; officers add their own (lib/custom-tools.ts).
  */
 
 const STOP: LanguageModelV3FinishReason = { unified: "stop", raw: undefined };
@@ -69,6 +71,24 @@ function withTempStore<T>(fn: () => Promise<T>): Promise<T> {
   });
 }
 
+// Two deterministic tools the loop chains across steps (a lookup, then a calc).
+const tools = {
+  lookup_fact: tool({
+    description: "Look up a known Singapore tax fact by topic.",
+    inputSchema: z.object({ topic: z.string() }),
+    execute: async ({ topic }) =>
+      topic.toLowerCase().includes("gst")
+        ? "GST registration threshold: SGD 1,000,000 in taxable turnover."
+        : `No fact found for "${topic}".`,
+  }),
+  chargeable_income: tool({
+    description: "Chargeable income is income minus deductions, floored at zero.",
+    inputSchema: z.object({ income: z.number(), deductions: z.number() }),
+    execute: async ({ income, deductions }) =>
+      `Estimated chargeable income: SGD ${Math.max(0, income - deductions).toLocaleString("en-SG")}.`,
+  }),
+};
+
 specTest(
   "IRAS-AGENT-001",
   "The agent loop chains tools across steps until the answer",
@@ -82,9 +102,9 @@ specTest(
           call += 1;
           const chunks =
             call === 1
-              ? toolCallStep("c1", "lookup_tax_info", { topic: "GST" })
+              ? toolCallStep("c1", "lookup_fact", { topic: "GST" })
               : call === 2
-                ? toolCallStep("c2", "calculate_tax_estimate", {
+                ? toolCallStep("c2", "chargeable_income", {
                     income: 120000,
                     deductions: 20000,
                   })
@@ -103,7 +123,7 @@ specTest(
               "What is the GST threshold, and what is my chargeable income on 120000 with 20000 deductions?",
           },
         ],
-        tools: taxTools,
+        tools,
         overrides: { model },
         smooth: false,
       });
@@ -120,8 +140,8 @@ specTest(
       // Tool calls executed in order, against the real implementations.
       const toolCalls = steps.flatMap((s) => s.toolCalls);
       expect(toolCalls.map((c) => c.toolName)).toEqual([
-        "lookup_tax_info",
-        "calculate_tax_estimate",
+        "lookup_fact",
+        "chargeable_income",
       ]);
 
       const toolResults = steps.flatMap((s) => s.toolResults);

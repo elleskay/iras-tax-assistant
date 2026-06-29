@@ -8,7 +8,6 @@ import { z } from "zod";
 import { resolveSystemPrompt } from "@/lib/agent";
 import { runAgent } from "@/lib/run-agent";
 import { buildTaxTools } from "@/lib/tools";
-import { DEFAULT_BUILTIN_CONFIG, BuiltinToolsConfigSchema } from "@/lib/builtin-tools";
 import { makeLimiter, isAllowed, clientIp } from "@/lib/rate-limit";
 import { resolveById } from "@/lib/model-router";
 import { computeCostUsd } from "@/lib/gateway";
@@ -20,6 +19,8 @@ import {
 } from "@/lib/routing-rules";
 import { CustomToolsSchema, type CustomTool } from "@/lib/custom-tools";
 import { executeCustomTool } from "@/lib/run-tool";
+import { normaliseWorkspace, workspaceFromRequest } from "@/lib/tenant";
+import { getWorkspace } from "@/lib/workspaces";
 
 function latestUserText(messages: UIMessage[]): string {
   const last = [...messages].reverse().find((m) => m.role === "user");
@@ -78,7 +79,7 @@ export async function POST(req: Request) {
     messages?: UIMessage[];
     customTools?: unknown;
     routingConfig?: unknown;
-    builtinConfig?: unknown;
+    workspace?: unknown;
   } = await req.json();
   const messages = body.messages;
 
@@ -91,12 +92,16 @@ export async function POST(req: Request) {
     return new Response("Message too long.", { status: 400 });
   }
 
-  // Built-in tools, configured by the visitor (enable/disable, descriptions,
-  // lookup facts), with defaults when no valid config is sent.
-  const parsedBuiltin = BuiltinToolsConfigSchema.safeParse(body.builtinConfig);
-  const builtinTools = buildTaxTools(
-    parsedBuiltin.success ? parsedBuiltin.data : DEFAULT_BUILTIN_CONFIG,
-  );
+  // Active workspace (tax type). No auth: request body first, then header/cookie.
+  const workspace =
+    typeof body.workspace === "string"
+      ? normaliseWorkspace(body.workspace)
+      : workspaceFromRequest(req);
+  const ws = await getWorkspace(workspace);
+
+  // RAG search is the only always-available tool, and only when a RAG service
+  // is configured. The officer's lookup/calculator tools arrive via customTools.
+  const builtinTools = buildTaxTools(workspace);
 
   // Merge any user-defined tools (validated, declarative only).
   const parsedCustom = CustomToolsSchema.safeParse(body.customTools ?? []);
@@ -109,17 +114,21 @@ export async function POST(req: Request) {
   const parsedConfig = RoutingConfigSchema.safeParse(body.routingConfig);
   const routingConfig = parsedConfig.success ? parsedConfig.data : DEFAULT_CONFIG;
   const route = applyRoutingRules(routingConfig, latestUserText(messages));
-  const resolved = resolveById(route.modelId) ?? resolveById(DEFAULT_MODEL_ID)!;
+  // Fall back to the workspace's tuned default model, then the global default.
+  const resolved =
+    resolveById(route.modelId) ??
+    resolveById(ws?.settings.defaultModelId ?? DEFAULT_MODEL_ID) ??
+    resolveById(DEFAULT_MODEL_ID)!;
 
   // The agent loop (lib/run-agent.ts): bounded multi-step tool use through
   // the gateway, which times, costs, logs, and falls back across providers.
   const result = runAgent({
     entry: resolved.entry,
     // Active version from the prompt store, or the compiled-in default.
-    system: await resolveSystemPrompt(),
+    system: await resolveSystemPrompt(workspace),
     messages: await convertToModelMessages(messages),
     tools: { ...builtinTools, ...customTools },
-    meta: { route: route.reason },
+    meta: { route: route.reason, workspace },
   });
 
   // Tell the client which model was chosen and why; on finish, add token

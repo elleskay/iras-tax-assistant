@@ -48,3 +48,18 @@ test-results/
 # Misc
 .cache/
 .turbo/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Local file-backend JSON stores (runtime data, not source)
+apps/web/gateway-*.json
+apps/web/prompts-*.json
+apps/web/eval-runs*.json
+apps/web/workspaces.json
+apps/web/governance-policy.json
+
+# Playwright MCP artifacts
+.playwright-mcp/

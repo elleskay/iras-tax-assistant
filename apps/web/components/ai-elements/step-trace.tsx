@@ -23,6 +23,57 @@ function asText(value: unknown): string {
   return JSON.stringify(value, null, 2);
 }
 
+/** The numbered list of tool steps. Reused inline (collapsible) and in the
+ *  inspector panel (always shown). */
+export function StepList({
+  parts,
+  className,
+}: {
+  parts: ToolPart[];
+  className?: string;
+}) {
+  return (
+    <ol className={cn("flex flex-col gap-3", className)}>
+      {parts.map((part, i) => (
+        <li key={part.toolCallId ?? i} data-testid="step" className="flex gap-3">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-secondary-foreground">
+            {i + 1}
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <span className="flex flex-wrap items-center gap-2">
+              <span className="font-mono text-sm font-semibold text-navy">
+                {toolName(part)}
+              </span>
+              {getStatusBadge(part.state)}
+            </span>
+            {part.input !== undefined ? (
+              <pre
+                data-testid="step-input"
+                className="overflow-x-auto whitespace-pre-wrap rounded-md bg-muted/50 p-2 font-mono text-xs text-muted-foreground"
+              >
+                {asText(part.input)}
+              </pre>
+            ) : null}
+            {part.state === "output-available" ? (
+              <pre
+                data-testid="step-output"
+                className="overflow-x-auto whitespace-pre-wrap rounded-md bg-muted/50 p-2 font-mono text-xs text-foreground"
+              >
+                {asText(part.output)}
+              </pre>
+            ) : null}
+            {part.state === "output-error" ? (
+              <pre className="overflow-x-auto whitespace-pre-wrap rounded-md bg-destructive/10 p-2 font-mono text-xs text-destructive">
+                {part.errorText}
+              </pre>
+            ) : null}
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 export function StepTrace({
   parts,
   className,
@@ -56,50 +107,7 @@ export function StepTrace({
           )}
         />
       </button>
-      {open ? (
-        <ol className="flex flex-col gap-3 border-t p-3">
-          {parts.map((part, i) => (
-            <li
-              key={part.toolCallId ?? i}
-              data-testid="step"
-              className="flex gap-3"
-            >
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-secondary-foreground">
-                {i + 1}
-              </span>
-              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                <span className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-sm font-semibold text-navy">
-                    {toolName(part)}
-                  </span>
-                  {getStatusBadge(part.state)}
-                </span>
-                {part.input !== undefined ? (
-                  <pre
-                    data-testid="step-input"
-                    className="overflow-x-auto whitespace-pre-wrap rounded-md bg-muted/50 p-2 font-mono text-xs text-muted-foreground"
-                  >
-                    {asText(part.input)}
-                  </pre>
-                ) : null}
-                {part.state === "output-available" ? (
-                  <pre
-                    data-testid="step-output"
-                    className="overflow-x-auto whitespace-pre-wrap rounded-md bg-muted/50 p-2 font-mono text-xs text-foreground"
-                  >
-                    {asText(part.output)}
-                  </pre>
-                ) : null}
-                {part.state === "output-error" ? (
-                  <pre className="overflow-x-auto whitespace-pre-wrap rounded-md bg-destructive/10 p-2 font-mono text-xs text-destructive">
-                    {part.errorText}
-                  </pre>
-                ) : null}
-              </div>
-            </li>
-          ))}
-        </ol>
-      ) : null}
+      {open ? <StepList parts={parts} className="border-t p-3" /> : null}
     </div>
   );
 }

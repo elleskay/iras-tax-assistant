@@ -19,6 +19,7 @@ export interface JsonStore<T> {
   put(id: string, value: T): Promise<void>;
   get(id: string): Promise<T | null>;
   list(limit?: number): Promise<T[]>;
+  delete(id: string): Promise<void>;
 }
 
 export interface JsonStoreOptions<T> {
@@ -29,6 +30,12 @@ export interface JsonStoreOptions<T> {
   compare?: (a: T, b: T) => number;
   /** File-backend path override (defaults to <prefix>.json in STORE_DIR/cwd). */
   filePath?: () => string;
+  /**
+   * Tenant key. When set, every value is isolated under this workspace:
+   * S3 keys become <prefix>/<workspace>/<id>.json and the file backend uses
+   * <prefix>-<workspace>.json. Omit for platform-level (global) stores.
+   */
+  workspace?: string;
 }
 
 /**
@@ -45,13 +52,19 @@ function bucket(): string | undefined {
 }
 
 async function s3() {
-  const { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command } =
-    await import("@aws-sdk/client-s3");
+  const {
+    S3Client,
+    PutObjectCommand,
+    GetObjectCommand,
+    ListObjectsV2Command,
+    DeleteObjectCommand,
+  } = await import("@aws-sdk/client-s3");
   return {
     client: new S3Client({}),
     PutObjectCommand,
     GetObjectCommand,
     ListObjectsV2Command,
+    DeleteObjectCommand,
   };
 }
 
@@ -59,12 +72,14 @@ export function createJsonStore<T>(
   prefix: string,
   options: JsonStoreOptions<T> = {},
 ): JsonStore<T> {
-  const keyOf = (id: string) => `${prefix}/${id}.json`;
+  const ws = options.workspace;
+  const keyOf = (id: string) =>
+    ws ? `${prefix}/${ws}/${id}.json` : `${prefix}/${id}.json`;
   const filePath = () =>
     options.filePath?.() ??
     join(
       process.env.STORE_DIR ?? /* turbopackIgnore: true */ process.cwd(),
-      `${prefix}.json`,
+      ws ? `${prefix}-${ws}.json` : `${prefix}.json`,
     );
 
   // ---------- file backend: one JSON object map per prefix ----------
@@ -121,6 +136,19 @@ export function createJsonStore<T>(
       return (await readMap())[id] ?? null;
     },
 
+    async delete(id: string): Promise<void> {
+      if (bucket()) {
+        const { client, DeleteObjectCommand } = await s3();
+        await client.send(
+          new DeleteObjectCommand({ Bucket: bucket(), Key: keyOf(id) }),
+        );
+        return;
+      }
+      const map = await readMap();
+      delete map[id];
+      await writeMap(map);
+    },
+
     async list(limit?: number): Promise<T[]> {
       let values: T[];
       if (bucket()) {
@@ -128,7 +156,7 @@ export function createJsonStore<T>(
         const listed = await client.send(
           new ListObjectsV2Command({
             Bucket: bucket(),
-            Prefix: `${prefix}/`,
+            Prefix: ws ? `${prefix}/${ws}/` : `${prefix}/`,
             // S3 returns keys in ascending lexicographic order, which is
             // newest-first for reverseChronoId keys, so the cap is safe when
             // no custom sort is requested.

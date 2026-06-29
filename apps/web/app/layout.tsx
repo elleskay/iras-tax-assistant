@@ -3,7 +3,7 @@ import { Lexend, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { SiteNav } from "@/components/site-nav";
+import { AppShell } from "@/components/app-shell";
 
 const lexend = Lexend({
   subsets: ["latin"],
@@ -21,9 +21,9 @@ const sourceSans = Source_Sans_3({
 });
 
 export const metadata: Metadata = {
-  title: "IRAS Tax Assistant",
+  title: "AI Tax Assistant Platform",
   description:
-    "Conversational assistant for Singapore tax questions: GST, income tax, corporate tax, and SRS. Estimates and human escalation included.",
+    "AI platform for IRAS tax officers: one governed, document-grounded assistant per department. Unofficial concept demo, not affiliated with IRAS.",
 };
 
 export default function RootLayout({
@@ -32,8 +32,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={cn("h-full", lexend.variable, sourceSans.variable, "font-sans")}>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={cn("h-full", lexend.variable, sourceSans.variable, "font-sans")}
+    >
       <body className="min-h-full">
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var t=localStorage.getItem('theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}",
+          }}
+        />
         <a
           href="#main"
           className="sr-only rounded-md bg-primary px-4 py-2 font-medium text-primary-foreground focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50"
@@ -41,10 +51,7 @@ export default function RootLayout({
           Skip to main content
         </a>
         <TooltipProvider>
-          <div className="flex min-h-dvh flex-col">
-            <SiteNav />
-            <div className="flex min-h-0 flex-1 flex-col">{children}</div>
-          </div>
+          <AppShell>{children}</AppShell>
         </TooltipProvider>
       </body>
     </html>

@@ -1,123 +1,156 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Search, Calculator, UserCheck, Wrench, Plus, Trash2, Play, Plug, Sparkles, RotateCcw } from "lucide-react";
+import { Wrench, Plus, Trash2, Play, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PageGuide } from "@/components/page-guide";
-import { lookupFromPairs, formatEstimate } from "@/lib/tax";
 import {
-  type BuiltinToolsConfig,
-  DEFAULT_BUILTIN_CONFIG,
-  loadBuiltinConfig,
-  saveBuiltinConfig,
-} from "@/lib/builtin-tools";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+import { ToolTemplates } from "@/components/tool-templates";
 import {
   type CustomTool,
   CustomToolSchema,
+  CUSTOM_TOOLS_CHANGED,
   MAX_CUSTOM_TOOLS,
   loadCustomTools,
   saveCustomTools,
   toolParams,
 } from "@/lib/custom-tools";
 
+const SECTIONS = [
+  { id: "templates", label: "Templates" },
+  { id: "custom", label: "Your tools" },
+] as const;
+
+type SectionId = (typeof SECTIONS)[number]["id"];
+
 export default function ToolsPage() {
-  return (
-    <main id="main" className="mx-auto w-full max-w-5xl px-4 py-8 pb-16">
-      <h2 className="flex items-center gap-2 text-xl font-semibold text-navy">
-        <Wrench className="h-5 w-5" /> MCP tools
-      </h2>
-      <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-        The built-in tools are configurable: enable or disable each one, edit its
-        description, and edit the lookup facts. Your edits apply to the assistant.
-        Below them, your own tools (three examples are preloaded) and how to
-        connect over MCP.
-      </p>
-
-      <PageGuide page="tools" className="mt-4" />
-
-      <BuiltinTools />
-      <CustomTools />
-      <McpConnect />
-    </main>
-  );
-}
-
-/* ---------- connect via MCP ---------- */
-
-function McpConnect() {
-  const [origin, setOrigin] = useState("https://your-deployment");
-  const [copied, setCopied] = useState(false);
+  const [tab, setTab] = useState<SectionId>("templates");
+  const [tools, setTools] = useState<CustomTool[]>([]);
+  const [editing, setEditing] = useState<CustomTool | null>(null);
+  const [showBuilder, setShowBuilder] = useState(false);
 
   useEffect(() => {
-    setOrigin(window.location.origin);
+    const reload = () => setTools(loadCustomTools());
+    reload();
+    // Re-read when a tool is added/removed elsewhere (e.g. the Templates tab).
+    window.addEventListener(CUSTOM_TOOLS_CHANGED, reload);
+    return () => window.removeEventListener(CUSTOM_TOOLS_CHANGED, reload);
   }, []);
 
-  const endpoint = `${origin}/api/mcp`;
-  const config = JSON.stringify(
-    { mcpServers: { "iras-tax": { type: "http", url: endpoint } } },
-    null,
-    2,
-  );
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(config);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Clipboard unavailable (permissions, non-secure context): leave the
-      // snippet selectable instead.
-    }
+  function persist(next: CustomTool[]) {
+    setTools(next);
+    saveCustomTools(next);
+  }
+  function upsert(tool: CustomTool) {
+    const next = tools.some((t) => t.id === tool.id)
+      ? tools.map((t) => (t.id === tool.id ? tool : t))
+      : [...tools, tool];
+    persist(next);
+    setShowBuilder(false);
+    setEditing(null);
+  }
+  function openNew() {
+    setEditing(null);
+    setShowBuilder(true);
+    setTab("custom");
   }
 
-  return (
-    <section className="mt-10" data-testid="mcp-connect">
-      <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        <Plug className="h-4 w-4" /> Connect via MCP
-      </h3>
-      <Card className="shadow-soft">
-        <CardContent className="flex flex-col gap-3">
-          <p className="text-sm text-muted-foreground">
-            These tools are also served over the Model Context Protocol, so any
-            MCP client (Claude Code, the MCP inspector) can call them directly.
-            The Streamable HTTP endpoint is:
-          </p>
-          <code data-testid="mcp-endpoint" className="w-fit rounded-md border bg-secondary/40 px-2 py-1 font-mono text-sm text-foreground">
-            {endpoint}
-          </code>
-          <p className="text-sm text-muted-foreground">
-            Add it to a client with this <span className="font-mono">.mcp.json</span> entry:
-          </p>
-          <pre data-testid="mcp-config" className="overflow-x-auto rounded-md border bg-secondary/40 p-3 font-mono text-xs text-foreground">
-            {config}
-          </pre>
-          <div className="flex items-center gap-3">
-            <Button onClick={copy}>{copied ? "Copied" : "Copy config"}</Button>
-            <p className="text-xs text-muted-foreground">
-              lookup and calculate are public (rate limited); escalation requires
-              a bearer token when the server sets MCP_API_KEY.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    </section>
-  );
-}
+  const atLimit = tools.length >= MAX_CUSTOM_TOOLS;
 
-function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
-    <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-muted-foreground">
-      <input
-        type="checkbox"
-        checked={on}
-        onChange={(e) => onChange(e.target.checked)}
-        aria-label={label}
-        className="h-4 w-4 accent-[var(--primary)]"
-      />
-      {on ? "Enabled" : "Disabled"}
-    </label>
+    <main id="main" className="mx-auto w-full max-w-7xl px-4 py-8 pb-16">
+      <h2 className="flex items-center gap-2 text-xl font-semibold text-navy">
+        <Wrench className="h-5 w-5" /> AI Tools
+      </h2>
+      <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+        Build tools without code: start from a template or create your own (lookup
+        table, message template, or sandboxed calculator). Anything you add is
+        available to the assistant straight away, with guardrails applied.
+      </p>
+
+      {/* Tabs keep each section focused; "New tool" sits in the bar so it is
+          reachable from either tab. */}
+      <div className="sticky top-16 z-20 -mx-4 mt-6 border-b bg-background px-4 py-2">
+        <div className="flex items-center justify-between gap-2">
+          <nav className="flex flex-wrap gap-1" aria-label="Tool sections">
+            {SECTIONS.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setTab(s.id)}
+                aria-current={tab === s.id ? "page" : undefined}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                  tab === s.id
+                    ? "bg-secondary text-secondary-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                )}
+              >
+                {s.label}
+              </button>
+            ))}
+          </nav>
+          <Button
+            size="sm"
+            onClick={openNew}
+            disabled={atLimit}
+            title={
+              atLimit
+                ? `Tool limit reached (${MAX_CUSTOM_TOOLS}). Delete one under Your tools to add another.`
+                : undefined
+            }
+          >
+            <Plus className="h-4 w-4" /> New tool
+          </Button>
+        </div>
+      </div>
+
+      {/* Inactive sections stay mounted (hidden) so in-progress edits survive
+          switching tabs. */}
+      <div className={tab === "templates" ? "" : "hidden"}>
+        <ToolTemplates />
+      </div>
+      <div className={tab === "custom" ? "" : "hidden"}>
+        <CustomTools
+          tools={tools}
+          onEdit={(t) => { setEditing(t); setShowBuilder(true); }}
+          onDelete={(id) => persist(tools.filter((x) => x.id !== id))}
+        />
+      </div>
+
+      {/* The builder modal lives at the page level so New tool works from any tab. */}
+      <Dialog
+        open={showBuilder}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowBuilder(false);
+            setEditing(null);
+          }
+        }}
+      >
+        <DialogContent className="max-h-[85vh] w-full overflow-y-auto p-6 sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{editing ? "Edit tool" : "New tool"}</DialogTitle>
+            <DialogDescription>
+              Build a lookup table, a message template, or a sandboxed
+              calculator. It stays in your browser and the assistant can call it.
+            </DialogDescription>
+          </DialogHeader>
+          <ToolBuilder
+            initial={editing}
+            onCancel={() => { setShowBuilder(false); setEditing(null); }}
+            onSave={upsert}
+          />
+        </DialogContent>
+      </Dialog>
+    </main>
   );
 }
 
@@ -130,225 +163,37 @@ function Result({ value, testid }: { value: string | null; testid: string }) {
   );
 }
 
-/* ---------- built-in tools (configurable) ---------- */
+/* ---------- custom tools list (built/edited via the page-level modal) ---------- */
 
-function BuiltinTools() {
-  const [cfg, setCfg] = useState<BuiltinToolsConfig>(DEFAULT_BUILTIN_CONFIG);
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    setCfg(loadBuiltinConfig());
-    setHydrated(true);
-  }, []);
-
-  function update(next: BuiltinToolsConfig) {
-    setCfg(next);
-    if (hydrated) saveBuiltinConfig(next);
-  }
-
-  // lookup run
-  const [topic, setTopic] = useState("GST");
-  const [lookupResult, setLookupResult] = useState<string | null>(null);
-  // estimate run
-  const [income, setIncome] = useState("120000");
-  const [deductions, setDeductions] = useState("20000");
-  const [estResult, setEstResult] = useState<string | null>(null);
-
-  return (
-    <section className="mt-7">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Built-in</h3>
-        <button type="button" onClick={() => update(DEFAULT_BUILTIN_CONFIG)} className="inline-flex items-center gap-1 text-xs font-medium text-primary">
-          <RotateCcw className="h-3 w-3" /> Reset
-        </button>
-      </div>
-      <div className="flex flex-col gap-4">
-        {/* lookup_tax_info */}
-        <Card className="shadow-soft">
-          <CardContent className="flex flex-col gap-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-start gap-3">
-                <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-accent text-primary">
-                  <Search className="h-5 w-5" />
-                </span>
-                <div>
-                  <p className="font-mono text-sm font-semibold text-navy">lookup_tax_info</p>
-                  <p className="font-mono text-xs text-muted-foreground">(topic: string)</p>
-                </div>
-              </div>
-              <Toggle on={cfg.lookup.enabled} label="Enable lookup_tax_info" onChange={(v) => update({ ...cfg, lookup: { ...cfg.lookup, enabled: v } })} />
-            </div>
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-muted-foreground">Description</span>
-              <input
-                aria-label="lookup_tax_info description"
-                value={cfg.lookup.description}
-                onChange={(e) => update({ ...cfg, lookup: { ...cfg.lookup, description: e.target.value } })}
-                className="min-h-9 w-full rounded-md border bg-card px-2 text-sm outline-none focus:border-primary"
-              />
-            </label>
-            <div className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-muted-foreground">Facts (keyword to answer)</span>
-              {cfg.lookup.facts.map((f, i) => (
-                <div key={i} className="flex gap-2">
-                  <input
-                    aria-label={`Fact ${i + 1} keyword`}
-                    value={f.key}
-                    onChange={(e) => update({ ...cfg, lookup: { ...cfg.lookup, facts: cfg.lookup.facts.map((x, j) => (j === i ? { ...x, key: e.target.value } : x)) } })}
-                    className="min-h-9 w-1/4 rounded-md border bg-card px-2 text-sm outline-none focus:border-primary"
-                  />
-                  <input
-                    aria-label={`Fact ${i + 1} answer`}
-                    value={f.value}
-                    onChange={(e) => update({ ...cfg, lookup: { ...cfg.lookup, facts: cfg.lookup.facts.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)) } })}
-                    className="min-h-9 flex-1 rounded-md border bg-card px-2 text-sm outline-none focus:border-primary"
-                  />
-                  <button type="button" aria-label={`Remove fact ${i + 1}`} onClick={() => update({ ...cfg, lookup: { ...cfg.lookup, facts: cfg.lookup.facts.filter((_, j) => j !== i) } })} className="rounded-md px-2 text-muted-foreground hover:text-destructive">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-              <button type="button" onClick={() => update({ ...cfg, lookup: { ...cfg.lookup, facts: [...cfg.lookup.facts, { key: "", value: "" }] } })} className="self-start text-sm font-medium text-primary">
-                + Add fact
-              </button>
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <label className="sr-only" htmlFor="lookup-topic">Topic</label>
-              <input id="lookup-topic" value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g. GST" className="min-h-10 flex-1 rounded-md border bg-card px-3 text-sm outline-none focus:border-primary" />
-              <Button onClick={() => setLookupResult(lookupFromPairs(cfg.lookup.facts, topic))} disabled={!topic.trim()}>
-                <Play className="h-4 w-4" /> Run
-              </Button>
-            </div>
-            <Result value={lookupResult} testid="tool-result" />
-          </CardContent>
-        </Card>
-
-        {/* calculate_tax_estimate */}
-        <Card className="shadow-soft">
-          <CardContent className="flex flex-col gap-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-start gap-3">
-                <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-accent text-primary">
-                  <Calculator className="h-5 w-5" />
-                </span>
-                <div>
-                  <p className="font-mono text-sm font-semibold text-navy">calculate_tax_estimate</p>
-                  <p className="font-mono text-xs text-muted-foreground">(income: number, deductions: number)</p>
-                </div>
-              </div>
-              <Toggle on={cfg.estimate.enabled} label="Enable calculate_tax_estimate" onChange={(v) => update({ ...cfg, estimate: { ...cfg.estimate, enabled: v } })} />
-            </div>
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-muted-foreground">Description</span>
-              <input
-                aria-label="calculate_tax_estimate description"
-                value={cfg.estimate.description}
-                onChange={(e) => update({ ...cfg, estimate: { ...cfg.estimate, description: e.target.value } })}
-                className="min-h-9 w-full rounded-md border bg-card px-2 text-sm outline-none focus:border-primary"
-              />
-            </label>
-            <p className="text-xs text-muted-foreground">Logic is fixed: chargeable income is income minus deductions, floored at zero.</p>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <input aria-label="Gross income" inputMode="numeric" value={income} onChange={(e) => setIncome(e.target.value)} placeholder="Gross income" className="min-h-10 flex-1 rounded-md border bg-card px-3 text-sm tabular-nums outline-none focus:border-primary" />
-              <input aria-label="Deductions" inputMode="numeric" value={deductions} onChange={(e) => setDeductions(e.target.value)} placeholder="Deductions" className="min-h-10 flex-1 rounded-md border bg-card px-3 text-sm tabular-nums outline-none focus:border-primary" />
-              <Button onClick={() => setEstResult(formatEstimate(Number(income) || 0, Number(deductions) || 0))}>
-                <Play className="h-4 w-4" /> Run
-              </Button>
-            </div>
-            <Result value={estResult} testid="estimate-result" />
-          </CardContent>
-        </Card>
-
-        {/* escalate_to_human */}
-        <Card className="shadow-soft">
-          <CardContent className="flex flex-col gap-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-start gap-3">
-                <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-accent text-primary">
-                  <UserCheck className="h-5 w-5" />
-                </span>
-                <div>
-                  <p className="font-mono text-sm font-semibold text-navy">escalate_to_human</p>
-                  <p className="font-mono text-xs text-muted-foreground">(reason: string, original_query: string)</p>
-                </div>
-              </div>
-              <Toggle on={cfg.escalate.enabled} label="Enable escalate_to_human" onChange={(v) => update({ ...cfg, escalate: { ...cfg.escalate, enabled: v } })} />
-            </div>
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-muted-foreground">Description</span>
-              <input
-                aria-label="escalate_to_human description"
-                value={cfg.escalate.description}
-                onChange={(e) => update({ ...cfg, escalate: { ...cfg.escalate, description: e.target.value } })}
-                className="min-h-9 w-full rounded-md border bg-card px-2 text-sm outline-none focus:border-primary"
-              />
-            </label>
-            <p className="text-xs text-muted-foreground">
-              Logic is fixed: it writes to the advisor queue.{" "}
-              <Link href="/admin" className="font-medium text-primary underline underline-offset-2">See the queue</Link>
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    </section>
-  );
-}
-
-/* ---------- custom tools (unchanged builder) ---------- */
-
-function CustomTools() {
-  const [tools, setTools] = useState<CustomTool[]>([]);
-  const [editing, setEditing] = useState<CustomTool | null>(null);
-  const [showBuilder, setShowBuilder] = useState(false);
-
-  useEffect(() => {
-    setTools(loadCustomTools());
-  }, []);
-
-  function persist(next: CustomTool[]) {
-    setTools(next);
-    saveCustomTools(next);
-  }
-  function upsert(tool: CustomTool) {
-    const next = tools.some((t) => t.id === tool.id) ? tools.map((t) => (t.id === tool.id ? tool : t)) : [...tools, tool];
-    persist(next);
-    setShowBuilder(false);
-    setEditing(null);
-  }
-
+function CustomTools({
+  tools,
+  onEdit,
+  onDelete,
+}: {
+  tools: CustomTool[];
+  onEdit: (tool: CustomTool) => void;
+  onDelete: (id: string) => void;
+}) {
   return (
     <section className="mt-10">
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          <Sparkles className="h-4 w-4" /> Your tools
-        </h3>
-        {!showBuilder && tools.length < MAX_CUSTOM_TOOLS ? (
-          <Button onClick={() => { setEditing(null); setShowBuilder(true); }}>
-            <Plus className="h-4 w-4" /> New tool
-          </Button>
-        ) : null}
-      </div>
-
-      {showBuilder ? (
-        <div className="mb-4">
-          <ToolBuilder initial={editing} onCancel={() => { setShowBuilder(false); setEditing(null); }} onSave={upsert} />
-        </div>
-      ) : null}
+      <h3 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <Sparkles className="h-4 w-4" /> Your tools
+      </h3>
 
       <div className="flex flex-col gap-4">
-        {tools.length === 0 && !showBuilder ? (
+        {tools.length === 0 ? (
           <Card className="border-dashed shadow-none">
             <CardContent className="flex flex-col items-center gap-1 py-10 text-center">
               <Sparkles className="h-7 w-7 text-muted-foreground" />
               <p className="text-sm font-medium text-foreground">No custom tools yet</p>
               <p className="max-w-xs text-sm text-muted-foreground">
-                Build a keyword lookup, a response template, or a sandboxed code tool. It stays in your browser and the Assistant can call it.
+                Add one from the Templates tab, or click New tool to build your own. It stays in your browser and the assistant can call it.
               </p>
             </CardContent>
           </Card>
         ) : null}
         {tools.map((t) => (
-          <CustomToolCard key={t.id} tool={t} onEdit={() => { setEditing(t); setShowBuilder(true); }} onDelete={() => persist(tools.filter((x) => x.id !== t.id))} />
+          <CustomToolCard key={t.id} tool={t} onEdit={() => onEdit(t)} onDelete={() => onDelete(t.id)} />
         ))}
       </div>
     </section>
@@ -461,8 +306,7 @@ function ToolBuilder({ initial, onSave, onCancel }: { initial: CustomTool | null
   }
 
   return (
-    <Card className="border-primary/40 shadow-soft">
-      <CardContent className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
         <div className="flex flex-wrap gap-2">
           {(["lookup", "template", "code"] as const).map((k) => (
             <button key={k} type="button" onClick={() => setKind(k)} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${kind === k ? "border-primary bg-accent text-accent-foreground" : "text-muted-foreground"}`}>
@@ -470,7 +314,7 @@ function ToolBuilder({ initial, onSave, onCancel }: { initial: CustomTool | null
             </button>
           ))}
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Tool name (snake_case)">
             <input aria-label="Tool name" value={name} onChange={(e) => setName(e.target.value)} placeholder="my_tool" className="min-h-10 w-full rounded-md border bg-card px-3 font-mono text-sm outline-none focus:border-primary" />
           </Field>
@@ -546,8 +390,7 @@ function ToolBuilder({ initial, onSave, onCancel }: { initial: CustomTool | null
           <Button onClick={save}>Save tool</Button>
           <Button variant="outline" onClick={onCancel}>Cancel</Button>
         </div>
-      </CardContent>
-    </Card>
+    </div>
   );
 }
 

@@ -12,6 +12,7 @@ specTest(
   "A visitor can build a sandboxed code tool and run it end to end",
   async ({ page }) => {
     await page.goto("/tools");
+    await page.getByRole("button", { name: "Your tools" }).click();
     await page.getByRole("button", { name: "New tool" }).click();
     await page.getByRole("button", { name: "Code (sandboxed)" }).click();
 
@@ -48,19 +49,21 @@ specTest(
   async ({ page }) => {
     // Fresh browser context: nothing in localStorage, so the seed applies.
     await page.goto("/tools");
+    await page.getByRole("button", { name: "Your tools" }).click();
 
-    // One example per kind.
-    for (const name of ["filing_deadlines", "filing_reminder", "gst_calculator"]) {
+    // One example per kind (lookup, template, code).
+    for (const name of ["case_status", "due_date_reminder", "percentage_of"]) {
       await expect(
         page.locator(`[data-testid="custom-tool"][data-name="${name}"]`),
       ).toBeVisible();
     }
 
     // The code example runs against the real server sandbox with no setup.
-    const calc = page.locator('[data-testid="custom-tool"][data-name="gst_calculator"]');
+    const calc = page.locator('[data-testid="custom-tool"][data-name="percentage_of"]');
     await calc.getByLabel("amount", { exact: true }).fill("100");
+    await calc.getByLabel("rate", { exact: true }).fill("9");
     await calc.getByRole("button", { name: "Run" }).click();
-    await expect(calc.getByTestId("custom-tool-result")).toContainText('"total":109');
+    await expect(calc.getByTestId("custom-tool-result")).toContainText('"result":9');
   },
   { category: "functional" },
 );

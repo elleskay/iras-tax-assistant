@@ -36,6 +36,11 @@ export class WebStack extends cdk.Stack {
         // Empty means the tool is open (no-op-without-key convention). Same
         // two-place wiring rule as ANTHROPIC_API_KEY above.
         MCP_API_KEY: process.env.MCP_API_KEY ?? "",
+        // Per-workspace RAG service (FastAPI + LlamaIndex + pgvector, on Fly).
+        // Not a secret; defaults to the deployed Fly app. Unset disables RAG,
+        // and the assistant falls back to the built-in fact lookup.
+        RAG_SERVICE_URL:
+          process.env.RAG_SERVICE_URL ?? "https://iras-rag.fly.dev",
         // HITL escalation store. Resolved at deploy time (a CDK token).
         HITL_BUCKET: hitlBucket.bucketName,
       },
@@ -45,9 +50,9 @@ export class WebStack extends cdk.Stack {
       serverTimeoutSeconds: 60,
       // Custom domain on the CloudFront distribution. DNS lives on Vercel
       // (soonkeong.dev), so no hostedZoneId here: a CNAME record points
-      // iras.soonkeong.dev at the distribution. The cert ARN is not a secret.
+      // ai-tax.soonkeong.dev at the distribution. The cert ARN is not a secret.
       customDomain: {
-        domainName: "iras.soonkeong.dev",
+        domainName: "ai-tax.soonkeong.dev",
         certificateArn:
           "arn:aws:acm:us-east-1:281639842383:certificate/6b80f74c-e6b2-4ade-b57f-7db2b2d30771",
       },

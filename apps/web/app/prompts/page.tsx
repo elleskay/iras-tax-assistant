@@ -14,7 +14,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { PageGuide } from "@/components/page-guide";
 
 interface PromptVersion {
   version: number;
@@ -132,7 +131,7 @@ export default function PromptsPage() {
       });
       if (!res.ok) {
         setFormError(
-          "Could not save: use a lowercase kebab-case name and non-empty content.",
+          "Could not save. Use a lowercase, hyphenated name (like assistant-system) and some content.",
         );
         return;
       }
@@ -159,37 +158,35 @@ export default function PromptsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-8 pb-16">
+    <div className="mx-auto w-full max-w-7xl px-4 py-8 pb-16">
       <div className="mb-6">
         <h2 className="flex items-center gap-2 text-xl font-semibold text-navy">
-          <FileText className="h-5 w-5" /> Prompts
+          <FileText className="h-5 w-5" /> AI Instructions
         </h2>
-        <p className="text-sm text-muted-foreground">
-          The assistant&apos;s system prompt is versioned here: versions are
-          immutable, one is active at a time, and the chat resolves the active
-          version at request time (falling back to the compiled-in default
-          when none exists).
+        <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
+          The assistant&apos;s instructions for this workspace, the system prompt
+          behind every answer. Save versions and activate one; the assistant uses
+          it on each request, or a built-in default when none is active. Every
+          version is kept, and each workspace has its own.
         </p>
       </div>
-
-      <PageGuide page="prompts" className="mb-6" />
 
       <main id="main" className="flex flex-col gap-8">
         {/* Existing prompts */}
         {loading ? (
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Loading prompts...
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading instructions...
           </p>
         ) : prompts.length === 0 ? (
           <Card data-testid="empty-prompts" className="border-dashed shadow-none">
             <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
               <Inbox className="h-8 w-8 text-muted-foreground" />
               <p className="text-sm font-medium text-foreground">
-                No stored prompts yet
+                No instructions saved yet
               </p>
               <p className="max-w-sm text-sm text-muted-foreground">
-                The assistant is running on its compiled-in system prompt. Save
-                a first version below to start managing it here.
+                The assistant is using its built-in default. Save a version
+                below to start managing it here.
               </p>
             </CardContent>
           </Card>
@@ -306,7 +303,7 @@ export default function PromptsPage() {
                 <Textarea
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  placeholder="You are an IRAS tax FAQ assistant..."
+                  placeholder="You are an AI assistant for a tax officer..."
                   rows={6}
                   required
                 />

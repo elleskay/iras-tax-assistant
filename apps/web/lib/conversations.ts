@@ -13,9 +13,13 @@ export interface Conversation {
   updatedAt: number;
 }
 
+// Storage is keyed per workspace so each tax type keeps its own chat history.
 const KEY = "iras-conversations";
 const CURRENT_KEY = "iras-current-conv";
 const MAX = 50;
+
+const listKey = (workspace: string) => `${KEY}:${workspace}`;
+const currentKey = (workspace: string) => `${CURRENT_KEY}:${workspace}`;
 
 export function newConversationId(): string {
   return `conv_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e5).toString(36)}`;
@@ -32,27 +36,28 @@ export function titleFromMessages(messages: UIMessage[]): string {
   return text.length > 38 ? text.slice(0, 38) + "..." : text;
 }
 
-export function loadConversations(): Conversation[] {
+export function loadConversations(workspace: string): Conversation[] {
   if (typeof window === "undefined") return [];
   try {
-    const arr = JSON.parse(localStorage.getItem(KEY) ?? "[]");
+    const arr = JSON.parse(localStorage.getItem(listKey(workspace)) ?? "[]");
     return Array.isArray(arr) ? (arr as Conversation[]) : [];
   } catch {
     return [];
   }
 }
 
-export function saveConversations(list: Conversation[]): void {
+export function saveConversations(workspace: string, list: Conversation[]): void {
   if (typeof window === "undefined") return;
   const trimmed = [...list].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, MAX);
-  localStorage.setItem(KEY, JSON.stringify(trimmed));
+  localStorage.setItem(listKey(workspace), JSON.stringify(trimmed));
 }
 
-export function loadCurrentId(): string | null {
+export function loadCurrentId(workspace: string): string | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem(CURRENT_KEY);
+  return localStorage.getItem(currentKey(workspace));
 }
 
-export function saveCurrentId(id: string): void {
-  if (typeof window !== "undefined") localStorage.setItem(CURRENT_KEY, id);
+export function saveCurrentId(workspace: string, id: string): void {
+  if (typeof window !== "undefined")
+    localStorage.setItem(currentKey(workspace), id);
 }

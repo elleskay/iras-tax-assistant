@@ -61,7 +61,7 @@ export const MODELS: ModelEntry[] = [
     tier: "balanced",
     costRank: 5,
     price: { in: 3, out: 15 },
-    use: "nuanced or personalised scenarios and escalation decisions",
+    use: "nuanced, complex casework and drafting",
   },
   {
     id: "claude-opus-4-8",

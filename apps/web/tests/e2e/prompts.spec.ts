@@ -1,6 +1,7 @@
 import { rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { specTest, expect } from "@platform/spec-test/playwright";
+import { DEFAULT_WORKSPACE } from "../../lib/workspaces";
 
 /*
  * The prompts page talks to /api/prompts, which reads the file-backed store
@@ -8,7 +9,9 @@ import { specTest, expect } from "@platform/spec-test/playwright";
  * file directly; the journey test drives the real API through the form.
  */
 
-const storePath = join(process.cwd(), "prompts.json");
+// The store is per workspace; a fresh page/API context resolves the default
+// workspace, so seed and clean that workspace's file (not the legacy path).
+const storePath = join(process.cwd(), `prompts-${DEFAULT_WORKSPACE}.json`);
 
 specTest(
   "IRAS-PROMPT-003",

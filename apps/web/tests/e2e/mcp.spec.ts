@@ -96,7 +96,7 @@ specTest(
 
 specTest(
   "IRAS-MCP-002",
-  "tools/list exposes the four tax tools with schemas",
+  "tools/list exposes the run_javascript sandbox tool with a schema",
   async ({ request }) => {
     const init = await rpc(request, initializePayload());
     const reply = await rpc(
@@ -109,14 +109,10 @@ specTest(
       ?.tools;
     expect(tools).toBeTruthy();
     const names = tools!.map((t) => t.name);
-    for (const expected of [
-      "lookup_tax_info",
-      "calculate_tax_estimate",
-      "escalate_to_human",
-      "run_javascript",
-    ]) {
-      expect(names).toContain(expected);
-    }
+    expect(names).toContain("run_javascript");
+    // The built-in tax tools were removed; officers' tools are not on MCP.
+    expect(names).not.toContain("lookup_tax_info");
+    expect(names).not.toContain("calculate_tax_estimate");
     for (const tool of tools!) {
       expect(tool.inputSchema).toBeTruthy();
     }
@@ -126,7 +122,7 @@ specTest(
 
 specTest(
   "IRAS-MCP-003",
-  "Calling lookup_tax_info over MCP returns the GST threshold",
+  "Calling run_javascript over MCP executes the code in the sandbox",
   async ({ request }) => {
     const init = await rpc(request, initializePayload());
     const reply = await rpc(
@@ -135,7 +131,13 @@ specTest(
         jsonrpc: "2.0",
         id: 3,
         method: "tools/call",
-        params: { name: "lookup_tax_info", arguments: { topic: "GST" } },
+        params: {
+          name: "run_javascript",
+          arguments: {
+            code: "function run(input) { return { sum: input.a + input.b }; }",
+            input: { a: 2, b: 3 },
+          },
+        },
       },
       init.sessionId,
     );
@@ -144,25 +146,7 @@ specTest(
       ?.content;
     expect(content).toBeTruthy();
     const text = content!.map((c) => c.text ?? "").join("\n");
-    expect(text).toContain("SGD 1,000,000");
-    expect(text).toContain("9%");
+    expect(text).toContain("5");
   },
   { category: "functional" },
-);
-
-specTest(
-  "IRAS-TOOLS-006",
-  "The Tools page shows how to connect via MCP",
-  async ({ page }) => {
-    await page.goto("/tools");
-    const section = page.getByTestId("mcp-connect");
-    await expect(section).toBeVisible();
-    await expect(section.getByTestId("mcp-endpoint")).toContainText("/api/mcp");
-    await expect(section.getByTestId("mcp-config")).toContainText("mcpServers");
-    await expect(section.getByTestId("mcp-config")).toContainText("/api/mcp");
-    await expect(
-      section.getByRole("button", { name: "Copy config" }),
-    ).toBeVisible();
-  },
-  { category: "ui" },
 );

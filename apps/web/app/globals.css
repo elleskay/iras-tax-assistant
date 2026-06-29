@@ -61,6 +61,7 @@
      navy #142e4f (hero/headings), blue #2d7bb9 (buttons/links),
      gold #ffce00 (accent), pale-blue pill #d6edff, light surface #f2f5fa. */
   --radius: 0.5rem;
+  color-scheme: light;
 
   --background: #f2f5fa; /* IRAS light surface */
   --foreground: #2a3138; /* IRAS body text */
@@ -107,30 +108,44 @@
 }
 
 .dark {
-  --background: #0b1220;
-  --foreground: #e8eef7;
-  --card: #111a2e;
-  --card-foreground: #e8eef7;
-  --popover: #111a2e;
-  --popover-foreground: #e8eef7;
-  --primary: #38bdf8;
-  --primary-foreground: #06121f;
-  --secondary: #1b2740;
-  --secondary-foreground: #e8eef7;
-  --muted: #1b2740;
-  --muted-foreground: #93a4bf;
-  --accent: #14233c;
-  --accent-foreground: #e8eef7;
-  --destructive: #f87171;
-  --success: #34d399;
+  /* Neutral black / grey / white base, with a deeper blue accent for icons. */
+  color-scheme: dark; /* native controls (select dropdown, scrollbars) go dark */
+  --background: #0a0a0b; /* near-black */
+  --foreground: #ededee; /* off-white */
+  --heading: #f4f4f5;
+  --navy: #e4e4e7; /* titles read as light grey */
+  --card: #161618; /* dark grey surface */
+  --card-foreground: #ededee;
+  --popover: #161618;
+  --popover-foreground: #ededee;
+  --primary: #2d7bb9; /* same blue as the light theme */
+  --primary-foreground: #ffffff;
+  --secondary: #242427; /* grey active pill */
+  --secondary-foreground: #ededee;
+  --muted: #1c1c1f;
+  --muted-foreground: #a1a1aa; /* grey */
+  --accent: #1f1f22; /* grey hover / icon chip */
+  --accent-foreground: #ededee;
+  --destructive: #ef4444;
+  --success: #22c55e;
   --success-foreground: #06121f;
   --warning: #2a2410;
-  --warning-foreground: #fcd34d;
-  --border: #22304b;
-  --input: #2a3a59;
-  --ring: #38bdf8;
-  --brand-from: #0ea5e9;
-  --brand-to: #38bdf8;
+  --warning-foreground: #fbbf24;
+  --gold: #fbbf24;
+  --gold-foreground: #0a0a0b;
+  --border: #2a2a2e;
+  --input: #303035;
+  --ring: #2d7bb9;
+  --brand-from: #142e4f; /* navy to blue, as the light theme */
+  --brand-to: #2d7bb9;
+  --sidebar: #161618;
+  --sidebar-foreground: #ededee;
+  --sidebar-primary: #2d7bb9;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1f1f22;
+  --sidebar-accent-foreground: #ededee;
+  --sidebar-border: #2a2a2e;
+  --sidebar-ring: #2d7bb9;
 }
 
 @layer base {
@@ -168,6 +183,19 @@
   0%, 100% { opacity: 0.25; transform: translateY(0); }
   50% { opacity: 1; transform: translateY(-2px); }
 }
+
+/* Inline citation refs ([n]) inside an answer, and the source they point to */
+.prose-chat a.cite-ref {
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.prose-chat a.cite-ref:hover { text-decoration: underline; }
+@keyframes cite-flash {
+  0%, 25% { background-color: var(--accent); }
+  100% { background-color: transparent; }
+}
+.cite-flash { animation: cite-flash 1.6s ease-out; }
 
 /* Markdown rendered inside assistant messages */
 .prose-chat > * + * { margin-top: 0.6rem; }

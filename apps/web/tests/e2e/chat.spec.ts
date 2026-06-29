@@ -111,7 +111,6 @@ specTest(
       ["Income tax", "estimate tool"],
       ["Multi-step", "two tools chained, step trace"],
       ["Corporate tax", "complex reasoning"],
-      ["SRS", "escalates to a human"],
       ["PII", "pii-sensitive route"],
     ];
     for (const [label, hint] of chips) {
@@ -256,6 +255,8 @@ specTest(
       });
     });
 
+    // Below xl the trace renders inline; at xl+ it moves to the side panel.
+    await page.setViewportSize({ width: 1100, height: 800 });
     await page.goto("/assistant");
     await page.getByLabel("Ask a tax question").fill("GST threshold and my estimate?");
     await page.getByRole("button", { name: "Send" }).click();
@@ -297,6 +298,8 @@ specTest(
       });
     });
 
+    // Below xl the trace renders inline; at xl+ it moves to the side panel.
+    await page.setViewportSize({ width: 1100, height: 800 });
     await page.goto("/assistant");
     await page
       .getByLabel("Ask a tax question")

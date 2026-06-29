@@ -48,12 +48,12 @@ requirements:
     notes: The LLM is non-deterministic, so the e2e stubs /api/chat with a fixed UI message stream and asserts against the fixture.
 
   - id: IRAS-LANDING-001
-    title: Landing page guides the visitor and links into the assistant
+    title: Landing page guides the visitor and links into every showcase page
     category: ui
     severity: medium
     given: A visitor opens the home page
     when: The page loads
-    then: It shows the how-to-use guide with a card linking to every showcase page (Assistant, MCP tools, Evals, Gateway, Prompts, Advisor queue) and a call to action that links to the assistant
+    then: It shows the hero and links into every showcase page (Assistant, Documents, AI Tools, AI Instructions, Usage analytics, AI Gateway, AI Dashboard, AI Policy, AI Audit Trail, AI Evaluation)
     tags: [landing, guide]
 
   - id: IRAS-CHAT-004
@@ -140,32 +140,32 @@ requirements:
     then: There are links to Assistant, MCP tools, Evals, Gateway, Prompts, and the Advisor queue
     tags: [nav, showcase]
 
-  - id: IRAS-TOOLS-001
-    title: Tools page lists the MCP server tools
-    category: ui
-    severity: high
-    given: A visitor opens the Tools page
-    when: The page loads
-    then: It shows the lookup_tax_info, calculate_tax_estimate, and escalate_to_human tools
-    tags: [tools, showcase]
-
   - id: IRAS-TOOLS-002
-    title: A visitor can run the lookup tool and see a result
+    title: A visitor can run a seeded lookup tool and see a result
     category: functional
     severity: high
-    given: The Tools page is open with a topic of GST
-    when: The visitor runs the lookup tool
+    given: The Tools page is open with the seeded tax_facts lookup under Your tools
+    when: The visitor runs it with a topic of GST
     then: The deterministic IRAS fact for GST is shown, including the SGD 1,000,000 threshold
-    tags: [tools, mcp]
+    tags: [tools, examples]
 
   - id: IRAS-EVAL-001
-    title: Evals page shows configurable routing rules and test cases
+    title: Evals page shows the test-cases workbench
     category: ui
     severity: medium
     given: A visitor opens the Evals page
     when: The page loads
-    then: It shows the Model routing rules section and the Test cases section
+    then: It shows the Test cases section and the Results section
     tags: [evals, workbench]
+
+  - id: IRAS-ROUTE-001
+    title: Routing page shows the editable model routing rules
+    category: ui
+    severity: medium
+    given: A visitor opens the Routing page
+    when: The page loads
+    then: It shows the Model routing rules section and the live route preview
+    tags: [routing, workbench]
 
   - id: IRAS-TOOLS-003
     title: A visitor can create a custom tool and run it
@@ -189,10 +189,10 @@ requirements:
     title: The route preview shows where a query routes
     category: functional
     severity: medium
-    given: The Evals page is open
+    given: The Routing page is open
     when: The visitor types a factual query into the route preview
     then: It shows the query routing to the configured factual-lookup model
-    tags: [evals, router]
+    tags: [routing, router]
 
   - id: IRAS-EVAL-003
     title: Running the test cases populates the result stats
@@ -203,15 +203,6 @@ requirements:
     then: The result stats populate with an overall pass rate
     tags: [evals, workbench]
     notes: Running calls the routed model per case, so the e2e stubs /api/eval with a fixed result.
-
-  - id: IRAS-TOOLS-004
-    title: Built-in tools respect their configuration
-    category: data
-    severity: high
-    given: A built-in tools configuration
-    when: buildTaxTools is called and lookupFromPairs is used
-    then: Disabled tools are omitted from the tool set and the lookup returns the configured fact
-    tags: [tools, config]
 
   - id: IRAS-RATELIMIT-001
     title: Rate limiting fails open when Upstash is not configured
@@ -419,23 +410,23 @@ requirements:
     notes: Streamable HTTP may frame single replies as SSE; the test parses both JSON and event-stream bodies.
 
   - id: IRAS-MCP-002
-    title: tools/list exposes the four tax tools with schemas
+    title: tools/list exposes the run_javascript sandbox tool with a schema
     category: functional
     severity: high
     given: The MCP endpoint is reachable
     when: A client requests tools/list
-    then: lookup_tax_info, calculate_tax_estimate, escalate_to_human, and run_javascript are listed, each with an input schema
+    then: run_javascript is listed with an input schema, and the removed built-in tax tools are not
     tags: [mcp, tools]
 
   - id: IRAS-MCP-003
-    title: Calling lookup_tax_info over MCP returns the GST threshold
+    title: Calling run_javascript over MCP executes code in the sandbox
     category: functional
     severity: high
     given: The MCP endpoint is reachable
-    when: A client calls the lookup_tax_info tool with topic GST via tools/call
-    then: The tool result text includes the SGD 1,000,000 registration threshold
+    when: A client calls the run_javascript tool with a run(input) function via tools/call
+    then: The tool result text includes the sandbox-computed value
     tags: [mcp, journey]
-    notes: Full over-the-wire journey against the real endpoint and the real tax data; no LLM involved.
+    notes: Full over-the-wire journey against the real endpoint and the QuickJS sandbox; no LLM involved.
 
   - id: IRAS-MCP-004
     title: Escalation over MCP requires the API key when one is configured
@@ -446,15 +437,6 @@ requirements:
     then: The request is rejected with 401 before reaching the tool, using a constant-time comparison; with no MCP_API_KEY configured the tool stays open
     tags: [mcp, security]
     notes: Vitest with stubbed env against the route handler and the pure guard, no live server needed.
-
-  - id: IRAS-TOOLS-006
-    title: The Tools page shows how to connect via MCP
-    category: ui
-    severity: medium
-    given: A visitor opens the Tools page
-    when: The page loads
-    then: A Connect via MCP section shows the HTTP endpoint and a copyable client configuration snippet
-    tags: [tools, mcp]
 
   - id: IRAS-TOOLS-007
     title: Example tools are preloaded and runnable on first visit
@@ -474,15 +456,6 @@ requirements:
     when: The empty state renders, and again after a conversation has started
     then: Example chips cover a factual lookup, a calculation, a multi-step two-tool question, a complex comparison, a personalised escalation, and a PII-sensitive question (with route hints in the empty state); during a conversation the chips remain above the composer so each scenario can be tried in the same chat
     tags: [chat, examples]
-
-  - id: IRAS-LANDING-002
-    title: Landing example questions exercise the different scenarios
-    category: ui
-    severity: medium
-    given: A visitor opens the home page
-    when: The good-first-questions section renders
-    then: The example links cover lookup, calculation, multi-step, comparison, escalation, and PII scenarios, each deep-linking into the assistant
-    tags: [landing, examples]
 
   - id: IRAS-GUIDE-001
     title: Every feature page has a follow-along guide at the top

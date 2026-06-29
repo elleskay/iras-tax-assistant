@@ -2,8 +2,9 @@ import { createJsonStore, reverseChronoId } from "./store";
 
 /*
  * Persisted eval runs: one record per completed run, newest-first ids so the
- * history listing needs no extra sort. Same dual-backend store as the rest of
- * the app (S3 prefix in prod, eval-runs.json locally).
+ * history listing needs no extra sort. Evaluation is platform-wide (not scoped
+ * per workspace): a single shared history (eval-runs.json locally, S3 prefix in
+ * prod).
  */
 
 export type Grader = "keyword" | "judge";

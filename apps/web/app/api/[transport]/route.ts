@@ -1,11 +1,6 @@
 import { NextResponse } from "next/server";
 import { createMcpHandler } from "mcp-handler";
-import {
-  MCP_SERVER_INFO,
-  escalateAllowed,
-  isEscalateCall,
-  registerMcpTools,
-} from "@/lib/mcp-tools";
+import { MCP_SERVER_INFO, registerMcpTools } from "@/lib/mcp-tools";
 import { makeLimiter, isAllowed, clientIp } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -43,28 +38,6 @@ function rpcError(
 async function guarded(req: Request): Promise<Response> {
   if (!(await isAllowed(clientIp(req), limiter))) {
     return rpcError(null, -32000, "Rate limit exceeded", 429);
-  }
-  if (req.method === "POST") {
-    // Peek at the JSON-RPC body for the escalate auth gate; malformed JSON
-    // falls through for the protocol handler to reject properly.
-    let body: unknown = null;
-    try {
-      body = await req.clone().json();
-    } catch {
-      body = null;
-    }
-    if (isEscalateCall(body) && !escalateAllowed(req.headers.get("authorization"))) {
-      const id =
-        typeof body === "object" && body !== null && "id" in body
-          ? (body as { id: unknown }).id
-          : null;
-      return rpcError(
-        id,
-        -32001,
-        "Unauthorized: escalate_to_human requires a valid bearer token",
-        401,
-      );
-    }
   }
   return handler(req);
 }

@@ -5,20 +5,27 @@ import { usePathname } from "next/navigation";
 import {
   Landmark,
   MessageSquare,
+  Files,
   Wrench,
   BarChart3,
   ArrowRightLeft,
   FileText,
   ShieldCheck,
+  Scale,
+  Lightbulb,
 } from "lucide-react";
+import { WorkspaceSwitcher } from "./workspace-switcher";
 
 const LINKS = [
   { href: "/assistant", label: "Assistant", icon: MessageSquare },
+  { href: "/documents", label: "Documents", icon: Files },
   { href: "/tools", label: "MCP tools", icon: Wrench },
   { href: "/evals", label: "Evals", icon: BarChart3 },
   { href: "/gateway", label: "Gateway", icon: ArrowRightLeft },
   { href: "/prompts", label: "Prompts", icon: FileText },
-  { href: "/admin", label: "Advisor queue", icon: ShieldCheck },
+  { href: "/governance", label: "Governance", icon: Scale },
+  { href: "/insights", label: "Insights", icon: Lightbulb },
+  { href: "/admin", label: "Review queue", icon: ShieldCheck },
 ];
 
 export function SiteNav() {
@@ -33,9 +40,11 @@ export function SiteNav() {
         >
           <Landmark className="h-4 w-4" strokeWidth={2} />
         </span>
-        <h1 className="text-sm font-semibold text-navy">IRAS Tax Assistant</h1>
+        <h1 className="text-sm font-semibold text-navy">AI Tax Assistant Platform</h1>
       </Link>
-      <nav aria-label="Primary" className="flex items-center gap-1">
+      <div className="flex items-center gap-2">
+        <WorkspaceSwitcher />
+        <nav aria-label="Primary" className="flex items-center gap-1">
         {LINKS.map(({ href, label, icon: Icon }) => {
           const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
           return (
@@ -54,7 +63,8 @@ export function SiteNav() {
             </Link>
           );
         })}
-      </nav>
+        </nav>
+      </div>
       </div>
     </header>
   );

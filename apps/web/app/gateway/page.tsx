@@ -1,14 +1,14 @@
 import { ArrowRightLeft, Inbox } from "lucide-react";
-import { PageGuide } from "@/components/page-guide";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { listGatewayCalls } from "@/lib/gateway-store";
+import { activeWorkspace } from "@/lib/tenant";
 
 // Reads the request log at request time, never at build time.
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Gateway - IRAS Tax Assistant",
+  title: "Gateway - AI Tax Assistant Platform",
 };
 
 function formatTime(iso: string) {
@@ -29,22 +29,20 @@ function formatCost(usd: number) {
 }
 
 export default async function GatewayPage() {
-  const calls = await listGatewayCalls(50);
+  const calls = await listGatewayCalls(50, await activeWorkspace());
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-8 pb-16">
+    <div className="mx-auto w-full max-w-7xl px-4 py-8 pb-16">
       <div className="mb-6">
         <h2 className="flex items-center gap-2 text-xl font-semibold text-navy">
-          <ArrowRightLeft className="h-5 w-5" /> Gateway
+          <ArrowRightLeft className="h-5 w-5" /> AI Gateway
         </h2>
         <p className="text-sm text-muted-foreground">
-          Every model call flows through one gateway that records latency,
-          token usage, and cost from the registry list prices, and falls back
-          to the alternate provider on errors. The most recent 50 calls:
+          Every model call goes through one gateway. It records latency, token
+          usage, and cost (from the registry list prices), and falls back to the
+          alternate provider on errors. The 50 most recent calls:
         </p>
       </div>
-
-      <PageGuide page="gateway" className="mb-6" />
 
       <main id="main">
         {calls.length === 0 ? (

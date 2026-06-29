@@ -1,590 +1,497 @@
-<div align="center">
+# AI Tax Assistant Platform System Design
 
-# Unofficial IRAS Tax Assistant
-
-**A multi-step Singapore tax agent that answers GST, income tax, corporate tax, and SRS questions in plain language. It chains real MCP tools with a visible step trace, applies cost-aware model routing across OpenAI and Anthropic through an observed gateway, runs visitor-built tools in a secure sandbox, and escalates anything personal to a human.**
-
-[![Live](https://img.shields.io/badge/live-iras.soonkeong.dev-1668B0)](https://iras.soonkeong.dev) &nbsp;![Spec gate](https://img.shields.io/badge/spec%20gate-57%2F57%20covered-2e9e44) &nbsp;![Next.js](https://img.shields.io/badge/Next.js%2016-App%20Router-000000) &nbsp;![AI SDK](https://img.shields.io/badge/Vercel%20AI%20SDK-v6-0A0A0A) &nbsp;![AWS](https://img.shields.io/badge/AWS-CloudFront%20%2B%20Lambda%20%2B%20S3-FF9900) &nbsp;![IaC](https://img.shields.io/badge/IaC-CDK%20%2B%20OpenNext-4F46E5)
-
-<a href="https://iras.soonkeong.dev"><img src="docs/img/hero-v4.png" alt="IRAS Tax Assistant: Singapore tax, answered by a multi-step agent" width="100%"></a>
-
-</div>
-
-> **Unofficial demo.** This project is not affiliated with, endorsed by, or connected to the Inland Revenue Authority of Singapore (IRAS) or the Singapore government. "IRAS" is used only to describe the subject matter. It provides general information for demonstration, not personalised tax advice, and the tax figures shown are illustrative and may not reflect current rules. Always confirm with IRAS or a qualified professional.
+> A system design breakdown of the Unofficial AI Tax Assistant Platform, a multi-tenant tool for Singapore tax officers. Each department gets its own workspace and a document-grounded assistant: officers ask questions, draft replies for review, and triage cases, grounded in the workspace's own documents (RAG) and cited. Every query is routed cost-aware across six models through one observed gateway, custom tools run in a secure sandbox, and the whole platform runs under one governance standard expressed as code: PII handling, grounding, an eval gate, a cost ceiling, a full audit trail.
+>
+> **Live demo** at https://ai-tax.soonkeong.dev
+>
+> Unofficial. Not affiliated with the Inland Revenue Authority of Singapore. General information for demonstration, not personalised tax advice, and the figures are illustrative.
 
 ---
 
-## Table of contents
+## Understanding the Problem
 
-- [What it is](#what-it-is)
-- [AI-native architecture](#ai-native-architecture)
-- [Feature tour](#feature-tour)
-- [Connect via MCP](#connect-via-mcp)
-- [How a question flows](#how-a-question-flows)
-- [Sequence: a chat turn](#sequence-a-chat-turn)
-- [Sequence: human escalation](#sequence-human-escalation)
-- [Logical architecture](#logical-architecture)
-- [Physical architecture](#physical-architecture)
-- [Deployment pipeline](#deployment-pipeline)
-- [Data model](#data-model)
-- [Spec-driven development](#spec-driven-development)
-- [Tech stack](#tech-stack)
-- [Local development](#local-development)
-- [Deployment](#deployment)
-- [Repository structure](#repository-structure)
-- [Provenance and disclaimer](#provenance-and-disclaimer)
+Tax officers handle taxpayer queries and casework for their department (Individual Income, Corporate, GST, and so on). They need an assistant grounded in their own guidance, never inventing figures, that drafts replies for the officer to review rather than sending anything. Each department's documents and usage differ, so the product is multi-tenant: one workspace per department. And because the whole agency answers to one set of rules, every workspace must run under a single governance standard rather than drifting apart.
 
----
+The defining constraints are trust, isolation, and cost, not scale. Answers must be grounded and cited, tenants must not leak into one another, every model call must be observable and cheap, officer-written code must run without endangering the host, and the platform must enforce one governance standard while letting each workspace bring its own documents and instructions. Because a non-deterministic model sits in the loop, the whole thing must still be testable in CI without ever calling an LLM.
 
-## What it is
+### Functional Requirements
 
-Three command-line projects, an MCP tool server, a tax agent, and an LLM eval harness, made usable by anyone in a browser. No install, no terminal, no API key of your own.
+- Officers should be able to ask a question and get an answer grounded in the workspace's own documents, with inline citations and a visible numbered step trace of the tools used.
+- Officers should be able to work in one workspace per department; the whole app, assistant, documents, instructions, analytics, gateway, scopes to the active workspace, and new workspaces can be created self-serve.
+- Officers should be able to upload a workspace's guidance documents, which are chunked, embedded, and indexed per workspace for retrieval.
+- Officers should be able to see which of six models answered, with the tokens and the dollar cost of the reply.
+- Officers should be able to build their own tools (lookup, template, or sandboxed code), used live by the assistant.
+- Officers should be able to version the assistant's instructions (the system prompt) behind an activation pointer.
+- Officers should be able to run an eval workbench, routing test cases to models and grading them by keyword or LLM judge, with a persisted run history behind a pass-rate gate.
+- The platform should enforce one governance standard across every workspace (PII detect/redact/audit, grounding, eval gate, cost ceiling, deterministic routing), with a live dashboard, a full audit trail, and a downloadable risk assessment.
 
-- **Assistant.** Ask a Singapore tax question. It grounds factual answers in IRAS facts via a tool, can work out a rough chargeable-income estimate, and routes anything personal to a human advisor. Conversations have history and a New chat button, stored per browser.
-- **Cost-aware model routing.** A deterministic rule engine picks a model per query from six models across OpenAI and Anthropic, so a simple lookup uses a cheap model and a complex comparison uses a premium one. Each answer shows which model handled it.
-- **Configurable MCP tools.** The three built-in tools can be enabled, disabled, redescribed, and (for the lookup tool) have their facts edited. Visitors can also build their own lookup, template, or sandboxed code tools; three examples are preloaded so there is something to run immediately. Edits apply to the live assistant.
-- **An eval workbench.** Edit the routing rules and the test cases, click Run, and watch each case route to a model and get graded (keyword or LLM-as-judge), with a per-model comparison and a persisted run history. Failed cases say why: the missed keywords, or the judge's score and rationale. The same suite runs in CI as a regression gate against a committed baseline.
-- **A model gateway.** Every model call (chat, evals, the judge) flows through one gateway that times it, counts tokens, computes USD cost from list prices, falls back across providers on error, and logs it to the `/gateway` page.
-- **Prompt management.** The system prompt is versioned: immutable versions, an activation pointer, a line diff between versions, and the live assistant resolves the active one.
-- **A secure sandbox.** Visitors can write JavaScript tools that run server-side in a QuickJS WASM sandbox with hard time, memory, and output limits and no host capabilities.
-- **A real MCP server.** The tax tools are exposed over Streamable HTTP at `/api/mcp` and over stdio, so Claude Code or any MCP client can call them.
-- **A visible agent loop.** Multi-step replies show a numbered step trace: each tool call with its input and output, plus tokens and cost per reply.
-- **Human in the loop.** Personalised questions are escalated to an advisor queue that a human resolves.
-- **Follow-along guides.** Every page opens with a collapsible how-to panel, and six example chips (lookup, calculation, multi-step, comparison, escalation, PII) cover every scenario and stay available mid-chat.
+Out of scope: it is unofficial and not affiliated with IRAS, it is not personalised advice, and it is officer-facing (it serves the officer, not the taxpayer). There is no auth in the demo: the active workspace comes from a cookie.
 
-It is built on the [`elleskay/platform`](https://github.com/elleskay/platform) template: a Next.js to AWS serverless monorepo with a mandatory spec-driven test gate.
+### Non-Functional Requirements
+
+- Answers should be grounded and cited, coming from the workspace's retrieved documents, and PII is handled and audited in casework, never used to route or escalate.
+- Tenants should be isolated: one workspace's documents, stores, and instructions never bleed into another, and one governance standard applies to all.
+- Routing should be cost-aware and add no latency or cost: cheap models for simple queries, premium for hard ones.
+- Every model call should be observable (timed, token-counted, priced) and resilient (cross-provider fallback).
+- Officer-written code should run with hard time, memory, and output limits and no host access.
+- The system should be deterministically testable despite the model, and CI must never call an LLM.
+- The system should run near-zero cost with no relational database, scale-to-zero on AWS.
 
 ---
 
-## AI-native architecture
+## The Set Up
 
-Seven artifacts of AI-native engineering, each a working feature in this app:
+### Planning the Approach
 
-| Artifact | What it does here | Where |
-|---|---|---|
-| Model gateway | Wraps every model call: latency, tokens, USD cost from registry prices, cross-provider fallback, persisted logs | `lib/gateway.ts`, `/gateway` |
-| Prompt management | Immutable prompt versions, activation pointer, line diff, live resolution with compiled-in fallback | `lib/prompt-store.ts`, `/prompts` |
-| Evaluation harness | Keyword and LLM-as-judge graders, persisted run history with trend, prompt-version targeting, CLI baseline gate | `lib/graders.ts`, `scripts/run-eval.ts`, `/evals` |
-| AI-assisted code review | Claude reviews every PR against this repo's conventions; an eval gate blocks prompt regressions | `.github/workflows/ai-review.yml`, `eval-gate.yml` |
-| Secure sandbox runtime | User JavaScript in QuickJS WASM: 1s deadline, 32MB cap, 8KB output cap, zero host globals | `lib/sandbox.ts`, `/api/tools/run` |
-| Internal MCP server | The four tax tools over Streamable HTTP and stdio, bearer-gated escalation | `app/api/[transport]/route.ts`, `mcp/stdio.ts` |
-| Agent architecture | Bounded multi-step tool loop with a visible numbered step trace, tokens, and cost per reply | `lib/run-agent.ts`, `/assistant` |
+The assistant is one bounded agent loop behind a single chat route, scoped to a workspace. Routing is deterministic keyword rules, so picking a model costs nothing, and every model call funnels through one gateway that times, prices, logs, and falls back. Grounding is retrieval: a separate Python RAG service holds one vector index per workspace, and the agent's `search_knowledge` tool queries it. There is no relational database; server state is small flat records in a per-workspace JSON store (S3 in production, files locally). The governance standard is one declarative policy, enforced in the routing, eval, and gateway layers and surfaced on a dashboard and audit trail. The whole thing is gated by a spec so it cannot ship untested. Trust, isolation, and cost first, then everything else.
 
-CI never calls an LLM from tests. The live-LLM workflows (AI review, eval gate) run only when `ANTHROPIC_API_KEY` is present and skip cleanly otherwise, so forks stay green.
+### Defining the Core Entities
 
----
+There is no relational database. App state is a generic JSON store, one object per record under a prefix, keyed by workspace, with reverse-chronological ids so a list is newest-first with no sort key. Document vectors live in the RAG service.
 
-## Feature tour
+- **Workspace** (store `workspaces`), one department's space: name, tax type, blurb, and a few tuning knobs (default model, cost ceiling).
+- **RAG index** (RAG service, per workspace), the workspace's uploaded documents, chunked and embedded into its own vector index (a pgvector table or a local store), with per-chunk `doc_id`, filename, and location for citation and deletion.
+- **GatewayCall** (store `gateway-<workspace>`), one logged model call: model, latency, tokens, USD cost, route reason, and whether the fallback fired.
+- **PromptVersion** (store `prompts-<workspace>`), an immutable instruction version behind an activation pointer.
+- **EvalRun** (store `eval-runs`, platform-wide), one persisted eval run with its grader, prompt version, and pass rate.
+- **GovernancePolicy** (store `governance-policy`, platform-wide), the editable policy overrides merged over the code defaults.
+- Client-side in localStorage: **Conversation** (per workspace), the **RoutingConfig** and its ordered **RoutingRule** list, **TestCase**, and any **CustomTool**.
 
-### Landing: a guided entry point
+### API or System Interface
 
-One card per page and six example questions, together covering every scenario: lookup, calculation, the multi-step agent loop, complex reasoning, human escalation, and PII routing. Each feature page also opens with its own collapsible follow-along guide.
+A set of Next.js route handlers plus the MCP server. The server owns model choice, cost, timestamps, and workspace resolution, so the client only ever sends its turns.
 
-<img src="docs/img/landing.png" alt="IRAS Tax Assistant landing page with six feature cards and example questions" width="100%">
+Chat endpoint. The heart of the app. A POST carries the conversation and the browser's routing config; the server resolves the workspace (cookie), picks a model by keyword, runs the bounded agent loop calling tools as needed, and streams the answer back with the routed model, token counts, and cost attached.
 
-### Assistant: tools, routing, and the visible agent loop
-
-A factual question calls the `lookup_tax_info` tool and is answered by the inexpensive model the rules pick for lookups (here, GPT-4o mini). Each reply carries a step trace of the tool calls and a chip with the routed model, tokens, and cost. The scenario chips stay above the composer, so every scenario can be tried in the same chat.
-
-<img src="docs/img/assistant.png" alt="Assistant answering a GST question, showing the step trace and the routed model with tokens and cost" width="100%">
-
-### MCP tools: configurable, and they drive the assistant
-
-Enable or disable each built-in tool, edit its description, and edit the lookup tool's facts. Build your own tools too (three examples are preloaded, including a sandboxed code tool), and connect any MCP client via the config at the bottom of the page. Everything is sent with each chat request, so edits change the live assistant.
-
-<img src="docs/img/tools.png" alt="MCP tools page with the follow-along guide, editable built-in tools, and preloaded example tools" width="100%">
-
-### Evals: configurable rules, runnable test cases, model comparison
-
-Edit the routing rules (each model shows its approximate price) and the test cases, pick a grader (keyword or LLM judge) and a prompt version, then Run. Each case routes to a model and is graded; failed cases name the missed keywords or show the judge's rationale. Results compare models side by side, and every run lands in a persisted history with a pass-rate trend.
-
-<img src="docs/img/evals.png" alt="Eval workbench with routing rules, test cases, and a populated results comparison" width="100%">
-
-### Gateway: every model call, observed
-
-`/gateway` lists recent model calls from the gateway log: model, latency, input and output tokens, USD cost, and whether the cross-provider fallback fired. Chat answers carry the same numbers in their metadata chip.
-
-### Prompts: versioned system prompt
-
-`/prompts` lists the system prompt's immutable versions with the active one marked, shows a line diff between any version and its predecessor, and lets you save and activate new versions. The assistant resolves the active version on the next turn.
-
-### Advisor queue: human in the loop
-
-Escalated questions land here for a human to review and resolve.
-
-<img src="docs/img/admin.png" alt="Advisor queue listing escalations" width="100%">
-
----
-
-## Connect via MCP
-
-The tax tools are a real MCP server, not just in-process `tool()` definitions. Two transports, same tools (`lookup_tax_info`, `calculate_tax_estimate`, `escalate_to_human`, `run_javascript`):
-
-**Streamable HTTP** at `/api/mcp`. Add to `.mcp.json` in any MCP client:
-
-```json
-{
-  "mcpServers": {
-    "iras-tax": {
-      "type": "http",
-      "url": "https://iras.soonkeong.dev/api/mcp"
-    }
-  }
-}
+```
+POST /api/chat -> streamed answer
+Body: { messages, routingConfig?, tools? }
 ```
 
-**stdio** for local use (for example Claude Code):
+Knowledge endpoint. The per-workspace RAG corpus. A GET lists the workspace's documents and reports whether the RAG service is configured and reachable, a POST indexes an uploaded document, and a DELETE removes one. The assistant's `search_knowledge` tool queries the service directly during a turn.
 
-```json
-{
-  "mcpServers": {
-    "iras-tax": {
-      "command": "npx",
-      "args": ["tsx", "mcp/stdio.ts"],
-      "cwd": "apps/web"
-    }
-  }
-}
+```
+GET    /api/knowledge -> { enabled, reachable, documents }
+POST   /api/knowledge -> indexes a document
+DELETE /api/knowledge -> removes a document
+GET    /api/knowledge/download -> the original file
 ```
 
-Lookup and calculation are public (rate limited). When the optional `MCP_API_KEY` env var is set, `escalate_to_human` requires `Authorization: Bearer <key>` (constant-time compare); unset means open. The Tools page shows the endpoint and a copyable config.
+Workspaces endpoint. A GET lists the platform's workspaces (the seeds plus any created), a POST creates one, and a PATCH updates its settings.
 
----
+```
+GET   /api/workspaces -> Workspace[]
+POST  /api/workspaces -> Workspace
+PATCH /api/workspaces -> Workspace
+```
 
-## How a question flows
+Prompts endpoint. The instructions are a small versioned registry per workspace, not a constant. A GET lists versions, a POST adds a new immutable one, and a PUT moves the active pointer, so the live prompt changes without a redeploy.
 
-The router is the cheap part: deterministic keyword rules, no extra model call. The model is only called to answer.
+```
+GET  /api/prompts -> Prompt[]
+POST /api/prompts -> Prompt
+PUT  /api/prompts -> Prompt
+```
 
-```mermaid
-flowchart TD
-  Q[User question] --> RL[Rate limit check]
-  RL --> RULES[applyRoutingRules: deterministic keyword match]
+Tool run endpoint. Custom tools execute server-side, never in the browser. A POST sends the tool definition and an input, and the server runs it, including officer-written code inside the QuickJS sandbox, then returns the result.
 
-  RULES -->|nric, uen| HAIKU[Claude Haiku 4.5: pii-sensitive]
-  RULES -->|compare, versus, optimise| OPUS[Claude Opus 4.8: complex-reasoning]
-  RULES -->|estimate, calculate, how much| GPT41[GPT-4.1: calculation]
-  RULES -->|should i, my income, my company| SONNET[Claude Sonnet 4.6: personalised-advice]
-  RULES -->|what is, rate, deadline, threshold| MINI[GPT-4o mini: factual-lookup]
-  RULES -->|no signal| NANO[GPT-4.1 nano: default]
+```
+POST /api/tools/run -> ToolResult
+Body: { tool, input }
+```
 
-  HAIKU --> GEN[streamText with the configured MCP tools]
-  OPUS --> GEN
-  GPT41 --> GEN
-  SONNET --> GEN
-  MINI --> GEN
-  NANO --> GEN
+Eval endpoints. A POST scores one test case against a chosen model and grader (keyword or LLM judge); a separate route persists finished runs and lists the history for the pass-rate trend.
 
-  GEN --> T1[lookup_tax_info]
-  GEN --> T2[calculate_tax_estimate]
-  GEN --> T3[escalate_to_human]
-  T1 --> ANS[Streamed answer + routed-model metadata]
-  T2 --> ANS
-  T3 --> QUEUE[(Advisor queue)]
-  T3 --> ANS
+```
+POST /api/eval      -> EvalResult
+POST /api/eval/runs -> Run
+GET  /api/eval/runs -> Run[]
+```
+
+Governance endpoints. The platform policy is editable and exportable. A GET returns the effective policy, a PUT saves overrides, and the report route renders a downloadable AI Risk Assessment.
+
+```
+GET /api/governance/policy -> { policy, overrides }
+PUT /api/governance/policy -> { policy }
+GET /api/governance/report -> risk assessment (.md)
+```
+
+MCP endpoint. The deterministic sandbox tool is exposed over the Model Context Protocol so any MCP client can call it. It runs as a stateless Streamable HTTP server at `/api/mcp`, and over stdio for local clients like Claude Code.
+
+```
+GET POST DELETE /api/mcp
+tools: run_javascript (QuickJS sandbox; no LLM)
 ```
 
 ---
 
-## Sequence: a chat turn
+## High-Level Design
 
-```mermaid
-sequenceDiagram
-  participant B as Browser (useChat)
-  participant API as /api/chat (Lambda)
-  participant R as Router (lib/routing-rules)
-  participant M as Model (OpenAI or Anthropic)
-  participant T as MCP tools (lib/tools)
+We build the design one functional requirement at a time.
 
-  B->>API: messages + routingConfig + builtinConfig + customTools
-  API->>API: rate limit, validate, bound input size
-  API->>R: applyRoutingRules(config, latest question)
-  R-->>API: { modelId, reason }
-  API->>M: runAgent: streamText via the gateway (timed, costed, logged, fallback)
-  M->>T: lookup_tax_info / calculate_tax_estimate
-  T-->>M: deterministic fact or estimate
-  M-->>API: streamed tokens (bounded multi-step loop)
-  API-->>B: UI message stream + metadata (routed model, tokens, cost)
-  B-->>B: render answer, step trace, "Routed to X", persist to localStorage
-```
+### 1) An officer asks a question and gets a document-grounded, cited answer
 
----
-
-## Sequence: human escalation
-
-```mermaid
-sequenceDiagram
-  participant B as Visitor
-  participant API as /api/chat
-  participant M as Model (Claude Sonnet 4.6)
-  participant S as HITL store (S3)
-  participant ADV as Advisor (/admin)
-  participant H as /api/hitl
-
-  B->>API: "Should I contribute to SRS this year?" (personalised)
-  API->>M: streamText
-  M->>S: escalate_to_human -> addEscalation()
-  S-->>M: case id (pending)
-  M-->>B: "Escalated to a human advisor (case #...)"
-  ADV->>H: GET /api/hitl
-  H->>S: listEscalations()
-  S-->>ADV: pending escalations
-  ADV->>H: POST resolve(id)
-  H->>S: resolveEscalation(id) -> status resolved
-```
-
----
-
-## Logical architecture
-
-Pages, API routes, the pure domain libraries they call, and the external providers and stores. The router and tools are plain deterministic code; the models are the only network dependency for answering.
-
-```mermaid
-flowchart TD
-  subgraph UI["Next.js App Router pages"]
-    L["/ landing guide"]
-    A["/assistant: chat, step trace"]
-    TL["/tools: MCP tools + sandbox builder"]
-    E["/evals: rules, cases, history"]
-    GW["/gateway: model call log"]
-    PR["/prompts: versions + diff"]
-    AD["/admin: advisor queue"]
-  end
-
-  subgraph APIRoutes["API routes"]
-    C["/api/chat: agent loop"]
-    EV["/api/eval: one graded case"]
-    MCP["/api/mcp: MCP over HTTP"]
-    TR["/api/tools/run: sandbox exec"]
-    PA["/api/prompts: versions API"]
-    HI["/api/hitl: list and resolve"]
-  end
-
-  subgraph Lib[Domain libraries]
-    GA[gateway: wrap, time, cost, fallback]
-    RR[routing-rules]
-    MR[model-registry: 6 models + prices]
-    TO[tools: buildTaxTools]
-    TX[tax: facts + estimate]
-    SB[sandbox: QuickJS WASM]
-    PS[prompt-store]
-    ST[store: generic JSON store]
-  end
-
-  A --> C
-  E --> EV
-  TL --> TR
-  PR --> PA
-  AD --> HI
-
-  C --> RR --> MR
-  C --> GA
-  C --> TO --> TX
-  C --> PS
-  EV --> GA
-  MCP --> TO
-  MCP --> SB
-  TR --> SB
-  PA --> PS
-
-  GA --> ANTH[Anthropic API]
-  GA --> OAI[OpenAI API]
-  GA --> ST
-  PS --> ST
-  HI --> ST
-  ST --> S3[(Private S3 bucket)]
-  A -. per browser .-> LS[(localStorage)]
-  TL -. per browser .-> LS
-  E -. per browser .-> LS
-```
-
----
-
-## Physical architecture
-
-One CloudFront distribution fronts a streaming server Lambda (built by OpenNext), an image Lambda, and an S3 assets bucket. The server Lambda calls the model providers and a private S3 bucket for the escalation queue. There is no relational database.
-
-```mermaid
-flowchart TD
-  U[Browser] --> CF[CloudFront distribution]
-  CF --> SRV["Server Lambda: OpenNext, response streaming, 60s timeout"]
-  CF --> IMG[Image optimization Lambda]
-  CF --> S3A["S3 assets bucket: public and _next/static"]
-
-  SRV --> ANTH[Anthropic API]
-  SRV --> OAI[OpenAI API]
-  SRV --> HITL[("Private S3 bucket: escalations, public blocked")]
-  SRV -. optional .-> UP[("Upstash Redis: rate limit, fails open")]
-```
-
----
-
-## Deployment pipeline
-
-`deploy.yml` runs on push to main. It assumes an AWS role over OIDC (no stored keys), bakes the model keys in at synth, builds with OpenNext, runs CDK deploy, and the smoke test probes the live URL.
+A chat request is rate-limited and validated, then deterministic rules pick a model by keyword, the workspace's active instructions resolve, and the bounded agent loop runs through the gateway. Its `search_knowledge` tool retrieves cited passages from the workspace's RAG index, and the reply streams with the routed model, tokens, and cost.
 
 ```mermaid
 flowchart LR
-  A[Push to main] --> B[OIDC assume role]
-  B --> C[npm ci]
-  C --> D[Build with OpenNext]
-  D --> E[CDK deploy: CloudFront, Lambda, S3, HITL bucket]
-  E --> F[Extract deployed URL]
-  F --> G[Smoke test]
-  G --> H[Live]
+  UI["Officer UI<br/>- asks a question"]
+  API["Chat route<br/>- rate limit, validate<br/>- pick a model by keyword"]
+  Agent["Agent loop<br/>- bounded, temp 0<br/>- calls tools, feeds results back"]
+  GW["Model gateway<br/>- times, tokens, USD cost<br/>- fallback provider on error"]
+  Prov{"Anthropic / OpenAI"}
+  RAG["RAG service<br/>- search_knowledge<br/>- returns cited chunks"]
+  VEC[("Per-workspace vector index<br/>- pgvector or local")]
+  UI -->|"POST /api/chat"| API
+  API -->|runAgent| Agent
+  Agent -->|search_knowledge| RAG
+  RAG -->|"embed and retrieve"| VEC
+  Agent -->|generate| GW
+  GW --> Prov
+  Agent -.stream.-> UI
 ```
 
-Secrets baked at synth and forwarded in the deploy step: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_MODEL`, and the optional `MCP_API_KEY` (gates the MCP escalation tool; unset means open). The HITL bucket name is a CDK token resolved at deploy time.
+### 2) Each department works in an isolated workspace
+
+The active workspace comes from a cookie, and every server store is keyed by it: documents, gateway logs, instructions, and conversations are all scoped, and the RAG service keeps a separate vector index per workspace. One standard is shared; what differs per workspace is its documents, its instructions, and its default model.
+
+```mermaid
+flowchart LR
+  UI["Officer UI<br/>- workspace from cookie"]
+  API["Chat route<br/>- resolve workspace<br/>- pick a model by keyword"]
+  Agent["Agent loop<br/>- bounded, temp 0"]
+  GW["Model gateway<br/>- times, tokens, USD cost"]
+  Prov{"Anthropic / OpenAI"}
+  RAG["RAG service<br/>- one index per workspace"]
+  VEC[("Per-workspace vector index")]
+  Store[("Per-workspace JSON store<br/>- logs, prompts, S3 or file")]
+  UI -->|"POST /api/chat"| API
+  API -->|runAgent| Agent
+  Agent -->|search_knowledge| RAG
+  RAG -->|"embed and retrieve"| VEC
+  Agent -->|generate| GW
+  GW --> Prov
+  GW -->|log per workspace| Store
+  Agent -.stream.-> UI
+```
+
+### 3) An officer builds tools, used live
+
+The assistant's only built-in tool is `search_knowledge`. Everything else is officer-built: lookup tables, message templates, or sandboxed code, sent with each chat request so edits change the live assistant. Code tools run server-side in a QuickJS WASM sandbox, never in the browser.
+
+```mermaid
+flowchart LR
+  UI["Officer UI<br/>- asks a question"]
+  API["Chat route<br/>- resolve workspace<br/>- merge custom tools"]
+  Agent["Agent loop<br/>- bounded, temp 0"]
+  Tools["Tools<br/>- search_knowledge<br/>- custom lookup, template, or code"]
+  Sandbox["QuickJS WASM sandbox<br/>- server-side, ~1s, 32MB<br/>- no host access"]
+  GW["Model gateway"]
+  Prov{"Anthropic / OpenAI"}
+  RAG["RAG service"]
+  UI -->|"POST /api/chat"| API
+  API -->|runAgent| Agent
+  Agent -->|tool calls| Tools
+  Tools -->|search_knowledge| RAG
+  Tools -->|code tool| Sandbox
+  Tools -->|results| Agent
+  Agent -->|generate| GW
+  GW --> Prov
+  Agent -.stream.-> UI
+```
+
+### 4) The platform is governed to one standard, observed and audited
+
+One declarative policy (PII handling, grounding, an eval gate, a cost ceiling) plus the deterministic routing rules are enforced in the routing, eval, and gateway layers. The dashboard aggregates usage, eval pass rate, cost, and reliability across all workspaces; the audit trail records every model call, eval run, and instruction version; and the policy is exportable as a risk assessment.
+
+```mermaid
+flowchart LR
+  API["Chat route<br/>- keyword routing<br/>- workspace default"]
+  Agent["Agent loop"]
+  GW["Model gateway<br/>- cost vs ceiling<br/>- fallback"]
+  Prov{"Anthropic / OpenAI"}
+  Store[("Per-workspace logs and prompts")]
+  Policy["Governance policy, as code<br/>- PII, grounding<br/>- eval gate, cost ceiling"]
+  Dash["Dashboard<br/>- usage, pass rate, cost"]
+  Audit["Audit trail<br/>- calls, runs, prompt versions"]
+  Report["Risk assessment report"]
+  API --> Agent
+  Agent -->|generate| GW
+  GW --> Prov
+  GW --> Store
+  Policy --> API
+  Policy --> GW
+  Store --> Dash
+  Store --> Audit
+  Policy --> Report
+  Store --> Report
+```
+
+### 5) An officer evaluates routing and answers
+
+The eval workbench routes each test case to a model and grades it, by keyword (names the missed words) or by an LLM judge (a structured verdict that fails closed). Runs persist with a pass-rate trend, the same gate the governance dashboard reads, and run in CI against a committed baseline as a regression gate. Evaluation hangs off the same gateway, so test runs are timed and costed like any other call.
+
+```mermaid
+flowchart LR
+  Eval["Eval workbench<br/>- routes each case to a model<br/>- grades by keyword or judge"]
+  GW["Model gateway"]
+  Prov{"Anthropic / OpenAI"}
+  Grade{"Keyword or judge"}
+  Runs[("Run history and pass-rate trend")]
+  Gate["Eval gate<br/>- blocks low-scoring versions"]
+  CI["CI regression gate<br/>- runs the suite, compares to baseline"]
+  Eval -->|generate| GW
+  GW --> Prov
+  Eval --> Grade
+  Grade --> Runs
+  Runs --> Gate
+  CI --> Eval
+```
 
 ---
 
-## Data model
+## Potential Deep Dives
 
-No relational database. Two stores, chosen for what each needs:
+### 1) How do we pick a model cheaply without adding latency?
 
-- **Server-side state** lives in one private S3 bucket through a generic JSON store (`lib/store.ts`): one object per record, prefix per entity, reverse-chronological ids so listing is newest-first without a sort key. Prefixes: `escalations/` (advisor queue), `gateway/` (model call logs), `prompts/` (versioned system prompt), `eval-runs/` (run history). Concurrent Lambda writes never race on a shared file. Locally and in tests, the same store writes JSON files instead.
-- **Everything else is per browser** in `localStorage`: conversation history, the routing config, the eval test cases, the built-in tool config, and any custom tools (seeded with three runnable examples on first visit). Nothing personal is stored server-side beyond an escalation the user explicitly triggers.
-
-```mermaid
-erDiagram
-  ESCALATION {
-    number id PK
-    string timestamp
-    string reason
-    string original_query
-    string status "pending or resolved"
-  }
-
-  CONVERSATION {
-    string id PK
-    string title
-    json messages
-    number updatedAt
-  }
-
-  ROUTING_CONFIG {
-    string fallbackModelId
-    string fallbackReason
-  }
-  ROUTING_RULE {
-    string id PK
-    json keywords
-    string modelId
-    string reason
-  }
-  TEST_CASE {
-    string id PK
-    string query
-    json expects
-  }
-  BUILTIN_TOOLS_CONFIG {
-    json lookup "enabled, description, facts"
-    json estimate "enabled, description"
-    json escalate "enabled, description"
-  }
-  CUSTOM_TOOL {
-    string id PK
-    string kind "lookup or template"
-    string name
-    string description
-  }
-
-  ROUTING_CONFIG ||--o{ ROUTING_RULE : "ordered rules"
-  ESCALATION }o--|| CONVERSATION : "raised from a chat turn"
-```
-
-Server-persisted (S3): `ESCALATION`, plus gateway call logs, prompt versions, and eval runs under their own prefixes. Client-persisted (localStorage): `CONVERSATION`, `ROUTING_CONFIG`, `ROUTING_RULE`, `TEST_CASE`, `BUILTIN_TOOLS_CONFIG`, `CUSTOM_TOOL`.
-
----
-
-## Spec-driven development
-
-Every feature is written from a spec first. `specs/web.yml` lists each requirement with a unique ID, a category, a severity, and given/when/then criteria. Implementation and `specTest()` land in the same change. The gate (`npm run test:spec`) builds, runs the tests, and refuses to pass below 100 percent requirement coverage. `data` requirements run on Vitest (pure functions); `ui`, `functional`, `security`, and `a11y` run on Playwright. The LLM is non-deterministic, so chat and eval e2e stub the API with fixed fixtures and assert against them.
-
-```mermaid
-flowchart TD
-  A[Write specs/web.yml] --> B[Write specTest + implementation together]
-  B --> C[npm run test:spec]
-  C --> D[next build]
-  D --> E[Vitest: data requirements]
-  D --> F[Playwright: ui, functional, security, a11y]
-  E --> G[spec-coverage CLI]
-  F --> G
-  G --> H{100 percent covered, none failing?}
-  H -->|yes| I[Exit 0]
-  H -->|no| J[Exit 1, blocked]
-```
-
-The 57 requirements currently covered:
+Each query should use the cheapest capable model, and the choice itself should be free.
 
 <details>
-<summary><strong>Show all 57 requirements</strong></summary>
+<summary><strong>Bad solution: one model for everything</strong></summary>
 
-| ID | Category | Requirement |
-|---|---|---|
-| IRAS-TAX-001 | data | Chargeable income is gross income minus deductions, floored at zero |
-| IRAS-TAX-002 | data | Tax lookup returns the known fact for a supported topic |
-| IRAS-HITL-001 | data | Escalation store supports create, list, and resolve |
-| IRAS-ROUTER-001 | data | The deterministic routing rules pick the right model per query |
-| IRAS-TOOLS-004 | data | Built-in tools respect their configuration (enable/disable, facts) |
-| IRAS-RATELIMIT-001 | data | Rate limiting fails open when Upstash is not configured |
-| IRAS-STORE-001 | data | Generic JSON store round-trips values and lists newest-first |
-| IRAS-GATEWAY-001 | data | The gateway records model, latency, and token usage per call |
-| IRAS-GATEWAY-002 | data | Gateway cost is computed from registry prices (generate and stream) |
-| IRAS-GATEWAY-003 | data | A provider error falls back to the alternate provider and is flagged |
-| IRAS-EVAL-004 | data | Eval runs persist and list newest-first |
-| IRAS-EVAL-005 | data | The LLM judge grades to a structured verdict and fails closed |
-| IRAS-EVAL-007 | data | Baseline comparison flags regressions beyond the tolerance |
-| IRAS-EVAL-008 | data | A persisted run records the prompt version and grader it targeted |
-| IRAS-PROMPT-001 | data | Prompt store keeps immutable versions behind an activation pointer |
-| IRAS-PROMPT-002 | data | System prompt resolves from the active version, falls back to default |
-| IRAS-SANDBOX-001 | data | Sandboxed code tools run user JavaScript and return a JSON result |
-| IRAS-SANDBOX-004 | data | Sandbox output is capped with a truncation marker |
-| IRAS-AGENT-001 | data | The agent loop chains tools across steps until the answer |
-| IRAS-CHAT-001 | ui | Home page (assistant) renders the chat interface |
-| IRAS-CHAT-003 | ui | A general-information disclaimer is always visible |
-| IRAS-CHAT-006 | ui | Assistant example chips cover each scenario and stay available mid-chat |
-| IRAS-LANDING-001 | ui | Landing page guides the visitor and links into the assistant |
-| IRAS-LANDING-002 | ui | Landing example questions exercise the different scenarios |
-| IRAS-GUIDE-001 | ui | Every feature page has a follow-along guide at the top |
-| IRAS-TOOLS-001 | ui | Tools page lists the MCP server tools |
-| IRAS-TOOLS-006 | ui | The Tools page shows how to connect via MCP |
-| IRAS-EVAL-001 | ui | Evals page shows configurable routing rules and test cases |
-| IRAS-GATEWAY-004 | ui | The gateway page lists recent model calls |
-| IRAS-PROMPT-003 | ui | The prompts page lists versions and shows a line diff between them |
-| IRAS-AGENT-002 | ui | Assistant replies show a numbered step trace of tool use |
-| IRAS-CHAT-002 | functional | Sending a message shows the user message and the assistant reply |
-| IRAS-CHAT-004 | functional | New chat clears the conversation and history keeps the previous one |
-| IRAS-CHAT-005 | functional | A question deep link (`/assistant?q=`) asks it automatically |
-| IRAS-NAV-001 | functional | Primary navigation links to every page |
-| IRAS-TOOLS-002 | functional | A visitor can run the lookup tool and see a result |
-| IRAS-TOOLS-003 | functional | A visitor can create a custom tool and run it |
-| IRAS-TOOLS-005 | functional | A visitor can build a sandboxed code tool and run it end to end |
-| IRAS-TOOLS-007 | functional | Example tools are preloaded and runnable on first visit |
-| IRAS-EVAL-002 | functional | The route preview shows where a query routes |
-| IRAS-EVAL-003 | functional | Running the test cases populates the result stats |
-| IRAS-EVAL-006 | functional | Run history shows past runs with a pass-rate trend |
-| IRAS-EVAL-009 | functional | A failed eval case explains why it failed |
-| IRAS-PROMPT-004 | functional | Creating and activating a prompt version works end to end |
-| IRAS-HITL-002 | functional | Admin page lists pending escalations |
-| IRAS-HITL-003 | functional | Resolving an escalation marks it resolved end to end |
-| IRAS-MCP-001 | functional | The MCP endpoint answers a JSON-RPC initialize |
-| IRAS-MCP-002 | functional | tools/list exposes the four tax tools with schemas |
-| IRAS-MCP-003 | functional | Calling lookup_tax_info over MCP returns the GST threshold |
-| IRAS-AGENT-003 | functional | A multi-step reply renders the full trace and the answer |
-| IRAS-A11Y-001 | a11y | Page exposes a skip-to-content link and a single h1 |
-| IRAS-A11Y-002 | a11y | The chat message input has an accessible label |
-| IRAS-SEC-001 | security | Responses carry baseline security headers |
-| IRAS-PROMPT-005 | security | The prompts write API validates input and is rate limited |
-| IRAS-SANDBOX-002 | security | Runaway sandbox code is interrupted by hard time and memory limits |
-| IRAS-SANDBOX-003 | security | The sandbox exposes no host capabilities |
-| IRAS-MCP-004 | security | Escalation over MCP requires the API key when one is configured |
+Send every query to a single model. Simple, but you either overpay by using a premium model for trivial lookups, or underperform by using a cheap one for hard reasoning.
+</details>
 
+<details>
+<summary><strong>Good solution: an LLM classifier picks the model</strong></summary>
+
+Ask a small model to classify the query and route on its answer. Flexible, but it adds a model call, and therefore latency and cost, to every message, and it is hard to test.
+</details>
+
+<details>
+<summary><strong>Great solution: deterministic keyword rules</strong></summary>
+
+Route on first-matching keyword rules across six models, falling back to the workspace's default model. The choice is an instant map lookup, free and fully unit-tested, the route reason is logged on every call, and officers can edit the rules live. The trade-off is brittleness on novel phrasing, acceptable in a scoped tax domain. This is what the platform runs.
+</details>
+
+### 2) How do we observe and harden every model call?
+
+Many call sites hit the providers, and each needs timing, cost, and resilience.
+
+<details>
+<summary><strong>Bad solution: call the providers directly at each site</strong></summary>
+
+Let chat, evals, and the judge each call the SDK. No consistent timing or cost, no fallback, and observability is scattered or missing.
+</details>
+
+<details>
+<summary><strong>Good solution: a logging helper</strong></summary>
+
+Wrap calls in a helper that logs. Better, but it is easy to bypass, and on Lambda the log write can be dropped if it is fired after the response closes and the environment freezes.
+</details>
+
+<details>
+<summary><strong>Great solution: one gateway via model middleware</strong></summary>
+
+Wrap the model with `wrapLanguageModel` so every call passes one chokepoint that times it, extracts token usage, computes USD cost from registry prices, retries once on the other provider on error, logs per workspace, and awaits the log write before the stream closes. Observability and resilience live in one place. This is what the platform runs.
+</details>
+
+### 3) How do we isolate tenants without standing up a deployment per department?
+
+Every department's documents, logs, and instructions must stay separate, but spinning up infrastructure per tenant is wasteful.
+
+<details>
+<summary><strong>Bad solution: one shared store with a tenant column</strong></summary>
+
+Keep everything in shared tables or files filtered by a workspace field. One missing filter leaks another department's documents or logs, and the blast radius of a bug is every tenant.
+</details>
+
+<details>
+<summary><strong>Good solution: a deployment per workspace</strong></summary>
+
+Stand up a separate app and database per department. Strong isolation, but it multiplies cost and operations by the number of tenants and makes a shared governance standard hard to enforce.
+</details>
+
+<details>
+<summary><strong>Great solution: one app, key-prefixed per workspace</strong></summary>
+
+Run one app where every store is the same `createJsonStore` keyed by workspace (`prompts-<workspace>`, `gateway-<workspace>`), and the RAG service holds a physically separate vector index per workspace. The active workspace comes from a cookie. Isolation is structural (different keys, different indices), the governance standard is shared by construction, and there is nothing extra to pay for per tenant. This is what the platform runs.
+</details>
+
+### 4) How do we ground answers in each department's own documents?
+
+A tax answer must come from the department's guidance, with a citation, not the model's memory.
+
+<details>
+<summary><strong>Bad solution: stuff documents into the prompt</strong></summary>
+
+Paste the guidance into the system prompt. It blows the context window as the corpus grows, costs tokens on every call, and gives no per-passage citation.
+</details>
+
+<details>
+<summary><strong>Good solution: embed in the app and search in memory</strong></summary>
+
+Embed documents inside the Next.js app and do similarity search in process. Workable at toy scale, but it bloats the serverless bundle, recomputes on cold starts, and has no real vector index.
+</details>
+
+<details>
+<summary><strong>Great solution: a dedicated RAG service with a per-workspace index</strong></summary>
+
+Run a Python FastAPI + LlamaIndex service that chunks and embeds (OpenAI `text-embedding-3-small`) into one vector index per workspace (pgvector on Neon, or a local store), returning passages with `doc_id`, filename, and location. The agent's `search_knowledge` tool calls it and cites `[n]` per passage. When the service is unset, retrieval is simply disabled and the app still runs. This is what the platform runs.
+</details>
+
+### 5) How do we run officer-written code without endangering the host?
+
+Officers can write JavaScript tools, which is arbitrary untrusted code.
+
+<details>
+<summary><strong>Bad solution: eval it on the server</strong></summary>
+
+Run the code in the Node process. It has full access to the filesystem, network, and environment, so a single hostile snippet owns the server.
+</details>
+
+<details>
+<summary><strong>Good solution: a Node vm context</strong></summary>
+
+Use a `vm` sandbox. Better, but `vm` is not a security boundary, escapes are well known, and it does not bound CPU or memory.
+</details>
+
+<details>
+<summary><strong>Great solution: QuickJS compiled to WASM</strong></summary>
+
+Run the code in QuickJS inside WebAssembly, a fresh context per call with a roughly 1 second deadline, a 32MB memory cap, an 8KB output cap, and no fetch, process, require, or filesystem. Input and output cross as JSON strings only, so there is no host reference to follow. The same sandbox backs the `run_javascript` MCP tool. This is what the platform runs.
+</details>
+
+### 6) How do we persist server state with no database?
+
+The server keeps small records, logs, prompt versions, runs, policy, scoped per workspace, and concurrent Lambdas must not corrupt them.
+
+<details>
+<summary><strong>Bad solution: one JSON file per store</strong></summary>
+
+Keep each store in a single JSON object. Two Lambdas reading, modifying, and rewriting it at once race, and one silently overwrites the other.
+</details>
+
+<details>
+<summary><strong>Good solution: a managed database</strong></summary>
+
+Stand up Postgres for the app state too. Correct, but it bills around the clock and is heavy for a handful of flat records with no relational queries.
+</details>
+
+<details>
+<summary><strong>Great solution: one object per record, keyed by workspace</strong></summary>
+
+Write one object per record under a per-workspace prefix, with a reverse-chronological id so a plain list returns newest-first with no sort index. Concurrent writers never touch the same object, tenants are isolated by key, and there is nothing to pay for when idle. The same interface runs over S3 in production or local files in dev and tests. This is what the platform runs.
+</details>
+
+### 7) How do we keep one governance standard across every workspace?
+
+The agency answers to one set of rules, but the controls must be enforced, not just documented.
+
+<details>
+<summary><strong>Bad solution: a written policy in a wiki</strong></summary>
+
+Describe the rules in prose somewhere. Nothing enforces them, nothing proves they held, and each workspace drifts on its own.
+</details>
+
+<details>
+<summary><strong>Good solution: per-workspace settings each team tunes</strong></summary>
+
+Let every workspace configure its own guardrails. Flexible, but the standard fragments, and there is no single place to see or audit compliance.
+</details>
+
+<details>
+<summary><strong>Great solution: governance as code, enforced and audited</strong></summary>
+
+Express the policy as one declarative object (PII handling, grounding, eval gate, cost ceiling) merged with editable platform overrides, and enforce it in the layers that already exist: routing, the eval gate, and the gateway's cost check. Surface it on a dashboard that aggregates every workspace, an audit trail of every call, run, and prompt version, and a downloadable risk assessment. The policy is reviewable and diffable, not prose. This is what the platform runs.
+</details>
+
+### 8) How do we test an LLM-backed app deterministically in CI?
+
+The model is non-deterministic, but the build must be repeatable and free.
+
+<details>
+<summary><strong>Bad solution: call the real model in tests</strong></summary>
+
+Hit the providers in the test suite. Flaky, slow, costs money on every run, and a model change turns the build red for no code reason.
+</details>
+
+<details>
+<summary><strong>Good solution: record and replay responses</strong></summary>
+
+Capture real responses once and replay them. Deterministic, but the fixtures drift from reality and must be re-recorded.
+</details>
+
+<details>
+<summary><strong>Great solution: mocks, stubs, and a spec gate</strong></summary>
+
+Unit tests drive the agent with scripted mock models, and the chat and eval e2e stub the streamed response with fixed fixtures, so no test ever calls an LLM. A spec maps each requirement to a passing test, and the gate blocks the build below 100 percent. Live model calls happen only in opt-in CI workflows. This is what the platform runs.
 </details>
 
 ---
 
+## The complete design
+
+Pulling the high-level design and the deep dives together, here is the whole system in one view. The web app deploys as one CloudFront distribution over an OpenNext streaming server Lambda (60s), with assets and per-workspace state on S3 and optional Upstash for rate limiting. The RAG service runs on Fly.io backed by Neon pgvector. There is no relational database for the app.
+
+```mermaid
+flowchart LR
+  UI["Officer UI<br/>- workspace from cookie"]
+  MCP["MCP client<br/>- HTTP or stdio"]
+  API["Chat route<br/>- rate limit, validate<br/>- keyword routing"]
+  Agent["Bounded agent loop<br/>- temp 0<br/>- calls tools, feeds results back"]
+  Tools["Tools<br/>- search_knowledge<br/>- custom lookup, template, or code"]
+  Sandbox["QuickJS sandbox<br/>- server-side, no host access"]
+  GW["Model gateway<br/>- times, tokens, USD cost<br/>- fallback provider on error"]
+  Prov{"Anthropic / OpenAI"}
+  RAG["RAG service, FastAPI and LlamaIndex"]
+  VEC[("Per-workspace vector index<br/>- pgvector or local")]
+  Eval["Eval workbench and CI gate<br/>- routes and grades cases"]
+  MCPS["MCP server, stateless<br/>- exposes run_javascript"]
+  Policy["Governance policy, as code"]
+  Store[("Per-workspace JSON store<br/>- logs, prompts, runs, policy, S3 or file")]
+  Insights["Insights pipeline, Python<br/>- embeddings and KMeans"]
+  UI -->|"POST /api/chat"| API
+  API --> Agent
+  Agent <-->|tool calls| Tools
+  Tools -->|search_knowledge| RAG
+  RAG --> VEC
+  Tools -->|code tool| Sandbox
+  Agent -->|generate| GW
+  GW --> Prov
+  Agent -.stream.-> UI
+  GW --> Store
+  Policy --> API
+  Policy --> GW
+  Eval -->|generate| GW
+  Eval --> Store
+  MCP -->|"/api/mcp"| MCPS
+  MCPS --> Sandbox
+  Insights --> Store
+```
+
 ## Tech stack
 
-| Layer | Choice |
+| Layer | Tech |
 |---|---|
 | Framework | Next.js 16 (App Router), React 19, TypeScript strict |
-| AI | Vercel AI SDK v6, `@ai-sdk/anthropic`, `@ai-sdk/openai`, `@ai-sdk/react` |
-| Models | OpenAI: GPT-4.1 nano, GPT-4o mini, GPT-4.1. Anthropic: Claude Haiku 4.5, Sonnet 4.6, Opus 4.8 |
-| UI | Tailwind CSS v4, shadcn/ui (Radix), AI Elements, lucide icons, IRAS colour palette |
-| Routing | Deterministic keyword rules (no classifier call), configurable per browser |
-| Gateway | `wrapLanguageModel` middleware: latency, tokens, cost, cross-provider fallback, persisted logs |
-| Tools | Configurable `tool()` definitions plus a real MCP server (`mcp-handler`, `@modelcontextprotocol/sdk`) over Streamable HTTP and stdio |
-| Sandbox | QuickJS WASM (`quickjs-emscripten-core`, singlefile sync variant): hard time, memory, and output limits |
-| Evals | Keyword and LLM-as-judge graders, persisted history, CLI baseline gate in CI |
-| Prompts | Versioned store with activation pointer and line diff (`diff`) |
-| Persistence | One private S3 bucket via a generic JSON store (escalations, gateway logs, prompts, eval runs), browser localStorage for everything client-side |
-| Rate limit | Upstash Redis, fails open when unconfigured |
-| Runtime | Node 22, AWS Lambda, response streaming |
-| Hosting | CloudFront, S3, Lambda via OpenNext |
-| IaC | AWS CDK (TypeScript) |
-| CI/CD | GitHub Actions, OIDC deploys, no stored AWS keys |
-| Testing | Vitest, Playwright, the `@platform/spec-test` gate at 100 percent coverage |
+| Multi-tenancy | Workspace-keyed JSON stores and per-workspace RAG indices, cookie-based active workspace |
+| AI | Vercel AI SDK v6 with the Anthropic and OpenAI providers, bounded agent loop |
+| Models | OpenAI GPT-4.1 nano, GPT-4o mini, GPT-4.1, and Anthropic Claude Haiku 4.5, Sonnet 4.6, Opus 4.8 |
+| Routing | Deterministic keyword rules, no classifier call, per-workspace default model, configurable per browser |
+| Gateway | `wrapLanguageModel` middleware for latency, tokens, cost, cross-provider fallback, and per-workspace logs |
+| RAG | Python FastAPI + LlamaIndex, OpenAI `text-embedding-3-small`, pgvector (Neon) or local store, one index per workspace |
+| Insights | Python: synthetic telemetry, embeddings + KMeans clustering, per-workspace analytics |
+| Tools / MCP | No-code custom tools plus a real MCP server (`run_javascript`) over Streamable HTTP and stdio |
+| Sandbox | QuickJS compiled to WASM, a roughly 1 second deadline, 32MB and 8KB caps, no host globals |
+| Evals | Keyword and LLM-as-judge graders, persisted history, a pass-rate gate in CI |
+| Prompts | A versioned store per workspace with an activation pointer and a line diff |
+| Governance | One declarative policy as code (PII, grounding, eval gate, cost ceiling) plus deterministic routing; dashboard, audit trail, and a downloadable risk assessment |
+| Persistence | Per-workspace JSON store over S3 or local files, plus browser localStorage; no relational database |
+| Infra | AWS Lambda, S3, CloudFront via OpenNext (web); Fly.io + Neon (RAG); provisioned with AWS CDK |
+| Testing | Vitest, Playwright, a spec-coverage gate, AI review and an eval gate on PRs |
+| Built on | the [platform template](https://github.com/elleskay/platform) |
 
----
+## License
 
-## Local development
-
-```bash
-cd apps/web
-npm install
-# add apps/web/.env.local with ANTHROPIC_API_KEY and OPENAI_API_KEY
-npm run dev            # http://localhost:3000
-
-npm run test:spec      # build + vitest + playwright + 100% coverage gate
-npm run eval           # run the committed eval suite against the baseline (needs ANTHROPIC_API_KEY)
-npm run mcp:stdio      # serve the tax tools over MCP stdio
-```
-
-Without API keys the UI still renders; only the live model calls fail. Rate limiting and the HITL store both fall back to local-friendly defaults (fail-open limiter, JSON file queue).
-
----
-
-## Deployment
-
-Pushing to `main` deploys automatically via `deploy.yml` (OIDC, OpenNext build, CDK deploy, smoke test). The model keys are GitHub Actions secrets, forwarded into the synth step and baked into the Lambda environment. The escalation bucket is provisioned by the CDK stack (`infra/cdk/web/lib/web-stack.ts`) with all public access blocked.
-
-```bash
-# one-off, from infra/cdk/web after configuring the OIDC role and repo secrets
-gh secret set ANTHROPIC_API_KEY
-gh secret set OPENAI_API_KEY
-git push   # deploy.yml builds, deploys, and smoke-tests the live URL
-```
-
----
-
-## Repository structure
-
-```
-apps/web/
-  app/
-    page.tsx              Landing / guide
-    assistant/page.tsx    Chat: agent loop, step trace, scenario chips, history
-    tools/page.tsx        Configurable tools, builder with seeded examples, MCP connect
-    evals/page.tsx        Routing-rule + test-case workbench + run history
-    gateway/page.tsx      Model call log: latency, tokens, cost, fallback
-    prompts/page.tsx      Versioned system prompt with line diff
-    admin/page.tsx        Advisor queue
-    api/chat              The agent loop: route, tools, stream, metadata
-    api/eval              Run one graded eval case on a chosen model
-    api/eval/runs         Persist and list eval runs
-    api/prompts           List, create, and activate prompt versions
-    api/tools/run         Server-side tool execution (sandbox included)
-    api/[transport]       MCP server over Streamable HTTP (/api/mcp)
-    api/hitl              List and resolve escalations
-  lib/
-    run-agent.ts          Bounded multi-step agent loop (streamText)
-    gateway.ts            Model wrapper: time, cost, log, fallback
-    store.ts              Generic JSON store: S3 (prod) or file (dev)
-    prompt-store.ts       Immutable prompt versions + activation pointer
-    graders.ts            Keyword and LLM-as-judge grading
-    sandbox.ts            QuickJS WASM sandbox with hard limits
-    mcp-tools.ts          The four MCP tools + escalation auth guard
-    routing-rules.ts      Deterministic router + config + storage
-    model-registry.ts     Six models, tiers, approximate prices
-    tools.ts / tax.ts     buildTaxTools + facts + estimate
-    hitl-store.ts         Escalation store on lib/store.ts
-    rate-limit.ts         Upstash limiter, fails open
-  components/
-    page-guide.tsx        Collapsible follow-along guide on every page
-    ai-elements/step-trace.tsx   Numbered step trace inside assistant replies
-  mcp/stdio.ts            MCP server over stdio (npm run mcp:stdio)
-  scripts/run-eval.ts     Eval CLI: suite vs committed baseline, CI gate
-  evals/                  Committed suite.json + baseline.json
-  specs/web.yml           57 requirements, the source of truth
-  tests/                  Vitest (data) + Playwright (ui/functional/security/a11y)
-infra/cdk/web/            NextjsServerless construct + private bucket stack
-.github/workflows/        deploy.yml, ai-review.yml, eval-gate.yml
-```
-
----
-
-## Provenance and disclaimer
-
-Built on the [`elleskay/platform`](https://github.com/elleskay/platform) template, and showcases three command-line projects in one browser app: an MCP tax-tool server, a tax agent, and an LLM eval harness.
-
-This is an unofficial demonstration. It is not affiliated with, endorsed by, or connected to the Inland Revenue Authority of Singapore (IRAS) or the Singapore government; the name "IRAS" is used only to describe the subject matter. It provides general information about Singapore tax, not personalised tax advice. Tax figures shown are illustrative and may not reflect current IRAS rules; always confirm with IRAS or a qualified professional.
+MIT.

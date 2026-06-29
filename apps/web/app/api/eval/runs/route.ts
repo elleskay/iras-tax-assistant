@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 
 const limiter = makeLimiter({ tokens: 20, window: "1 m", prefix: "eval-runs" });
 
-// GET /api/eval/runs: run history, newest first.
+// GET /api/eval/runs: the platform-wide run history, newest first.
 export async function GET() {
   const runs = await listEvalRuns(20);
   return NextResponse.json({ runs });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, isToolUIPart, type UIMessage } from "ai";
 import { Info, Plus, MessageSquare, Trash2 } from "lucide-react";
@@ -22,11 +22,19 @@ import {
   type PromptInputMessage,
 } from "@/components/ai-elements/prompt-input";
 import { StepTrace } from "@/components/ai-elements/step-trace";
-import { PageGuide } from "@/components/page-guide";
+import {
+  Citations,
+  collectSources,
+  flashCite,
+  linkifyCitations,
+  makeCiteComponents,
+} from "@/components/ai-elements/citations";
+import { Inspector } from "@/components/ai-elements/inspector";
+import { useResizableWidth, ResizeHandle } from "@/components/resizable";
 import type { ToolPart } from "@/components/ai-elements/tool";
 import { loadCustomTools } from "@/lib/custom-tools";
 import { loadConfig } from "@/lib/routing-rules";
-import { loadBuiltinConfig } from "@/lib/builtin-tools";
+import { cn } from "@/lib/utils";
 import {
   type Conversation as Convo,
   loadConversations,
@@ -37,45 +45,98 @@ import {
   titleFromMessages,
 } from "@/lib/conversations";
 
-// Each example exercises a different scenario: a tool, a model route, or the
-// multi-step agent loop. Together the chips cover every routing rule and the
-// step trace, so they double as a live demo of the whole stack.
-const TOPICS = [
-  // lookup_tax_info tool, factual-lookup route -> GPT-4o mini
-  { label: "GST", hint: "lookup tool, GPT-4o mini", question: "What is the GST registration threshold?" },
-  // calculate_tax_estimate tool, calculation route -> GPT-4.1
-  {
-    label: "Income tax",
-    hint: "estimate tool, GPT-4.1",
-    question: "Estimate the chargeable income for an annual income of 120000 with 20000 in deductions",
-  },
-  // Two tools in one turn: the agent loop chains lookup then calculate, and
-  // the reply shows the numbered step trace.
-  {
-    label: "Multi-step",
-    hint: "two tools chained, step trace",
-    question:
-      "What is the GST registration threshold, and calculate my chargeable income for an income of 120000 with 20000 in deductions",
-  },
-  // complex-reasoning route -> Claude Opus 4.8
-  {
-    label: "Corporate tax",
-    hint: "complex reasoning, Claude Opus 4.8",
-    question: "Compare the corporate income tax rate versus the top personal income tax rate",
-  },
-  // escalate_to_human tool, personalised-advice route -> Claude Sonnet 4.6
-  {
-    label: "SRS",
-    hint: "escalates to a human, Claude Sonnet 4.6",
-    question: "Should I contribute to SRS this year?",
-  },
-  // pii-sensitive route -> Claude Haiku 4.5 (NRIC keyword)
-  {
-    label: "PII",
-    hint: "pii-sensitive route, Claude Haiku 4.5",
-    question: "My NRIC is S1234567D, do I need to file a tax return?",
-  },
-];
+// Example chips: each exercises a different scenario (a tool, a model route, or
+// the multi-step agent loop), framed as an officer's task: get a cited answer,
+// draft a reply for review, or triage a case. The set is per workspace so each
+// tax type's chips ask about its own subject matter (and hit its own documents).
+interface Topic {
+  label: string;
+  hint: string;
+  question: string;
+}
+
+const TOPICS_BY_WORKSPACE: Record<string, Topic[]> = {
+  "individual-income": [
+    {
+      label: "Cited answer",
+      hint: "grounded, with source",
+      question:
+        "What income level makes filing a tax return mandatory, and what is the e-filing deadline? Keep it short and cite the source.",
+    },
+    {
+      label: "Cross-check",
+      hint: "pulls from several documents",
+      question:
+        "A foreigner worked in Singapore for about 100 days last year and earned $90,000. First check whether she is a tax resident, then check whether her income means she must file a return. Cite the guidance for each.",
+    },
+    {
+      label: "Estimate",
+      hint: "calculation + cited check",
+      question:
+        "Estimate the chargeable income for a taxpayer with $120,000 income and $20,000 in reliefs, then confirm the $20,000 is within the personal relief cap, citing it.",
+    },
+    {
+      label: "Multi-step",
+      hint: "tools chained, step trace",
+      question:
+        "A taxpayer earns $120,000 with $20,000 in reliefs and asks whether they must register for GST. Look up the GST threshold, estimate their chargeable income, and confirm the income at which they must file a return, citing our guidance.",
+    },
+    {
+      label: "Draft a reply",
+      hint: "review-ready draft, cited",
+      question:
+        "Draft a reply for my review to a taxpayer who asks whether they must file a return if their only income last year was employment income. Ground it in our guidance and cite it.",
+    },
+    {
+      label: "Triage + PII",
+      hint: "summary, flags, real case data",
+      question:
+        "Triage this case: taxpayer with NRIC S1234567A disputes their $85,000 rental income assessment, was overseas for about 100 days last year, and is missing some documents. Summarise it, flag what needs my attention, and cite the relevant guidance.",
+    },
+  ],
+  corporate: [
+    {
+      label: "Cited answer",
+      hint: "grounded, with source",
+      question:
+        "What is the corporate income tax rate, and when is the annual corporate income tax return due? Keep it short and cite the source.",
+    },
+    {
+      label: "Cross-check",
+      hint: "pulls from several documents",
+      question:
+        "A company's financial year ended on 31 December. First check when its ECI is due, then check which return form it files if its annual revenue is $4 million. Cite the guidance for each.",
+    },
+    {
+      label: "Estimate",
+      hint: "calculation + cited check",
+      question:
+        "Estimate a company's chargeable income from $800,000 of profit with $150,000 of deductible expenses, then confirm the corporate tax rate that applies, citing it.",
+    },
+    {
+      label: "Multi-step",
+      hint: "tools chained, step trace",
+      question:
+        "A company with $1,000,000 revenue expects $250,000 in chargeable income. Look up the corporate tax rate, estimate the tax payable, and confirm which return form it must file, citing our guidance.",
+    },
+    {
+      label: "Draft a reply",
+      hint: "review-ready draft, cited",
+      question:
+        "Draft a reply for my review to a company asking when its YA 2026 corporate income tax return is due and how to file it. Ground it in our guidance and cite it.",
+    },
+    {
+      label: "Triage + PII",
+      hint: "summary, flags, real case data",
+      question:
+        "Triage this case: company with UEN 201912345A disputes part of its assessment and wants to carry forward unutilised trade losses, but is missing supporting documents. Summarise it, flag what needs my attention, and cite the relevant guidance.",
+    },
+  ],
+};
+
+// Custom workspaces fall back to the individual-income set.
+const topicsFor = (ws: string): Topic[] =>
+  TOPICS_BY_WORKSPACE[ws] ?? TOPICS_BY_WORKSPACE["individual-income"];
 
 // Group a message's parts so consecutive tool invocations render as one
 // numbered step trace (the agent loop made visible) between text segments.
@@ -107,6 +168,33 @@ interface ReplyMetadata {
   costUsd?: number;
 }
 
+/** "Thinking" label with bouncing dots, shown where the answer will type out. */
+function ThinkingDots() {
+  return (
+    <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+      <span>Thinking</span>
+      <span aria-hidden className="inline-flex items-end gap-1">
+        {[0, 160, 320].map((delay) => (
+          <span
+            key={delay}
+            className="size-1.5 rounded-full bg-current"
+            style={{
+              animation: "typing-dot 1s ease-in-out infinite",
+              animationDelay: `${delay}ms`,
+            }}
+          />
+        ))}
+      </span>
+    </span>
+  );
+}
+
+/** The active workspace (client-side), used to scope saved chat history. */
+function activeWorkspace(): string {
+  if (typeof window === "undefined") return "individual-income";
+  return localStorage.getItem("workspace") || "individual-income";
+}
+
 export default function ChatPage() {
   const [input, setInput] = useState("");
   const { messages, sendMessage, status, setMessages, error } = useChat({
@@ -121,7 +209,10 @@ export default function ChatPage() {
           ...body,
           customTools: loadCustomTools(),
           routingConfig: loadConfig(),
-          builtinConfig: loadBuiltinConfig(),
+          workspace:
+            (typeof window !== "undefined" &&
+              localStorage.getItem("workspace")) ||
+            undefined,
         },
       }),
     }),
@@ -130,27 +221,84 @@ export default function ChatPage() {
   const [conversations, setConversations] = useState<Convo[]>([]);
   const [currentId, setCurrentId] = useState<string>("");
   const [hydrated, setHydrated] = useState(false);
+  const [workspaceId, setWorkspaceId] = useState("individual-income"); // for the per-workspace chips
   const [showHistory, setShowHistory] = useState(false); // mobile history panel
+  const [activeMsgId, setActiveMsgId] = useState(""); // answer shown in the inspector
+  const [isWide, setIsWide] = useState(false); // xl+: steps/sources move to the side panel
   const qSentRef = useRef(false); // guards the ?q= deep link so it sends once
+  const startNewRef = useRef<boolean | null>(null); // decide restore-vs-fresh once
+  // Officer-adjustable panel widths (persisted).
+  const history = useResizableWidth("iras-history-width", 256, 200, 440, "right");
+  const inspector = useResizableWidth("iras-inspector-width", 360, 280, 560, "left");
 
-  // Load saved conversations and restore the current one.
+  // Load saved conversations and restore the current one. Only conversations
+  // with messages are kept, so legacy empty "New chat" entries are dropped.
   useEffect(() => {
-    const list = loadConversations();
-    const savedId = loadCurrentId();
-    if (list.length > 0) {
+    const ws = activeWorkspace();
+    let list = loadConversations(ws).filter((c) => c.messages.length > 0);
+    // One-time migration: fold the old shared history into this workspace so
+    // existing chats are not lost when history became per-workspace.
+    if (list.length === 0) {
+      try {
+        const legacy = localStorage.getItem("iras-conversations");
+        if (legacy) {
+          const parsed: unknown = JSON.parse(legacy);
+          if (Array.isArray(parsed)) {
+            list = (parsed as Convo[]).filter((c) => c.messages.length > 0);
+          }
+          localStorage.removeItem("iras-conversations");
+          localStorage.removeItem("iras-current-conv");
+        }
+      } catch {
+        // ignore malformed legacy data
+      }
+    }
+    // A fresh start begins a new chat instead of resuming the last one (the
+    // history list is still kept). Triggered by Open workspace (?new=1) or by
+    // the Assistant nav link (which sets the iras-new-chat flag). The decision
+    // is made once and cached so React's dev double-invoke of this effect does
+    // not fall back to restoring after the flag/query has been consumed.
+    let startNew: boolean;
+    if (startNewRef.current !== null) {
+      startNew = startNewRef.current;
+    } else {
+      startNew = new URLSearchParams(window.location.search).get("new") === "1";
+      try {
+        if (sessionStorage.getItem("iras-new-chat") === "1") startNew = true;
+      } catch {
+        // ignore
+      }
+      startNewRef.current = startNew;
+      if (startNew) {
+        try {
+          sessionStorage.removeItem("iras-new-chat");
+        } catch {
+          // ignore
+        }
+        window.history.replaceState(null, "", "/assistant");
+      }
+    }
+    const savedId = loadCurrentId(ws);
+    if (list.length > 0 && !startNew) {
       const current = list.find((c) => c.id === savedId) ?? list[0];
       setConversations(list);
       setCurrentId(current.id);
       setMessages(current.messages);
     } else {
       const id = newConversationId();
-      const fresh: Convo = { id, title: "New chat", messages: [], updatedAt: Date.now() };
-      setConversations([fresh]);
+      setConversations(list);
       setCurrentId(id);
-      saveCurrentId(id);
+      saveCurrentId(ws, id);
     }
+    saveConversations(ws, list); // rewrite storage without any empty chats
     setHydrated(true);
   }, [setMessages]);
+
+  // Pick the example chips for the active workspace (after mount, so the first
+  // client render still matches the server's default-workspace HTML).
+  useEffect(() => {
+    setWorkspaceId(activeWorkspace());
+  }, []);
 
   // Deep link: a "?q=" from the landing examples asks the question automatically.
   useEffect(() => {
@@ -163,23 +311,109 @@ export default function ChatPage() {
     }
   }, [hydrated, sendMessage]);
 
-  // Persist the active conversation when a turn settles (not mid-stream).
+  // Persist the active conversation when a turn settles (not mid-stream). An
+  // empty chat is never saved; it joins the history on its first message.
   useEffect(() => {
     if (!hydrated || !currentId) return;
     if (status === "submitted" || status === "streaming") return;
+    if (messages.length === 0) return;
+    const ws = activeWorkspace();
     setConversations((prev) => {
-      const next = prev.map((c) =>
-        c.id === currentId
-          ? { ...c, messages, title: titleFromMessages(messages), updatedAt: Date.now() }
-          : c,
-      );
-      saveConversations(next);
+      const entry: Convo = {
+        id: currentId,
+        title: titleFromMessages(messages),
+        messages,
+        updatedAt: Date.now(),
+      };
+      const next = prev.some((c) => c.id === currentId)
+        ? prev.map((c) => (c.id === currentId ? entry : c))
+        : [entry, ...prev];
+      saveConversations(ws, next);
       return next;
     });
   }, [messages, status, hydrated, currentId]);
 
+  // The inspector panel only replaces the inline trace/sources on xl+ screens,
+  // where there is room for nav + history + chat + panel without cramping.
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1280px)");
+    const update = () => setIsWide(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
   const busy = status === "submitted" || status === "streaming";
   const empty = messages.length === 0;
+
+  // Show a "thinking" indicator while a turn is in flight but the answer text
+  // has not started streaming yet (waiting, or running tools).
+  const lastMsg = messages[messages.length - 1];
+  const answerStarted =
+    lastMsg?.role === "assistant" &&
+    lastMsg.parts.some((p) => p.type === "text" && p.text.trim().length > 0);
+  const showThinking = busy && !answerStarted;
+
+  // The inspector follows the latest answer; a citation click can focus an
+  // earlier one. Reset to the latest whenever a new assistant message arrives.
+  let lastAssistantId = "";
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "assistant") {
+      lastAssistantId = messages[i].id;
+      break;
+    }
+  }
+  useEffect(() => {
+    if (lastAssistantId) setActiveMsgId(lastAssistantId);
+  }, [lastAssistantId]);
+  const activeMessage =
+    messages.find((m) => m.id === activeMsgId) ?? null;
+
+  // A [n] citation click: focus that answer in the panel, then flash source n.
+  const onCite = useCallback((msgId: string, n: number) => {
+    setActiveMsgId(msgId);
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => flashCite(`cite-${msgId}-${n}`)),
+    );
+  }, []);
+
+  // Scroll spy: as the officer scrolls the chat, the panel follows the answer in
+  // the reading area (the lowest answer whose top has passed a focus line), or
+  // the latest answer when scrolled to the bottom.
+  useEffect(() => {
+    if (!isWide || empty) return;
+    const firstMsg = document.querySelector("[data-assistant-id]");
+    if (!firstMsg) return;
+    let raf = 0;
+    const compute = (sc: HTMLElement) => {
+      raf = 0;
+      if (sc.scrollHeight - sc.scrollTop - sc.clientHeight < 80) {
+        if (lastAssistantId) setActiveMsgId(lastAssistantId);
+        return;
+      }
+      const focusY = 180;
+      let id = "";
+      for (const el of document.querySelectorAll<HTMLElement>(
+        "[data-assistant-id]",
+      )) {
+        if (el.getBoundingClientRect().top <= focusY) {
+          id = el.dataset.assistantId ?? "";
+        } else break;
+      }
+      if (id) setActiveMsgId(id);
+    };
+    const onScroll = (e: Event) => {
+      const sc = e.target;
+      if (!(sc instanceof HTMLElement) || !sc.contains(firstMsg)) return;
+      if (raf) return;
+      raf = requestAnimationFrame(() => compute(sc));
+    };
+    window.addEventListener("scroll", onScroll, true);
+    return () => {
+      window.removeEventListener("scroll", onScroll, true);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [isWide, empty, messages.length, lastAssistantId]);
 
   function submit(text: string) {
     const trimmed = text.trim();
@@ -194,19 +428,32 @@ export default function ChatPage() {
   function newChat() {
     setShowHistory(false);
     if (busy) return;
-    // If the current chat is already empty, stay on it.
+    // If the current chat is already empty, stay on it. The new empty chat is
+    // not added to history; it appears once its first message is sent.
     if (messages.length === 0) return;
     const id = newConversationId();
-    const fresh: Convo = { id, title: "New chat", messages: [], updatedAt: Date.now() };
-    setConversations((prev) => {
-      const next = [fresh, ...prev];
-      saveConversations(next);
-      return next;
-    });
     setCurrentId(id);
-    saveCurrentId(id);
+    saveCurrentId(activeWorkspace(), id);
     setMessages([]);
   }
+
+  // Clicking "Assistant" in the nav while already on this page starts a fresh
+  // chat (the nav dispatches iras:new-chat). A ref keeps the latest newChat so
+  // the once-registered listener always sees current state.
+  const newChatRef = useRef(newChat);
+  newChatRef.current = newChat;
+  useEffect(() => {
+    const onNew = () => {
+      try {
+        sessionStorage.removeItem("iras-new-chat");
+      } catch {
+        // ignore
+      }
+      newChatRef.current();
+    };
+    window.addEventListener("iras:new-chat", onNew);
+    return () => window.removeEventListener("iras:new-chat", onNew);
+  }, []);
 
   function openChat(id: string) {
     setShowHistory(false);
@@ -214,32 +461,28 @@ export default function ChatPage() {
     const conv = conversations.find((c) => c.id === id);
     if (!conv) return;
     setCurrentId(id);
-    saveCurrentId(id);
+    saveCurrentId(activeWorkspace(), id);
     setMessages(conv.messages);
   }
 
   function deleteChat(id: string) {
+    const ws = activeWorkspace();
     setConversations((prev) => {
       const next = prev.filter((c) => c.id !== id);
-      saveConversations(next);
+      saveConversations(ws, next);
       if (id === currentId) {
         if (next.length > 0) {
           setCurrentId(next[0].id);
-          saveCurrentId(next[0].id);
+          saveCurrentId(ws, next[0].id);
           setMessages(next[0].messages);
         } else {
-          const fresh: Convo = {
-            id: newConversationId(),
-            title: "New chat",
-            messages: [],
-            updatedAt: Date.now(),
-          };
-          setCurrentId(fresh.id);
-          saveCurrentId(fresh.id);
+          // Deleting the last conversation leaves an empty chat, not saved.
+          const id = newConversationId();
+          setCurrentId(id);
+          saveCurrentId(ws, id);
           setMessages([]);
-          const seeded = [fresh];
-          saveConversations(seeded);
-          return seeded;
+          saveConversations(ws, []);
+          return [];
         }
       }
       return next;
@@ -252,15 +495,15 @@ export default function ChatPage() {
       className={large ? "rounded-2xl border shadow-sm" : "rounded-xl border"}
     >
       <PromptInputTextarea
-        aria-label="Ask a tax question"
+        aria-label="Ask the assistant"
         value={input}
         onChange={(e) => setInput(e.target.value)}
-        placeholder="Ask anything, e.g. what is the GST registration threshold?"
+        placeholder="Ask about the rules, draft a reply, or triage a case..."
       />
       <PromptInputFooter>
         <span className="flex items-center gap-1.5 pl-1 text-xs text-muted-foreground">
           <Info className="h-3.5 w-3.5" />
-          General information only, not personalised tax advice.
+          General guidance for the officer&apos;s judgement, not a final assessment.
         </span>
         <PromptInputSubmit
           aria-label="Send"
@@ -272,9 +515,12 @@ export default function ChatPage() {
   );
 
   return (
-    <div className="mx-auto flex min-h-0 w-full max-w-5xl flex-1">
+    <div className="flex h-[calc(100dvh-4rem)] min-h-0 w-full">
       {/* History sidebar */}
-      <aside className="hidden w-64 shrink-0 flex-col border-r bg-card md:flex">
+      <aside
+        style={{ width: history.width }}
+        className="hidden shrink-0 flex-col border-r bg-card md:flex"
+      >
         <div className="p-3">
           <button
             type="button"
@@ -321,6 +567,11 @@ export default function ChatPage() {
           )}
         </nav>
       </aside>
+
+      <ResizeHandle
+        onPointerDown={history.onPointerDown}
+        className="hidden md:block"
+      />
 
       {/* Chat column */}
       <div className="flex min-w-0 flex-1 flex-col">
@@ -381,24 +632,23 @@ export default function ChatPage() {
         {empty ? (
           <main
             id="main"
-            className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center gap-8 px-4 pb-24 text-center"
+            className="mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center gap-8 px-4 pt-24 pb-24 text-center"
           >
             <span className="rounded-full bg-gold px-3 py-1.5 text-xs font-semibold text-gold-foreground">
-              Singapore tax, in plain language
+              An assistant for tax officers
             </span>
             <div className="flex flex-col gap-4">
               <h2 className="text-4xl font-semibold tracking-tight text-navy sm:text-5xl">
-                Singapore tax,
-                <br />
-                answered.
+                Answers from your own documents.
               </h2>
               <p className="mx-auto max-w-md text-base leading-relaxed text-muted-foreground">
-                Ask about GST, income tax, corporate tax, or SRS. Anything personal is
-                routed to a human advisor.
+                Ask about the rules, draft a reply for your review, or triage a
+                case. Every answer is grounded in this workspace&apos;s documents,
+                with citations.
               </p>
             </div>
             <div className="flex flex-wrap justify-center gap-2.5">
-              {TOPICS.map((t) => (
+              {topicsFor(workspaceId).map((t) => (
                 <button
                   key={t.label}
                   type="button"
@@ -411,31 +661,64 @@ export default function ChatPage() {
                 </button>
               ))}
             </div>
-            <div className="w-full max-w-xl">{composer(true)}</div>
-            <PageGuide page="assistant" className="w-full max-w-xl bg-card" />
+            <div className="w-full max-w-3xl">{composer(true)}</div>
           </main>
         ) : (
           <div className="flex min-h-0 flex-1 flex-col">
             <Conversation className="flex-1">
-              <ConversationContent id="main" className="mx-auto w-full max-w-2xl gap-5 px-4 py-6">
-                {messages.map((message) => (
+              <ConversationContent id="main" className="mx-auto w-full max-w-4xl gap-5 px-4 py-6">
+                {messages.map((message) => {
+                  // Cited sources for this answer, so inline [n] markers can be
+                  // linkified to the matching source in the Sources block.
+                  const citeNums =
+                    message.role === "assistant"
+                      ? new Set(collectSources(message.parts).map((s) => s.n))
+                      : new Set<number>();
+                  const citeComponents =
+                    citeNums.size > 0
+                      ? makeCiteComponents(message.id, onCite)
+                      : undefined;
+                  // On xl, an answer can be clicked to show its steps/sources in
+                  // the panel (works when there is nothing to scroll). The active
+                  // one carries a left accent so it is clear which is shown.
+                  const selectable = isWide && message.role === "assistant";
+                  const isActiveAnswer = selectable && message.id === activeMsgId;
+                  return (
                   <Message
                     key={message.id}
                     from={message.role}
                     data-testid="message"
                     data-role={message.role}
+                    data-assistant-id={
+                      message.role === "assistant" ? message.id : undefined
+                    }
+                    onClick={
+                      selectable ? () => setActiveMsgId(message.id) : undefined
+                    }
+                    className={cn(
+                      selectable &&
+                        "cursor-pointer border-l-2 border-transparent pl-3 transition-colors hover:border-border",
+                      isActiveAnswer && "border-primary/60",
+                    )}
                     style={{ animation: "var(--animate-msg-in)" }}
                   >
                     <MessageContent>
                       {groupParts(message.parts).map((group, i) => {
                         if (group.kind === "tools") {
-                          return <StepTrace key={i} parts={group.parts} />;
+                          // On xl+ the trace lives in the side panel.
+                          return isWide ? null : (
+                            <StepTrace key={i} parts={group.parts} />
+                          );
                         }
                         const part = group.part;
                         if (part.type === "text") {
                           return message.role === "assistant" ? (
-                            <MessageResponse key={i} className="prose-chat">
-                              {part.text}
+                            <MessageResponse
+                              key={i}
+                              className="prose-chat"
+                              components={citeComponents}
+                            >
+                              {linkifyCitations(part.text, citeNums)}
                             </MessageResponse>
                           ) : (
                             <span key={i} className="whitespace-pre-wrap">
@@ -445,6 +728,14 @@ export default function ChatPage() {
                         }
                         return null;
                       })}
+                      {message.role === "assistant" &&
+                      message.id === lastMsg?.id &&
+                      showThinking ? (
+                        <ThinkingDots />
+                      ) : null}
+                      {message.role === "assistant" && !isWide ? (
+                        <Citations parts={message.parts} messageId={message.id} />
+                      ) : null}
                       {(() => {
                         if (message.role !== "assistant") return null;
                         const meta = (message as { metadata?: ReplyMetadata }).metadata;
@@ -464,13 +755,25 @@ export default function ChatPage() {
                       })()}
                     </MessageContent>
                   </Message>
-                ))}
+                  );
+                })}
+                {showThinking && lastMsg?.role !== "assistant" ? (
+                  <Message
+                    from="assistant"
+                    data-testid="thinking"
+                    style={{ animation: "var(--animate-msg-in)" }}
+                  >
+                    <MessageContent>
+                      <ThinkingDots />
+                    </MessageContent>
+                  </Message>
+                ) : null}
               </ConversationContent>
               <ConversationScrollButton />
             </Conversation>
 
             <div className="shrink-0 px-4 py-4">
-              <div className="mx-auto w-full max-w-2xl">
+              <div className="mx-auto w-full max-w-4xl">
                 {error ? (
                   <p
                     role="alert"
@@ -482,7 +785,7 @@ export default function ChatPage() {
                 {/* Scenario chips stay available mid-chat so each one can be
                     tried in the same conversation. */}
                 <div className="mb-2 flex flex-wrap gap-1.5">
-                  {TOPICS.map((t) => (
+                  {topicsFor(workspaceId).map((t) => (
                     <button
                       key={t.label}
                       type="button"
@@ -500,6 +803,19 @@ export default function ChatPage() {
           </div>
         )}
       </div>
+
+      {/* Inspector: agent steps + cited sources for the active answer (xl+) */}
+      {isWide ? (
+        <>
+          <ResizeHandle onPointerDown={inspector.onPointerDown} />
+          <aside
+            style={{ width: inspector.width }}
+            className="flex shrink-0 flex-col border-l bg-card"
+          >
+            <Inspector message={activeMessage} />
+          </aside>
+        </>
+      ) : null}
     </div>
   );
 }

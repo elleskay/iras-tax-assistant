@@ -2,21 +2,19 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  GitBranch,
   FlaskConical,
   History,
   Play,
-  Plus,
   Trash2,
   CheckCircle2,
   XCircle,
   Loader2,
-  RotateCcw,
 } from "lucide-react";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MODELS, modelOptionLabel } from "@/lib/model-registry";
+import { MODELS } from "@/lib/model-registry";
 import {
   type RoutingConfig,
   type TestCase,
@@ -24,7 +22,6 @@ import {
   DEFAULT_CASES,
   applyRoutingRules,
   loadConfig,
-  saveConfig,
   loadCases,
   saveCases,
 } from "@/lib/routing-rules";
@@ -61,10 +58,11 @@ function genId(prefix: string) {
 }
 
 export function EvalsWorkbench() {
+  // The routing config is read-only here (edited on the Routing page); the run
+  // routes each case by it. Cases, grader and history are owned by this page.
   const [config, setConfig] = useState<RoutingConfig>(DEFAULT_CONFIG);
   const [cases, setCases] = useState<TestCase[]>(DEFAULT_CASES);
   const [hydrated, setHydrated] = useState(false);
-  const [testQuery, setTestQuery] = useState("What is the GST registration threshold?");
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<CaseResult[] | null>(null);
   const [grader, setGrader] = useState<Grader>("keyword");
@@ -87,8 +85,13 @@ export function EvalsWorkbench() {
     setCases(loadCases());
     setHydrated(true);
     void loadHistory();
-    // Offer the stored versions of the assistant prompt for pinned-version runs.
-    void fetch("/api/prompts", { cache: "no-store" })
+    // Offer the assistant prompt's stored versions for pinned-version runs.
+    // Evaluation is platform-wide, so pin against the default workspace's
+    // baseline versions regardless of the selected workspace.
+    void fetch("/api/prompts", {
+      cache: "no-store",
+      headers: { "x-workspace": "individual-income" },
+    })
       .then((r) => r.json())
       .then((data: { prompts?: { name: string; versions: { version: number }[] }[] }) => {
         const record = data.prompts?.find((p) => p.name === "assistant-system");
@@ -97,16 +100,10 @@ export function EvalsWorkbench() {
       .catch(() => setPromptVersions([]));
   }, [loadHistory]);
 
-  function updateConfig(next: RoutingConfig) {
-    setConfig(next);
-    if (hydrated) saveConfig(next);
-  }
   function updateCases(next: TestCase[]) {
     setCases(next);
     if (hydrated) saveCases(next);
   }
-
-  const preview = applyRoutingRules(config, testQuery);
 
   async function run() {
     setRunning(true);
@@ -131,7 +128,7 @@ export function EvalsWorkbench() {
             return {
               id: c.id, query: c.query, modelLabel: modelLabel(route.modelId),
               reason: route.reason, pass: false, checks: [], answer: "",
-              error: res.status === 429 ? "rate limited" : "failed",
+              error: res.status === 429 ? "rate limited" : "request failed",
             };
           }
           const data = await res.json();
@@ -144,7 +141,7 @@ export function EvalsWorkbench() {
         } catch {
           return {
             id: c.id, query: c.query, modelLabel: modelLabel(route.modelId),
-            reason: route.reason, pass: false, checks: [], answer: "", error: "failed",
+            reason: route.reason, pass: false, checks: [], answer: "", error: "request failed",
           };
         }
       }),
@@ -189,130 +186,20 @@ export function EvalsWorkbench() {
 
   return (
     <div className="flex flex-col gap-8">
-      {/* Routing rules */}
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            <GitBranch className="h-4 w-4" /> Model routing rules
-          </h3>
-          <button
-            type="button"
-            onClick={() => updateConfig(DEFAULT_CONFIG)}
-            className="inline-flex items-center gap-1 text-xs font-medium text-primary"
-          >
-            <RotateCcw className="h-3 w-3" /> Reset
-          </button>
-        </div>
-        <Card className="shadow-soft">
-          <CardContent className="flex flex-col gap-3">
-            <p className="text-xs text-muted-foreground">
-              First rule whose any keyword appears in the query wins, otherwise the
-              fallback. This is the deterministic router the assistant uses.
-            </p>
-            {config.rules.map((rule, i) => (
-              <div key={rule.id} className="flex flex-col gap-2 rounded-md border bg-background p-2 sm:flex-row sm:items-center">
-                <input
-                  aria-label={`Rule ${i + 1} keywords`}
-                  value={rule.keywords.join(", ")}
-                  onChange={(e) =>
-                    updateConfig({
-                      ...config,
-                      rules: config.rules.map((r, j) =>
-                        j === i ? { ...r, keywords: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) } : r,
-                      ),
-                    })
-                  }
-                  placeholder="keywords, comma separated"
-                  className="min-h-9 flex-1 rounded-md border bg-card px-2 text-sm outline-none focus:border-primary"
-                />
-                <select
-                  aria-label={`Rule ${i + 1} model`}
-                  value={rule.modelId}
-                  onChange={(e) =>
-                    updateConfig({
-                      ...config,
-                      rules: config.rules.map((r, j) => (j === i ? { ...r, modelId: e.target.value } : r)),
-                    })
-                  }
-                  className="min-h-9 rounded-md border bg-card px-2 text-sm outline-none focus:border-primary"
-                >
-                  {MODELS.map((m) => (
-                    <option key={m.id} value={m.id}>{modelOptionLabel(m)}</option>
-                  ))}
-                </select>
-                <input
-                  aria-label={`Rule ${i + 1} reason`}
-                  value={rule.reason}
-                  onChange={(e) =>
-                    updateConfig({
-                      ...config,
-                      rules: config.rules.map((r, j) => (j === i ? { ...r, reason: e.target.value } : r)),
-                    })
-                  }
-                  placeholder="reason"
-                  className="min-h-9 w-32 rounded-md border bg-card px-2 font-mono text-xs outline-none focus:border-primary"
-                />
-                <button
-                  type="button"
-                  aria-label={`Remove rule ${i + 1}`}
-                  onClick={() => updateConfig({ ...config, rules: config.rules.filter((_, j) => j !== i) })}
-                  className="rounded-md px-2 text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() =>
-                  updateConfig({
-                    ...config,
-                    rules: [...config.rules, { id: genId("r"), keywords: [], modelId: MODELS[0].id, reason: "custom" }],
-                  })
-                }
-                className="text-sm font-medium text-primary"
-              >
-                + Add rule
-              </button>
-              <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
-                Fallback
-                <select
-                  aria-label="Fallback model"
-                  value={config.fallbackModelId}
-                  onChange={(e) => updateConfig({ ...config, fallbackModelId: e.target.value })}
-                  className="min-h-8 rounded-md border bg-card px-2 text-sm outline-none focus:border-primary"
-                >
-                  {MODELS.map((m) => (
-                    <option key={m.id} value={m.id}>{modelOptionLabel(m)}</option>
-                  ))}
-                </select>
-              </span>
-            </div>
-
-            {/* Live route preview (free) */}
-            <div className="mt-1 flex flex-col gap-2 rounded-md border border-dashed p-2 sm:flex-row sm:items-center">
-              <input
-                aria-label="Try a query"
-                value={testQuery}
-                onChange={(e) => setTestQuery(e.target.value)}
-                placeholder="Try a query to see where it routes"
-                className="min-h-9 flex-1 rounded-md border bg-card px-2 text-sm outline-none focus:border-primary"
-              />
-              <span data-testid="route-preview" className="text-sm">
-                routes to <b className="text-navy">{modelLabel(preview.modelId)}</b>{" "}
-                <Badge className="bg-accent font-mono text-accent-foreground hover:bg-accent">{preview.reason}</Badge>
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-
       {/* Test cases */}
       <section>
-        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          <FlaskConical className="h-4 w-4" /> Test cases
-        </h3>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            <FlaskConical className="h-4 w-4" /> Test cases
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Each case is routed by your{" "}
+            <Link href="/routing" className="font-medium text-primary underline underline-offset-2">
+              routing rules
+            </Link>
+            , then answered by the chosen model and graded.
+          </p>
+        </div>
         <Card className="shadow-soft">
           <CardContent className="flex flex-col gap-3">
             {cases.map((c, i) => (
@@ -394,7 +281,7 @@ export function EvalsWorkbench() {
         {!results ? (
           <Card className="border-dashed shadow-none">
             <CardContent className="py-8 text-center text-sm text-muted-foreground">
-              Edit the rules and cases above, then click Run to populate the stats.
+              Edit the cases above, then click Run to see the results.
             </CardContent>
           </Card>
         ) : (
@@ -483,8 +370,8 @@ export function EvalsWorkbench() {
         {history.length === 0 ? (
           <Card className="border-dashed shadow-none">
             <CardContent className="py-8 text-center text-sm text-muted-foreground">
-              No runs recorded yet. Completed runs are stored server-side and the
-              pass-rate trend appears here.
+              No runs yet. Completed runs are saved here, with a pass-rate trend
+              over time.
             </CardContent>
           </Card>
         ) : (

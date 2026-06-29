@@ -6,6 +6,7 @@ import {
   activatePromptVersion,
 } from "@/lib/prompt-store";
 import { makeLimiter, isAllowed, clientIp } from "@/lib/rate-limit";
+import { workspaceFromRequest } from "@/lib/tenant";
 
 export const runtime = "nodejs";
 
@@ -13,8 +14,8 @@ export const runtime = "nodejs";
 const limiter = makeLimiter({ tokens: 20, window: "1 m", prefix: "prompts" });
 
 // GET /api/prompts: every prompt with its full version history.
-export async function GET() {
-  const prompts = await listPrompts();
+export async function GET(req: Request) {
+  const prompts = await listPrompts(workspaceFromRequest(req));
   return NextResponse.json({ prompts });
 }
 
@@ -36,7 +37,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid input" }, { status: 400 });
   }
   const { name, content, note } = parsed.data;
-  const prompt = await addPromptVersion(name, content, note);
+  const prompt = await addPromptVersion(
+    name,
+    content,
+    note,
+    workspaceFromRequest(req),
+  );
   return NextResponse.json({ prompt }, { status: 201 });
 }
 
@@ -57,6 +63,7 @@ export async function PUT(req: Request) {
   const prompt = await activatePromptVersion(
     parsed.data.name,
     parsed.data.version,
+    workspaceFromRequest(req),
   );
   if (!prompt) {
     return NextResponse.json(

@@ -2,27 +2,32 @@ import { specTest, expect } from "@platform/spec-test/playwright";
 
 specTest(
   "IRAS-LANDING-001",
-  "Landing page guides the visitor and links into the assistant",
+  "Landing page guides the visitor and links into every showcase page",
   async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByText("How to use it")).toBeVisible();
-    const cta = page.getByRole("link", { name: "Start asking" }).first();
+    await expect(
+      page.getByRole("heading", {
+        name: "One governed AI assistant per department",
+      }),
+    ).toBeVisible();
+    const cta = page.locator('main a[href="/assistant"]').first();
     await expect(cta).toBeVisible();
-    await expect(cta).toHaveAttribute("href", "/assistant");
 
-    // One guide card per showcase page, each linking to it.
-    const guides: [string, string][] = [
-      ["Open the assistant", "/assistant"],
-      ["Open the tools", "/tools"],
-      ["Open Evals", "/evals"],
-      ["Open the gateway", "/gateway"],
-      ["Open Prompts", "/prompts"],
-      ["Open the advisor queue", "/admin"],
+    // The landing links into every showcase page.
+    const hrefs = [
+      "/assistant",
+      "/documents",
+      "/tools",
+      "/prompts",
+      "/insights",
+      "/gateway",
+      "/governance",
+      "/governance/policy",
+      "/governance/audit",
+      "/evals",
     ];
-    for (const [name, href] of guides) {
-      const link = page.getByRole("link", { name });
-      await expect(link).toBeVisible();
-      await expect(link).toHaveAttribute("href", href);
+    for (const href of hrefs) {
+      await expect(page.locator(`main a[href="${href}"]`).first()).toBeVisible();
     }
   },
   { category: "ui" },
@@ -33,82 +38,38 @@ specTest(
   "Primary navigation links to every showcase page",
   async ({ page }) => {
     await page.goto("/");
-    const nav = page.getByRole("navigation", { name: "Primary" });
-    for (const label of ["Assistant", "MCP tools", "Evals", "Gateway", "Prompts", "Advisor queue"]) {
-      await expect(nav.getByRole("link", { name: label })).toBeVisible();
+    // The sidebar (AppShell) is the primary nav. exact: true so "Assistant"
+    // does not also match the "AI Tax Assistant Platform" logo link.
+    for (const label of [
+      "Assistant",
+      "Documents",
+      "AI Tools",
+      "AI Dashboard",
+      "AI Policy",
+      "AI Audit Trail",
+      "AI Instructions",
+      "Usage analytics",
+      "AI Evaluation",
+      "AI Gateway",
+    ]) {
+      await expect(page.getByRole("link", { name: label, exact: true })).toBeVisible();
     }
   },
   { category: "functional" },
 );
 
 specTest(
-  "IRAS-LANDING-002",
-  "Landing example questions exercise the different scenarios",
-  async ({ page }) => {
-    await page.goto("/");
-    // Six scenario chips, each deep-linking into the assistant via ?q=.
-    const chips = [
-      /GST registration threshold/,
-      /Estimate chargeable income/,
-      /Multi-step/,
-      /corporate vs top personal/,
-      /SRS/,
-      /PII routing/,
-    ];
-    for (const name of chips) {
-      const link = page.getByRole("link", { name });
-      await expect(link).toBeVisible();
-      expect(await link.getAttribute("href")).toContain("/assistant?q=");
-    }
-  },
-  { category: "ui" },
-);
-
-specTest(
-  "IRAS-GUIDE-001",
-  "Every feature page has a follow-along guide at the top",
-  async ({ page }) => {
-    // Expanded with numbered steps on every feature page, first visit.
-    for (const path of ["/assistant", "/tools", "/evals", "/gateway", "/prompts", "/admin"]) {
-      await page.goto(path);
-      const guide = page.getByTestId("page-guide");
-      await expect(guide).toBeVisible();
-      await expect(guide).toContainText("How to use this page");
-      expect(await guide.locator("ol li").count()).toBeGreaterThanOrEqual(3);
-    }
-
-    // Collapsing is remembered across a reload.
-    await page.goto("/tools");
-    const guide = page.getByTestId("page-guide");
-    await guide.getByRole("button", { name: /How to use this page/ }).click();
-    await expect(guide.locator("ol")).toHaveCount(0);
-    await page.reload();
-    await expect(page.getByTestId("page-guide")).toBeVisible();
-    await expect(page.getByTestId("page-guide").locator("ol")).toHaveCount(0);
-  },
-  { category: "ui" },
-);
-
-specTest(
-  "IRAS-TOOLS-001",
-  "Tools page lists the MCP server tools",
-  async ({ page }) => {
-    await page.goto("/tools");
-    await expect(page.getByText("lookup_tax_info")).toBeVisible();
-    await expect(page.getByText("calculate_tax_estimate")).toBeVisible();
-    await expect(page.getByText("escalate_to_human")).toBeVisible();
-  },
-  { category: "ui" },
-);
-
-specTest(
   "IRAS-TOOLS-002",
-  "A visitor can run the lookup tool and see a result",
+  "A visitor can run a seeded lookup tool and see a result",
   async ({ page }) => {
     await page.goto("/tools");
-    // The lookup tool is the first tool, pre-filled with "GST".
-    await page.getByRole("button", { name: "Run" }).first().click();
-    await expect(page.getByTestId("tool-result").first()).toContainText("1,000,000");
+    await page.getByRole("button", { name: "Your tools" }).click();
+    // The seeded case_status lookup returns the meaning of a status.
+    const card = page.locator('[data-testid="custom-tool"][data-name="case_status"]');
+    await expect(card).toBeVisible();
+    await card.getByLabel("status", { exact: true }).fill("pending");
+    await card.getByRole("button", { name: "Run" }).click();
+    await expect(card.getByTestId("custom-tool-result")).toContainText("awaiting review");
   },
   { category: "functional" },
 );
@@ -118,6 +79,7 @@ specTest(
   "A visitor can create a custom tool and run it",
   async ({ page }) => {
     await page.goto("/tools");
+    await page.getByRole("button", { name: "Your tools" }).click();
     await page.getByRole("button", { name: "New tool" }).click();
     await page.getByLabel("Tool name").fill("greeting_tool");
     await page.getByLabel("Tool description").fill("Greets by keyword");
@@ -138,7 +100,7 @@ specTest(
   "IRAS-EVAL-002",
   "The route preview shows where a query routes",
   async ({ page }) => {
-    await page.goto("/evals");
+    await page.goto("/governance/policy");
     // Deterministic, client-side, no model call.
     await page.getByLabel("Try a query").fill("What is the corporate tax rate?");
     const preview = page.getByTestId("route-preview");
@@ -175,11 +137,22 @@ specTest(
 
 specTest(
   "IRAS-EVAL-001",
-  "Evals page shows configurable routing rules and test cases",
+  "Evals page shows the test-cases workbench",
   async ({ page }) => {
     await page.goto("/evals");
-    await expect(page.getByRole("heading", { name: "Model routing rules" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Test cases" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Results" })).toBeVisible();
+  },
+  { category: "ui" },
+);
+
+specTest(
+  "IRAS-ROUTE-001",
+  "AI Policy page shows the editable model routing rules",
+  async ({ page }) => {
+    await page.goto("/governance/policy");
+    await expect(page.getByRole("heading", { name: "Model routing rules" })).toBeVisible();
+    await expect(page.getByLabel("Try a query")).toBeVisible();
   },
   { category: "ui" },
 );

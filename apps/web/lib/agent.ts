@@ -1,5 +1,6 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { getActivePromptContent } from "./prompt-store";
+import { DEFAULT_WORKSPACE } from "./workspaces";
 
 /*
  * Shared agent config so the chat route and the eval runner use the exact same
@@ -15,47 +16,46 @@ export function agentModel() {
   return process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
 }
 
-export const SYSTEM = `You are an IRAS (Inland Revenue Authority of Singapore) tax FAQ assistant.
-You answer ONLY general, factual questions about Singapore tax rules using the lookup_tax_info tool.
+export const SYSTEM = `You are an AI assistant for an IRAS (Inland Revenue Authority of Singapore) tax officer. Your user is the OFFICER, not the taxpayer. You help the officer handle taxpayer queries and casework for their tax type, faster and more consistently.
 
-ESCALATE IMMEDIATELY (call escalate_to_human, do NOT ask follow-up questions) when the user:
-- Mentions their own income, salary, revenue, turnover, or financial situation
-- Uses words like "I", "my", "me", "we", "our" in a tax context
-- Asks "will I", "should I", "do I", "how much will I", "am I"
-- Describes a specific personal or business scenario
-- Asks anything that requires knowing their individual circumstances
+How you help:
+- Answer the officer's questions about the tax rules using the available tools.
+- When this workspace has uploaded guidance documents, use search_knowledge to ground answers in them. Put the matching [n] right after EVERY fact you take from a passage; never state a document-sourced fact without its [n]. The [n] match the numbered passages search_knowledge returns, and keep counting up across multiple searches (a second search continues 4, 5, ..., it does not restart at 1).
+- Only use [n] citations for search_knowledge document passages. Do NOT attach [n] to figures from a lookup or calculator tool: those are exact tool outputs, not document sources, so state them without a [n] marker.
+- Use the workspace's lookup and calculator tools for known precise facts (rates, thresholds, deadlines) and computations. Never fabricate figures; prefer the tools over memory for any number.
+- When asked to draft a reply to a taxpayer, produce a clear, correct, review-ready draft for the officer to check and send. Never imply the reply has been sent.
+- When asked to triage or summarise a case, give a short summary and flag what needs the officer's attention.
 
-You MAY use calculate_tax_estimate ONLY when the user explicitly asks for a rough
-chargeable-income estimate and provides both an income and a deductions figure.
+PII: taxpayer data (NRIC, UEN, income) is normal in casework. Do not refuse it. The platform detects, redacts in logs, and audits PII; you simply do the task, and do not surface more PII than necessary in your answer.
 
-Do NOT ask clarifying questions for personalised queries: escalate immediately.
-Never fabricate tax figures or rules: always use the lookup tool for factual questions.
-Treat the lookup_tax_info result as the authoritative source of truth. Base factual answers ONLY on what the tool returns. Do not correct, replace, or supplement it with your own knowledge, even if the result looks unusual or differs from what you expect.
-Keep answers concise and always remind users that this is general information, not personalised tax advice.
+Always note that answers are general guidance for the officer's judgement, not a final assessment.
 
 Formatting rules: do NOT use emojis, em dashes, or arrow characters. Use commas, periods, parentheses, or colons instead. Plain markdown only (headings, bold, lists).`;
 
 /** Prompt-store name for the assistant's system prompt. */
 export const SYSTEM_PROMPT_NAME = "assistant-system";
 
-let cachedPrompt: { value: string; at: number } | null = null;
+const promptCache = new Map<string, { value: string; at: number }>();
 const PROMPT_CACHE_MS = 60_000;
 
 /**
- * Resolve the system prompt from the prompt store's active version, falling
- * back to the compiled-in SYSTEM when no version exists or the store is
- * unreadable. Cached for 60s per Lambda instance so chat requests do not pay
- * a store read each time (tests bypass the cache).
+ * Resolve a workspace's system prompt from the prompt store's active version,
+ * falling back to the compiled-in SYSTEM when no version exists or the store is
+ * unreadable. Cached for 60s per workspace per Lambda instance so chat requests
+ * do not pay a store read each time (tests bypass the cache).
  */
-export async function resolveSystemPrompt(): Promise<string> {
-  const fresh = cachedPrompt && Date.now() - cachedPrompt.at < PROMPT_CACHE_MS;
-  if (fresh && process.env.NODE_ENV !== "test") return cachedPrompt!.value;
+export async function resolveSystemPrompt(
+  workspace: string = DEFAULT_WORKSPACE,
+): Promise<string> {
+  const cached = promptCache.get(workspace);
+  const fresh = cached && Date.now() - cached.at < PROMPT_CACHE_MS;
+  if (fresh && process.env.NODE_ENV !== "test") return cached!.value;
   let value = SYSTEM;
   try {
-    value = (await getActivePromptContent(SYSTEM_PROMPT_NAME)) ?? SYSTEM;
+    value = (await getActivePromptContent(SYSTEM_PROMPT_NAME, workspace)) ?? SYSTEM;
   } catch {
     // Store unreadable: serve the compiled-in default rather than failing.
   }
-  cachedPrompt = { value, at: Date.now() };
+  promptCache.set(workspace, { value, at: Date.now() });
   return value;
 }

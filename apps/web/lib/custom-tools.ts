@@ -10,7 +10,7 @@ import { z } from "zod";
  * (optionally) sent to the chat API so the Assistant can call them.
  */
 
-export const MAX_CUSTOM_TOOLS = 10;
+export const MAX_CUSTOM_TOOLS = 15;
 const NAME_RE = /^[a-z][a-z0-9_]{1,40}$/;
 
 export const ToolParamSchema = z.object({
@@ -111,54 +111,100 @@ export function toolParams(
 // assistant. The first save (including deleting one) replaces the seed.
 export const EXAMPLE_TOOLS: CustomTool[] = [
   {
-    id: "example_filing_deadlines",
+    id: "example_case_status",
     kind: "lookup",
-    name: "filing_deadlines",
-    description: "Example lookup table: Singapore filing deadlines by taxpayer type.",
-    paramName: "taxpayer",
-    paramDescription: "individual, corporate, or gst",
+    name: "case_status",
+    description: "Example lookup: what each case status means.",
+    paramName: "status",
+    paramDescription: "pending, under review, info requested, assessed, or closed",
     pairs: [
-      { key: "individual", value: "Individuals e-file income tax by 18 Apr each year (15 Apr on paper)." },
-      { key: "corporate", value: "Companies file Form C-S or Form C by 30 Nov each year." },
-      { key: "gst", value: "GST returns are due one month after the end of each accounting period." },
+      { key: "pending", value: "Pending: the case has been received and is awaiting review." },
+      { key: "under review", value: "Under review: an officer is actively assessing the case." },
+      { key: "info requested", value: "Information requested: waiting on the taxpayer for documents or clarification." },
+      { key: "assessed", value: "Assessed: an assessment or decision has been issued." },
+      { key: "closed", value: "Closed: no further action is required." },
     ],
-    fallback: "Known taxpayer types: individual, corporate, gst.",
+    fallback: "Known statuses: pending, under review, info requested, assessed, closed.",
   },
   {
-    id: "example_filing_reminder",
+    id: "example_due_date_reminder",
     kind: "template",
-    name: "filing_reminder",
-    description: "Example response template: compose a filing reminder message.",
+    name: "due_date_reminder",
+    description: "Example template: compose a due-date reminder.",
     params: [
       { name: "name", type: "string", description: "Taxpayer name" },
-      { name: "deadline", type: "string", description: "Filing deadline" },
+      { name: "item", type: "string", description: "What is due" },
+      { name: "deadline", type: "string", description: "Due date" },
     ],
     template:
-      "Reminder for {name}: your Singapore tax filing is due by {deadline}. File early at myTax Portal to avoid penalties.",
+      "Dear {name}, this is a reminder that your {item} is due by {deadline}. Please complete it on time to avoid late penalties.",
   },
   {
-    id: "example_gst_calculator",
+    id: "example_taxable_amount",
     kind: "code",
-    name: "gst_calculator",
-    description: "Example code tool: add 9 percent GST, runs in the QuickJS sandbox.",
-    params: [{ name: "amount", type: "number", description: "Amount in SGD before GST" }],
+    name: "taxable_amount",
+    description:
+      "Example calculator: taxable amount = base minus deductions, floored at zero (e.g. chargeable income).",
+    params: [
+      { name: "base", type: "number", description: "Gross base amount (e.g. income or turnover)" },
+      { name: "deductions", type: "number", description: "Total allowable deductions or reliefs" },
+    ],
     code: `function run(input) {
-  const gst = Math.round(input.amount * 9) / 100;
-  return { amount: input.amount, gst: gst, total: input.amount + gst };
+  const base = Number(input.base) || 0;
+  const deductions = Number(input.deductions) || 0;
+  const taxable = Math.max(0, base - deductions);
+  return { base: base, deductions: deductions, taxable: taxable };
+}`,
+  },
+  {
+    id: "example_percentage_of",
+    kind: "code",
+    name: "percentage_of",
+    description: "Example calculator: apply a percentage (e.g. a tax rate) to an amount.",
+    params: [
+      { name: "amount", type: "number", description: "Base amount" },
+      { name: "rate", type: "number", description: "Rate as a percentage, e.g. 9" },
+    ],
+    code: `function run(input) {
+  const amount = Number(input.amount) || 0;
+  const rate = Number(input.rate) || 0;
+  const result = Math.round(amount * rate) / 100;
+  return { amount: amount, rate: rate, result: result };
 }`,
   },
 ];
 
-// ---- localStorage (client only) ----
+// ---- localStorage (client only), scoped per workspace ----
 
-const STORAGE_KEY = "iras-custom-tools";
+// Example tools are seeded only for the demo workspaces; a new workspace starts
+// empty and officers add tools from the Templates tab. Mirrors the seed
+// workspaces in lib/workspaces.ts.
+const SEED_TOOL_WORKSPACES = ["individual-income", "corporate"];
+
+// The active workspace is mirrored to localStorage("workspace") by the workspace
+// switcher, and switching reloads the page, so a fresh mount reads the right set.
+function currentWorkspace(): string {
+  try {
+    return localStorage.getItem("workspace") || "individual-income";
+  } catch {
+    return "individual-income";
+  }
+}
+
+// Tools are per workspace: each tax type keeps its own set.
+function toolsKey(): string {
+  return `iras-custom-tools:${currentWorkspace()}`;
+}
 
 export function loadCustomTools(): CustomTool[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    // First visit (nothing ever saved): seed the runnable examples.
-    if (raw === null) return EXAMPLE_TOOLS;
+    const raw = localStorage.getItem(toolsKey());
+    if (raw === null) {
+      // First visit for this workspace (nothing saved): seed the examples only
+      // for the demo workspaces; a new workspace starts empty.
+      return SEED_TOOL_WORKSPACES.includes(currentWorkspace()) ? EXAMPLE_TOOLS : [];
+    }
     const parsed = CustomToolsSchema.safeParse(JSON.parse(raw));
     return parsed.success ? parsed.data : [];
   } catch {
@@ -166,7 +212,11 @@ export function loadCustomTools(): CustomTool[] {
   }
 }
 
+/** Fired on the window after any save so every mounted view re-reads in sync. */
+export const CUSTOM_TOOLS_CHANGED = "iras:custom-tools-changed";
+
 export function saveCustomTools(tools: CustomTool[]): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(tools.slice(0, MAX_CUSTOM_TOOLS)));
+  localStorage.setItem(toolsKey(), JSON.stringify(tools.slice(0, MAX_CUSTOM_TOOLS)));
+  window.dispatchEvent(new Event(CUSTOM_TOOLS_CHANGED));
 }

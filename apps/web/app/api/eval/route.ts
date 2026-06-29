@@ -14,6 +14,7 @@ import { gatewayModel } from "@/lib/gateway";
 import { findModel } from "@/lib/model-registry";
 import { taxTools } from "@/lib/tools";
 import { makeLimiter, isAllowed, clientIp } from "@/lib/rate-limit";
+import { DEFAULT_WORKSPACE } from "@/lib/workspaces";
 
 export const runtime = "nodejs";
 export const maxDuration = 45;
@@ -57,12 +58,14 @@ export async function POST(req: Request) {
     : anthropic(agentModel());
   const modelLabel = entry ? entry.label : agentModel();
 
-  // Same prompt and tools as the live assistant, so the check reflects the real
-  // thing. A pinned promptVersion overrides the active one for comparisons.
+  // Evaluation is platform-wide: always run against the default workspace's
+  // baseline prompt so results never depend on the selected workspace. A pinned
+  // promptVersion overrides the active one for comparisons.
+  const ws = DEFAULT_WORKSPACE;
   const system =
     (promptVersion !== undefined
-      ? await getPromptVersionContent(SYSTEM_PROMPT_NAME, promptVersion)
-      : null) ?? (await resolveSystemPrompt());
+      ? await getPromptVersionContent(SYSTEM_PROMPT_NAME, promptVersion, ws)
+      : null) ?? (await resolveSystemPrompt(ws));
 
   const result = await generateText({
     model,

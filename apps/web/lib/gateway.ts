@@ -26,6 +26,8 @@ import { logGatewayCall } from "./gateway-store";
 export interface GatewayMeta {
   /** Why this model was picked, shown on the /gateway page. */
   route?: string;
+  /** Tenant the call belongs to; the log entry is written under it. */
+  workspace?: string;
 }
 
 interface ResolvedFallback {
@@ -95,7 +97,7 @@ async function persist(
       outputTokens,
       costUsd: computeCostUsd(entry, inputTokens, outputTokens),
       fallbackUsed,
-    });
+    }, meta.workspace);
   } catch {
     // Observability must never take a request down: drop the log entry.
   }

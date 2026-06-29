@@ -8,6 +8,7 @@ import {
   getActivePromptContent,
 } from "../../lib/prompt-store";
 import { resolveSystemPrompt, SYSTEM, SYSTEM_PROMPT_NAME } from "../../lib/agent";
+import { DEFAULT_WORKSPACE } from "../../lib/workspaces";
 
 function withTempStore<T>(fn: (dir: string) => Promise<T>): Promise<T> {
   const dir = mkdtempSync(join(tmpdir(), "prompts-"));
@@ -62,8 +63,13 @@ specTest(
       await addPromptVersion(SYSTEM_PROMPT_NAME, "You are a custom prompt.");
       expect(await resolveSystemPrompt()).toBe("You are a custom prompt.");
 
-      // Corrupt store file: falls back to the default, never throws.
-      writeFileSync(join(dir, "prompts.json"), "{not json", "utf8");
+      // Corrupt store file: falls back to the default, never throws. The store
+      // is workspace-scoped, so the default workspace's file is the one read.
+      writeFileSync(
+        join(dir, `prompts-${DEFAULT_WORKSPACE}.json`),
+        "{not json",
+        "utf8",
+      );
       expect(await resolveSystemPrompt()).toBe(SYSTEM);
     });
   },

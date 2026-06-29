@@ -1,5 +1,5 @@
 {
-  "name": "iras-tax-assistant",
+  "name": "ai-tax-assistant-platform",
   "version": "0.7.0",
   "private": true,
   "description": "IRAS Singapore tax assistant: conversational agent with tax lookup, estimates, and human-in-the-loop escalation. Built on the AWS serverless platform template.",
