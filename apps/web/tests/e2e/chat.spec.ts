@@ -77,7 +77,7 @@ function multiStepStream(): string {
 }
 
 specTest(
-  "IRAS-CHAT-001",
+  "TAX-CHAT-001",
   "Home page renders the chat interface",
   async ({ page }) => {
     await page.goto("/assistant");
@@ -89,7 +89,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-CHAT-006",
+  "TAX-CHAT-006",
   "Assistant example chips cover each scenario and stay available mid-chat",
   async ({ page }) => {
     await page.route("**/api/chat", async (route) => {
@@ -139,7 +139,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-CHAT-003",
+  "TAX-CHAT-003",
   "A general-information disclaimer is always visible on the chat page",
   async ({ page }) => {
     await page.goto("/assistant");
@@ -151,7 +151,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-CHAT-004",
+  "TAX-CHAT-004",
   "New chat clears the conversation and history keeps the previous one",
   async ({ page }) => {
     await page.route("**/api/chat", async (route) => {
@@ -186,7 +186,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-CHAT-005",
+  "TAX-CHAT-005",
   "A question deep link asks it automatically",
   async ({ page }) => {
     await page.route("**/api/chat", async (route) => {
@@ -208,7 +208,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-CHAT-002",
+  "TAX-CHAT-002",
   "Sending a message shows the user message and the assistant reply",
   async ({ page }) => {
     await page.route("**/api/chat", async (route) => {
@@ -241,7 +241,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-AGENT-002",
+  "TAX-AGENT-002",
   "Assistant replies show a numbered step trace of tool use",
   async ({ page }) => {
     await page.route("**/api/chat", async (route) => {
@@ -284,7 +284,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-AGENT-003",
+  "TAX-AGENT-003",
   "A multi-step reply renders the full trace and the answer",
   async ({ page }) => {
     await page.route("**/api/chat", async (route) => {

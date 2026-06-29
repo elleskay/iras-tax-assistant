@@ -1,10 +1,10 @@
 /*
- * Pure tax logic, ported from the original iras-mcp-server tool handlers.
+ * Pure tax logic, ported from the original MCP server tool handlers.
  * Kept free of any I/O or SDK imports so it is deterministic and unit testable
  * (these back the `data` category spec requirements).
  *
  * NOTE: the factual data is hardcoded, as in the original MCP server. For
- * production, replace TAX_FACTS with a live IRAS data source or retrieval layer.
+ * production, replace TAX_FACTS with a live tax data source or retrieval layer.
  */
 
 export const TAX_FACTS: Record<string, string> = {
@@ -30,7 +30,7 @@ export function formatEstimate(income: number, deductions: number): string {
   return (
     `Estimated chargeable income: SGD ${chargeable.toLocaleString("en-SG")}. ` +
     `(Income SGD ${income.toLocaleString("en-SG")} minus deductions SGD ${deductions.toLocaleString("en-SG")}.) ` +
-    `This is a rough estimate only. Actual tax liability depends on reliefs, residency status, and IRAS assessment. ` +
+    `This is a rough estimate only. Actual tax liability depends on reliefs, residency status, and the final tax assessment. ` +
     `Consult a tax professional for personalised advice.`
   );
 }

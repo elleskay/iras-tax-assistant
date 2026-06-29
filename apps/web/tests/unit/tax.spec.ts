@@ -6,7 +6,7 @@ import {
 } from "../../lib/tax";
 
 specTest(
-  "IRAS-TAX-001",
+  "TAX-TAX-001",
   "Chargeable income is gross income minus deductions, floored at zero",
   () => {
     expect(calculateChargeableIncome(100000, 20000)).toBe(80000);
@@ -21,7 +21,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-TAX-002",
+  "TAX-TAX-002",
   "Tax lookup returns the known fact for a supported topic",
   () => {
     expect(lookupTaxFact("GST")).toMatch(/1,000,000/);

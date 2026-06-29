@@ -49,7 +49,7 @@ function withTempStore<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 specTest(
-  "IRAS-GATEWAY-001",
+  "TAX-GATEWAY-001",
   "The gateway records model, latency, and token usage for a completed call",
   async () => {
     await withTempStore(async () => {
@@ -80,7 +80,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-GATEWAY-002",
+  "TAX-GATEWAY-002",
   "Gateway cost is computed from the registry prices for generate and stream",
   async () => {
     await withTempStore(async () => {
@@ -130,7 +130,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-GATEWAY-003",
+  "TAX-GATEWAY-003",
   "A provider error falls back to the alternate provider and is flagged",
   async () => {
     await withTempStore(async () => {

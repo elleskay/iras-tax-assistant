@@ -14,7 +14,7 @@ import { DEFAULT_WORKSPACE } from "../../lib/workspaces";
 const storePath = join(process.cwd(), `prompts-${DEFAULT_WORKSPACE}.json`);
 
 specTest(
-  "IRAS-PROMPT-003",
+  "TAX-PROMPT-003",
   "The prompts page lists versions and shows a line diff between them",
   async ({ page }) => {
     writeFileSync(
@@ -69,7 +69,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-PROMPT-004",
+  "TAX-PROMPT-004",
   "Creating and activating a prompt version works end to end",
   async ({ page }) => {
     rmSync(storePath, { force: true });
@@ -102,7 +102,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-PROMPT-005",
+  "TAX-PROMPT-005",
   "The prompts write API validates input and is rate limited",
   async ({ request }) => {
     rmSync(storePath, { force: true });

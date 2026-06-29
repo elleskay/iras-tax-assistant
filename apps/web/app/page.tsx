@@ -304,7 +304,6 @@ export default function PlatformHome() {
       {/* Disclaimer */}
       <p className="mt-14 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
         <Info className="h-3.5 w-3.5 shrink-0" />
-        Unofficial concept demo of an officer tool, not affiliated with IRAS.
         General information only. Demo documents are self-authored, open, or
         synthetic.
       </p>

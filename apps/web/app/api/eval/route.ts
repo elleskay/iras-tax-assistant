@@ -91,7 +91,7 @@ export async function POST(req: Request) {
     });
   }
 
-  // icontains assertions, the same style as the llm-eval-iras suite.
+  // icontains assertions, the same style as the llm-eval suite.
   const { pass, checks } = keywordGrade(answer, expects);
   return NextResponse.json({ answer, checks, pass, model: modelLabel });
 }

@@ -34,7 +34,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="IRAS Tax Assistant — RAG Service",
+    title="AI Tax Assistant — RAG Service",
     version="0.1.0",
     description="Per-workspace (per-tax-type) retrieval-augmented-generation index.",
     lifespan=lifespan,

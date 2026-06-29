@@ -23,7 +23,7 @@ const sourceSans = Source_Sans_3({
 export const metadata: Metadata = {
   title: "AI Tax Assistant Platform",
   description:
-    "AI platform for IRAS tax officers: one governed, document-grounded assistant per department. Unofficial concept demo, not affiliated with IRAS.",
+    "AI platform for tax officers: one governed, document-grounded assistant per department.",
 };
 
 export default function RootLayout({
@@ -41,7 +41,7 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "try{var t=localStorage.getItem('theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}",
+              "try{if(localStorage.getItem('theme')==='dark'){document.documentElement.classList.add('dark')}}catch(e){}",
           }}
         />
         <a

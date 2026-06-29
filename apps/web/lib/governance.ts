@@ -54,7 +54,7 @@ export const POLICY: GovernancePolicy = {
     grounding: {
       id: "g-ground",
       rule:
-        "answer with general information + citations only; never reproduce source content; always show the 'unofficial, not affiliated with IRAS' disclaimer",
+        "answer with general information + citations only; never reproduce source content; always show the demo disclaimer",
     },
   },
 };
@@ -115,7 +115,7 @@ export const RISK_REGISTER: RiskItem[] = [
   },
   {
     id: "risk-ip",
-    risk: "Reproducing copyrighted source (IRAS) content",
+    risk: "Reproducing copyrighted source content",
     severity: "medium",
     control: "Grounding rule: facts + citations only, never reproduce source content",
     policyRef: "g-ground",

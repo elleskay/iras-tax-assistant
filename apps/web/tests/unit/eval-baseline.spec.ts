@@ -2,7 +2,7 @@ import { specTest, expect } from "@platform/spec-test/vitest";
 import { compareToBaseline, DEFAULT_TOLERANCE } from "../../lib/eval-baseline";
 
 specTest(
-  "IRAS-EVAL-007",
+  "TAX-EVAL-007",
   "Baseline comparison flags a regression only beyond the tolerance",
   () => {
     // At or above baseline: never a regression.

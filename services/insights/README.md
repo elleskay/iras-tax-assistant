@@ -1,6 +1,6 @@
 # Operational Insights pipeline
 
-Data-Science showcase for the IRAS Tax Assistant platform demo. It mines the
+Data-Science showcase for the AI Tax Assistant platform demo. It mines the
 platform's **own usage** (officer prompts + interaction telemetry) and produces
 **operational intelligence per workspace** (a workspace = a tax type):
 

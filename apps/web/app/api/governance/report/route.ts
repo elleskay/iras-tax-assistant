@@ -37,11 +37,11 @@ function buildReport(stats: GovernanceStats, policy: GovernancePolicy): string {
     .map((r) => `- \`${r.id}\`: ${r.reason} → ${r.modelId} (keywords: ${r.keywords.join(", ")})`)
     .join("\n");
 
-  return `# AI Risk Assessment (Unofficial AI Tax Assistant Platform demo, not affiliated with IRAS)
+  return `# AI Risk Assessment (AI Tax Assistant Platform demo)
 
 Generated: ${now} · Policy version: ${policy.version}
 
-> Unofficial demo, not affiliated with IRAS. Framework references illustrate governance alignment.
+> Demo report. Framework references illustrate governance alignment.
 
 ## 1. Summary (live, across all workspaces)
 

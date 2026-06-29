@@ -11,7 +11,7 @@ import {
  */
 
 specTest(
-  "IRAS-SANDBOX-001",
+  "TAX-SANDBOX-001",
   "A code tool runs in the sandbox and returns a JSON result",
   async () => {
     const res = await runSandboxed(
@@ -39,7 +39,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-SANDBOX-002",
+  "TAX-SANDBOX-002",
   "Infinite loops and allocation bombs are stopped by hard limits",
   async () => {
     // Infinite loop: the interrupt handler fires at the deadline.
@@ -65,7 +65,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-SANDBOX-003",
+  "TAX-SANDBOX-003",
   "The sandbox exposes no host capabilities",
   async () => {
     const res = await runSandboxed(
@@ -103,7 +103,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-SANDBOX-004",
+  "TAX-SANDBOX-004",
   "Oversized output is capped with a truncation marker",
   async () => {
     const res = await runSandboxed(

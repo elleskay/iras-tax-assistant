@@ -1,7 +1,7 @@
 # Individual income tax: residency and rates
 
-**Last verified:** 2026-06-28. Source: IRAS, "Individual Income Tax rates" and
-"Tax residency of individuals" (https://www.iras.gov.sg).
+**Last verified:** 2026-06-28. Source: the tax authority, "Individual Income Tax
+rates" and "Tax residency of individuals" (https://www.iras.gov.sg).
 
 ## Facts
 - Singapore taxes individuals on a **progressive resident-rate** scale from **0%**

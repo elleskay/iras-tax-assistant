@@ -36,10 +36,6 @@ export default async function AuditPage() {
       <main id="main">
         <AuditTable entries={audit} />
       </main>
-
-      <p className="mt-8 text-xs text-muted-foreground">
-        Unofficial demo, not affiliated with IRAS.
-      </p>
     </div>
   );
 }

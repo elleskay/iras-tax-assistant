@@ -16,7 +16,7 @@ function withTempStore<T>(fn: () => Promise<T>): Promise<T> {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 specTest(
-  "IRAS-EVAL-004",
+  "TAX-EVAL-004",
   "Eval runs persist and list newest-first with a limit",
   async () => {
     await withTempStore(async () => {
@@ -66,7 +66,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-EVAL-008",
+  "TAX-EVAL-008",
   "A persisted run records its grader and pinned prompt version",
   async () => {
     await withTempStore(async () => {

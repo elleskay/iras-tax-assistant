@@ -57,43 +57,43 @@
 }
 
 :root {
-  /* Palette sampled from iras.gov.sg:
+  /* Palette:
      navy #142e4f (hero/headings), blue #2d7bb9 (buttons/links),
      gold #ffce00 (accent), pale-blue pill #d6edff, light surface #f2f5fa. */
   --radius: 0.5rem;
   color-scheme: light;
 
-  --background: #f2f5fa; /* IRAS light surface */
-  --foreground: #2a3138; /* IRAS body text */
-  --heading: #142e4f; /* IRAS navy, used for headings */
+  --background: #f2f5fa; /* light surface */
+  --foreground: #2a3138; /* body text */
+  --heading: #142e4f; /* navy, used for headings */
   --navy: #142e4f;
-  --gold: #ffce00; /* IRAS gold accent */
+  --gold: #ffce00; /* gold accent */
   --gold-foreground: #142e4f;
   --card: #ffffff;
   --card-foreground: #2a3138;
   --popover: #ffffff;
   --popover-foreground: #2a3138;
 
-  --primary: #2d7bb9; /* IRAS blue */
+  --primary: #2d7bb9; /* blue */
   --primary-foreground: #ffffff;
-  --secondary: #d6edff; /* IRAS pale-blue category pill */
+  --secondary: #d6edff; /* pale-blue category pill */
   --secondary-foreground: #142e4f;
   --muted: #eef2f8;
   --muted-foreground: #5c6672; /* >= 4.5:1 on background */
-  --accent: #d6edff; /* IRAS pale blue for hovers/tints */
+  --accent: #d6edff; /* pale blue for hovers/tints */
   --accent-foreground: #142e4f;
 
   --destructive: #b91c1c;
   --success: #047857;
   --success-foreground: #ffffff;
-  --warning: #fdf2d1; /* IRAS pale gold */
+  --warning: #fdf2d1; /* pale gold */
   --warning-foreground: #6b4e07;
 
   --border: #d2dce8;
   --input: #c4d2e2;
   --ring: #2d7bb9;
 
-  /* Brand-mark gradient (IRAS navy to blue) */
+  /* Brand-mark gradient (navy to blue) */
   --brand-from: #142e4f;
   --brand-to: #2d7bb9;
 

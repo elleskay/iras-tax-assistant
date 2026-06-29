@@ -8,7 +8,7 @@ import { specTest, expect } from "@platform/spec-test/playwright";
  */
 
 specTest(
-  "IRAS-TOOLS-005",
+  "TAX-TOOLS-005",
   "A visitor can build a sandboxed code tool and run it end to end",
   async ({ page }) => {
     await page.goto("/tools");
@@ -44,7 +44,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-TOOLS-007",
+  "TAX-TOOLS-007",
   "Example tools are preloaded and runnable on first visit",
   async ({ page }) => {
     // Fresh browser context: nothing in localStorage, so the seed applies.

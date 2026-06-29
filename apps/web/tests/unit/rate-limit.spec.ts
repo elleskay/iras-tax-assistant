@@ -2,7 +2,7 @@ import { specTest, expect } from "@platform/spec-test/vitest";
 import { makeLimiter, isAllowed } from "../../lib/rate-limit";
 
 specTest(
-  "IRAS-RATELIMIT-001",
+  "TAX-RATELIMIT-001",
   "Rate limiting fails open when Upstash is not configured",
   async () => {
     delete process.env.UPSTASH_REDIS_REST_URL;

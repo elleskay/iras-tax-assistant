@@ -20,7 +20,7 @@ function withTempStore<T>(fn: (dir: string) => Promise<T>): Promise<T> {
 }
 
 specTest(
-  "IRAS-PROMPT-001",
+  "TAX-PROMPT-001",
   "Prompt store keeps immutable versions behind an activation pointer",
   async () => {
     await withTempStore(async () => {
@@ -52,7 +52,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-PROMPT-002",
+  "TAX-PROMPT-002",
   "The system prompt resolves from the active version and falls back to the default",
   async () => {
     await withTempStore(async (dir) => {

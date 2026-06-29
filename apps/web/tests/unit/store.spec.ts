@@ -9,7 +9,7 @@ interface Note {
 }
 
 specTest(
-  "IRAS-STORE-001",
+  "TAX-STORE-001",
   "Generic JSON store round-trips values and lists newest-first",
   async () => {
     const dir = mkdtempSync(join(tmpdir(), "store-"));

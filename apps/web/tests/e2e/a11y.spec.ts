@@ -1,7 +1,7 @@
 import { specTest, expect } from "@platform/spec-test/playwright";
 
 specTest(
-  "IRAS-A11Y-001",
+  "TAX-A11Y-001",
   "Page exposes a skip-to-content link and a single h1",
   async ({ page }) => {
     await page.goto("/");
@@ -16,7 +16,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-A11Y-002",
+  "TAX-A11Y-002",
   "The chat message input has an accessible label",
   async ({ page }) => {
     await page.goto("/assistant");

@@ -9,7 +9,7 @@
 # is NOT durable on Fly (the filesystem is ephemeral) — set it for any real use.
 
 app = "iras-rag"
-primary_region = "sin"   # Singapore — closest to IRAS users
+primary_region = "sin"   # Singapore — closest to our users
 
 [build]
   dockerfile = "Dockerfile"
@@ -22,9 +22,10 @@ primary_region = "sin"   # Singapore — closest to IRAS users
 [http_service]
   internal_port = 8080
   force_https = true
-  # Always-on warm instance: never scale to zero, keep exactly one machine.
+  # Keep one machine always warm (no scale-to-zero) and auto-start it again if
+  # Fly ever stops it, so the service does not go dark or need a manual restart.
   auto_stop_machines = false
-  auto_start_machines = false
+  auto_start_machines = true
   min_machines_running = 1
 
   [[http_service.checks]]

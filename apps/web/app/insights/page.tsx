@@ -140,6 +140,7 @@ export default function InsightsPage() {
             </CardContent>
           </Card>
           <p className="text-sm text-muted-foreground">
+            Sample dataset:{" "}
             <span className="font-medium text-foreground">{cur.name}</span> &middot;{" "}
             {cur.totalInteractions.toLocaleString()} interactions analysed.
           </p>

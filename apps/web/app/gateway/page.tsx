@@ -16,6 +16,7 @@ function formatTime(iso: string) {
     return new Date(iso).toLocaleString("en-SG", {
       dateStyle: "medium",
       timeStyle: "medium",
+      timeZone: "Asia/Singapore",
     });
   } catch {
     return iso;

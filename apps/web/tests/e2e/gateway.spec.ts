@@ -29,7 +29,7 @@ function entry(id: string, overrides: Record<string, unknown> = {}) {
 }
 
 specTest(
-  "IRAS-GATEWAY-004",
+  "TAX-GATEWAY-004",
   "The gateway page lists recent model calls",
   async ({ page }) => {
     const newer = entry("0001-e2e", {

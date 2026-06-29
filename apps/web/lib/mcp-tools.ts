@@ -19,7 +19,7 @@ import {
  */
 
 export const MCP_SERVER_INFO = {
-  name: "iras-tax-assistant",
+  name: "ai-tax-assistant-platform",
   version: "1.0.0",
 };
 

@@ -12,7 +12,7 @@ import { specTest, expect } from "@platform/spec-test/playwright";
 const storePath = join(process.cwd(), "eval-runs.json");
 
 specTest(
-  "IRAS-EVAL-006",
+  "TAX-EVAL-006",
   "A completed run is persisted and shown in the history trend",
   async ({ page }) => {
     rmSync(storePath, { force: true });
@@ -54,7 +54,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-EVAL-009",
+  "TAX-EVAL-009",
   "A failed eval case explains why it failed",
   async ({ page }) => {
     rmSync(storePath, { force: true });

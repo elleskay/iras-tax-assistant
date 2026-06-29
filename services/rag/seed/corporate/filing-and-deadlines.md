@@ -1,8 +1,8 @@
 # Corporate income tax: filing obligations and deadlines (synthetic demo doc)
 
-**Last verified:** 2026-06-29. Source: IRAS, "Corporate Income Tax" filing
-guides (https://www.iras.gov.sg/taxes/corporate-income-tax). Demo document for
-the Corporate Income Tax workspace; facts paraphrased, not reproduced verbatim.
+**Last verified:** 2026-06-29. Source: the tax authority, "Corporate Income Tax"
+filing guides (https://www.iras.gov.sg/taxes/corporate-income-tax). Demo document
+for the Corporate Income Tax workspace; facts paraphrased, not reproduced verbatim.
 
 ## Facts
 - **Two filings each Year of Assessment (YA):** an Estimated Chargeable Income

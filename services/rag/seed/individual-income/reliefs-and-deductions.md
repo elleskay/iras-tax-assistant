@@ -1,7 +1,7 @@
 # Individual income tax: common reliefs and deductions
 
-**Last verified:** 2026-06-28. Source: IRAS, "Tax reliefs, rebates and deductions"
-(https://www.iras.gov.sg).
+**Last verified:** 2026-06-28. Source: the tax authority, "Tax reliefs, rebates and
+deductions" (https://www.iras.gov.sg).
 
 ## Facts
 - **Earned Income Relief**: up to $1,000 (below 55), higher for older taxpayers

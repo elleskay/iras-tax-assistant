@@ -2,7 +2,7 @@ import { specTest, expect } from "@platform/spec-test/vitest";
 import { applyRoutingRules, DEFAULT_CONFIG } from "../../lib/routing-rules";
 
 specTest(
-  "IRAS-ROUTER-001",
+  "TAX-ROUTER-001",
   "The deterministic routing rules pick the right model per query",
   () => {
     // Factual lookups route to the cheaper OpenAI model.

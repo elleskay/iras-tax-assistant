@@ -1,8 +1,8 @@
 # Corporate income tax: rates and exemptions (synthetic demo doc)
 
-**Last verified:** 2026-06-28. Source: IRAS, "Corporate Income Tax rates and
-exemption schemes" (https://www.iras.gov.sg). Demo document for the Corporate
-workspace.
+**Last verified:** 2026-06-28. Source: the tax authority, "Corporate Income Tax
+rates and exemption schemes" (https://www.iras.gov.sg). Demo document for the
+Corporate workspace.
 
 ## Facts
 - **Corporate income tax rate: 17%** (flat) on chargeable income.

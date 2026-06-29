@@ -1,4 +1,4 @@
-"""Operational-insights pipeline for the IRAS Tax Assistant platform demo.
+"""Operational-insights pipeline for the AI Tax Assistant platform demo.
 
 Mines the platform's own (synthetic) officer-interaction telemetry to produce
 operational intelligence per workspace (tax type):

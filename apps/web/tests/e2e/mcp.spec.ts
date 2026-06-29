@@ -78,7 +78,7 @@ function initializePayload() {
 }
 
 specTest(
-  "IRAS-MCP-001",
+  "TAX-MCP-001",
   "The MCP endpoint answers a JSON-RPC initialize",
   async ({ request }) => {
     const reply = await rpc(request, initializePayload());
@@ -88,14 +88,14 @@ specTest(
       protocolVersion?: string;
       serverInfo?: { name?: string };
     };
-    expect(result?.serverInfo?.name).toBe("iras-tax-assistant");
+    expect(result?.serverInfo?.name).toBe("ai-tax-assistant-platform");
     expect(result?.protocolVersion).toBeTruthy();
   },
   { category: "functional" },
 );
 
 specTest(
-  "IRAS-MCP-002",
+  "TAX-MCP-002",
   "tools/list exposes the run_javascript sandbox tool with a schema",
   async ({ request }) => {
     const init = await rpc(request, initializePayload());
@@ -121,7 +121,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-MCP-003",
+  "TAX-MCP-003",
   "Calling run_javascript over MCP executes the code in the sandbox",
   async ({ request }) => {
     const init = await rpc(request, initializePayload());

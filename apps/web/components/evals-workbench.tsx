@@ -194,7 +194,7 @@ export function EvalsWorkbench() {
           </h3>
           <p className="text-xs text-muted-foreground">
             Each case is routed by your{" "}
-            <Link href="/routing" className="font-medium text-primary underline underline-offset-2">
+            <Link href="/governance/policy" className="font-medium text-primary underline underline-offset-2">
               routing rules
             </Link>
             , then answered by the chosen model and graded.
@@ -398,7 +398,11 @@ export function EvalsWorkbench() {
                   >
                     <span className="flex items-center gap-2">
                       <span className="text-muted-foreground">
-                        {new Date(r.timestamp).toLocaleString()}
+                        {new Date(r.timestamp).toLocaleString("en-SG", {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                          timeZone: "Asia/Singapore",
+                        })}
                       </span>
                       <Badge className="bg-secondary font-mono text-secondary-foreground hover:bg-secondary">
                         {r.grader}

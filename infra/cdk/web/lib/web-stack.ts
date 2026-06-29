@@ -12,9 +12,9 @@ export class WebStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // Private bucket backing the human-in-the-loop escalation queue. The Lambda
-    // filesystem is read-only, so escalations are stored here instead of a file.
-    // Not public: this holds user-submitted queries.
+    // Private bucket backing the app's JSON store (workspaces, prompts, gateway
+    // logs, eval runs, governance). The Lambda filesystem is read-only, so this
+    // is where per-workspace state lives. Not public: it holds workspace data.
     const hitlBucket = new s3.Bucket(this, "HitlBucket", {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       encryption: s3.BucketEncryption.S3_MANAGED,
@@ -32,16 +32,12 @@ export class WebStack extends cdk.Stack {
         ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL ?? "",
         // Used by the model router (factual lookups and the cheap classifier).
         OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? "",
-        // Optional bearer token for the MCP endpoint's escalate_to_human tool.
-        // Empty means the tool is open (no-op-without-key convention). Same
-        // two-place wiring rule as ANTHROPIC_API_KEY above.
-        MCP_API_KEY: process.env.MCP_API_KEY ?? "",
         // Per-workspace RAG service (FastAPI + LlamaIndex + pgvector, on Fly).
         // Not a secret; defaults to the deployed Fly app. Unset disables RAG,
         // and the assistant falls back to the built-in fact lookup.
         RAG_SERVICE_URL:
           process.env.RAG_SERVICE_URL ?? "https://iras-rag.fly.dev",
-        // HITL escalation store. Resolved at deploy time (a CDK token).
+        // App JSON store bucket, read by lib/store.ts. Resolved at deploy time.
         HITL_BUCKET: hitlBucket.bucketName,
       },
       // The chat route streams from the LLM and can exceed the 30s default.
@@ -54,7 +50,7 @@ export class WebStack extends cdk.Stack {
       customDomain: {
         domainName: "ai-tax.soonkeong.dev",
         certificateArn:
-          "arn:aws:acm:us-east-1:281639842383:certificate/6b80f74c-e6b2-4ade-b57f-7db2b2d30771",
+          "arn:aws:acm:us-east-1:281639842383:certificate/45a2e0d5-b434-4f9c-a978-60ff3d4d3ac6",
       },
     });
 

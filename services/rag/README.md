@@ -1,6 +1,6 @@
 # RAG microservice (`services/rag`)
 
-A standalone, multi-tenant Retrieval-Augmented-Generation service for the IRAS
+A standalone, multi-tenant Retrieval-Augmented-Generation service for the AI
 Tax Assistant platform. Each **workspace** is a tax type (e.g.
 `individual-income`, `corporate`, `gst`) and has a fully isolated vector index.
 

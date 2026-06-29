@@ -260,15 +260,58 @@ class IndexManager:
         if nodes:
             return [n for n in nodes if isinstance(n, TextNode)]
 
-        # pgvector: docstore may be empty across restarts — read from the store.
+        # pgvector keeps nodes in the per-workspace table with no persisted
+        # docstore, so enumerate node id + metadata directly from that table.
+        # (The vector store's get_nodes() needs ids/filters we do not have here.)
         store = index.vector_store
-        get_nodes = getattr(store, "get_nodes", None)
-        if callable(get_nodes):
+        table_name = getattr(store, "table_name", None)
+        if not table_name:
+            return []
+        rows = self._pg_query(f'SELECT node_id, metadata_ FROM "data_{table_name}"')
+        out: list[TextNode] = []
+        for node_id, meta in rows:
+            if isinstance(meta, dict):
+                md = meta
+            elif isinstance(meta, str):
+                import json
+
+                try:
+                    md = json.loads(meta)
+                except Exception:
+                    md = {}
+            else:
+                md = {}
+            out.append(TextNode(id_=str(node_id), text="", metadata=md))
+        return out
+
+    def _pg_query(self, sql: str) -> list[tuple]:
+        """Run a read-only SQL query against the configured Postgres and return
+        the rows. Returns [] if the driver, connection, or table is unavailable
+        (e.g. a workspace whose table does not exist yet)."""
+        dsn = self._settings.database_url
+        if not dsn:
+            return []
+        try:
+            import psycopg2  # installed with the pgvector store deps
+        except Exception:
             try:
-                return [n for n in get_nodes() if isinstance(n, TextNode)]
-            except Exception:  # pragma: no cover - backend dependent
+                import psycopg as psycopg2  # type: ignore
+            except Exception:
                 return []
-        return []
+        conn = None
+        try:
+            conn = psycopg2.connect(dsn)
+            with conn.cursor() as cur:
+                cur.execute(sql)
+                return list(cur.fetchall())
+        except Exception:
+            return []
+        finally:
+            if conn is not None:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
 
 
 _manager: IndexManager | None = None

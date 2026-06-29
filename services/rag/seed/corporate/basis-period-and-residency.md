@@ -1,8 +1,9 @@
 # Corporate income tax: basis period, YA, and tax residency (synthetic demo doc)
 
-**Last verified:** 2026-06-29. Source: IRAS, "Corporate Income Tax" basics and
-"Tax Residency of a Company" (https://www.iras.gov.sg/taxes/corporate-income-tax).
-Demo document for the Corporate Income Tax workspace; facts paraphrased.
+**Last verified:** 2026-06-29. Source: the tax authority, "Corporate Income Tax"
+basics and "Tax Residency of a Company"
+(https://www.iras.gov.sg/taxes/corporate-income-tax). Demo document for the
+Corporate Income Tax workspace; facts paraphrased.
 
 ## Facts
 - **Preceding-year basis:** income is assessed in the YA following the year in
@@ -15,7 +16,7 @@ Demo document for the Corporate Income Tax workspace; facts paraphrased.
 - A company is **resident** for a YA if control and management was exercised in
   Singapore in the **preceding** calendar year.
 - Tax residents can access **Double Taxation Agreement (DTA)** benefits and may
-  apply to IRAS for a **Certificate of Residence (COR)**.
+  apply to the tax authority for a **Certificate of Residence (COR)**.
 - Singapore taxes income **accrued in or derived from Singapore**, plus foreign
   income **received in** Singapore, subject to available exemptions.
 

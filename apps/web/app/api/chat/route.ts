@@ -66,7 +66,7 @@ const limiter = makeLimiter({ tokens: 20, window: "1 m", prefix: "chat" });
 const MAX_MESSAGES = 30;
 const MAX_INPUT_CHARS = 4000;
 
-// Node runtime: the HITL store uses node:fs.
+// Node runtime: the JSON store uses node:fs and the sandbox needs Node APIs.
 export const runtime = "nodejs";
 export const maxDuration = 60;
 

@@ -46,7 +46,7 @@ function withTempStore<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 specTest(
-  "IRAS-EVAL-005",
+  "TAX-EVAL-005",
   "Judge grading returns a structured verdict and fails closed on garbage",
   async () => {
     // Deterministic keyword grading underpins the default path.

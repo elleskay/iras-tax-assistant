@@ -1,10 +1,8 @@
 # AI Tax Assistant Platform System Design
 
-> A system design breakdown of the Unofficial AI Tax Assistant Platform, a multi-tenant tool for Singapore tax officers. Each department gets its own workspace and a document-grounded assistant: officers ask questions, draft replies for review, and triage cases, grounded in the workspace's own documents (RAG) and cited. Every query is routed cost-aware across six models through one observed gateway, custom tools run in a secure sandbox, and the whole platform runs under one governance standard expressed as code: PII handling, grounding, an eval gate, a cost ceiling, a full audit trail.
+> A system design breakdown of the AI Tax Assistant Platform, a multi-tenant tool for tax officers. Each department gets its own workspace and a document-grounded assistant: officers ask questions, draft replies for review, and triage cases, grounded in the workspace's own documents (RAG) and cited. Every query is routed cost-aware across six models through one observed gateway, custom tools run in a secure sandbox, and the whole platform runs under one governance standard expressed as code: PII handling, grounding, an eval gate, a cost ceiling, a full audit trail.
 >
-> **Live demo** at https://ai-tax.soonkeong.dev
->
-> Unofficial. Not affiliated with the Inland Revenue Authority of Singapore. General information for demonstration, not personalised tax advice, and the figures are illustrative.
+> General information for demonstration, not personalised tax advice, and the figures are illustrative.
 
 ---
 
@@ -25,7 +23,7 @@ The defining constraints are trust, isolation, and cost, not scale. Answers must
 - Officers should be able to run an eval workbench, routing test cases to models and grading them by keyword or LLM judge, with a persisted run history behind a pass-rate gate.
 - The platform should enforce one governance standard across every workspace (PII detect/redact/audit, grounding, eval gate, cost ceiling, deterministic routing), with a live dashboard, a full audit trail, and a downloadable risk assessment.
 
-Out of scope: it is unofficial and not affiliated with IRAS, it is not personalised advice, and it is officer-facing (it serves the officer, not the taxpayer). There is no auth in the demo: the active workspace comes from a cookie.
+Out of scope: it is not personalised advice, and it is officer-facing (it serves the officer, not the taxpayer). There is no auth in the demo: the active workspace comes from a cookie.
 
 ### Non-Functional Requirements
 
@@ -77,12 +75,13 @@ DELETE /api/knowledge -> removes a document
 GET    /api/knowledge/download -> the original file
 ```
 
-Workspaces endpoint. A GET lists the platform's workspaces (the seeds plus any created), a POST creates one, and a PATCH updates its settings.
+Workspaces endpoint. A GET lists the platform's workspaces (the seeds plus any created), a POST creates one, a PATCH updates its settings, and a DELETE removes a custom workspace (the seeded ones are protected).
 
 ```
-GET   /api/workspaces -> Workspace[]
-POST  /api/workspaces -> Workspace
-PATCH /api/workspaces -> Workspace
+GET    /api/workspaces -> Workspace[]
+POST   /api/workspaces -> Workspace
+PATCH  /api/workspaces -> Workspace
+DELETE /api/workspaces -> removes a custom workspace
 ```
 
 Prompts endpoint. The instructions are a small versioned registry per workspace, not a constant. A GET lists versions, a POST adds a new immutable one, and a PUT moves the active pointer, so the live prompt changes without a redeploy.

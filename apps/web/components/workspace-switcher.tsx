@@ -32,7 +32,13 @@ export function WorkspaceSwitcher() {
         if (!alive) return;
         const ws = d.workspaces ?? [];
         setList(ws);
-        setActive(readCookie("workspace") ?? ws[0]?.id ?? "");
+        // No cookie yet: show the server's default workspace (lib/workspaces
+        // DEFAULT_WORKSPACE = "individual-income"), not the first in the list,
+        // so the switcher matches the workspace the backend actually uses.
+        const fallback = ws.some((w) => w.id === "individual-income")
+          ? "individual-income"
+          : (ws[0]?.id ?? "");
+        setActive(readCookie("workspace") ?? fallback);
       })
       .catch(() => {});
     return () => {

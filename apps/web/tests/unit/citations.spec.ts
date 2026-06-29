@@ -42,7 +42,7 @@ const SEARCH_2 = [
 ].join("\n");
 
 specTest(
-  "IRAS-CITE-001",
+  "TAX-CITE-001",
   "Sources shows exactly the cited passages, even when a cited [n] is a duplicate a later search re-surfaced",
   () => {
     const parts = [
@@ -61,7 +61,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-CITE-002",
+  "TAX-CITE-002",
   "With no inline citations, Sources is empty (the retrieval stays visible in the Agent steps trace, not mislabelled as cited)",
   () => {
     const parts = [

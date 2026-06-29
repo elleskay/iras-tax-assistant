@@ -1,7 +1,7 @@
 app: web
 version: 1
 requirements:
-  - id: IRAS-TAX-001
+  - id: TAX-TAX-001
     title: Chargeable income is gross income minus deductions, floored at zero
     category: data
     severity: high
@@ -10,7 +10,7 @@ requirements:
     then: It returns max(0, income - deductions), never negative
     tags: [tax, estimate]
 
-  - id: IRAS-TAX-002
+  - id: TAX-TAX-002
     title: Tax lookup returns the known fact for a supported topic
     category: data
     severity: high
@@ -19,16 +19,7 @@ requirements:
     then: It returns the matching fact for known topics and a guidance fallback listing available topics for unknown ones
     tags: [tax, lookup]
 
-  - id: IRAS-HITL-001
-    title: Escalation store supports create, list, and resolve
-    category: data
-    severity: high
-    given: An empty escalation queue
-    when: addEscalation is called, then listEscalations, then resolveEscalation on the new id
-    then: The entry is created as pending, listed, and then marked resolved
-    tags: [hitl, store]
-
-  - id: IRAS-CHAT-001
+  - id: TAX-CHAT-001
     title: Home page renders the chat interface
     category: ui
     severity: critical
@@ -37,7 +28,7 @@ requirements:
     then: It shows a single h1, a message input, and a send button
     tags: [chat, ui]
 
-  - id: IRAS-CHAT-002
+  - id: TAX-CHAT-002
     title: Sending a message shows the user message and the assistant reply
     category: functional
     severity: critical
@@ -47,7 +38,7 @@ requirements:
     tags: [chat]
     notes: The LLM is non-deterministic, so the e2e stubs /api/chat with a fixed UI message stream and asserts against the fixture.
 
-  - id: IRAS-LANDING-001
+  - id: TAX-LANDING-001
     title: Landing page guides the visitor and links into every showcase page
     category: ui
     severity: medium
@@ -56,7 +47,7 @@ requirements:
     then: It shows the hero and links into every showcase page (Assistant, Documents, AI Tools, AI Instructions, Usage analytics, AI Gateway, AI Dashboard, AI Policy, AI Audit Trail, AI Evaluation)
     tags: [landing, guide]
 
-  - id: IRAS-CHAT-004
+  - id: TAX-CHAT-004
     title: New chat clears the conversation and history keeps the previous one
     category: functional
     severity: medium
@@ -66,7 +57,7 @@ requirements:
     tags: [chat, history]
     notes: The chat e2e stubs /api/chat.
 
-  - id: IRAS-CHAT-005
+  - id: TAX-CHAT-005
     title: A question deep link asks it automatically
     category: functional
     severity: medium
@@ -76,7 +67,7 @@ requirements:
     tags: [chat, landing]
     notes: The chat e2e stubs /api/chat.
 
-  - id: IRAS-CHAT-003
+  - id: TAX-CHAT-003
     title: A general-information disclaimer is always visible on the chat page
     category: ui
     severity: high
@@ -85,26 +76,7 @@ requirements:
     then: A disclaimer states this is general information, not personalised tax advice
     tags: [chat, compliance]
 
-  - id: IRAS-HITL-002
-    title: Admin page lists pending escalations from the queue
-    category: functional
-    severity: high
-    given: At least one pending escalation exists in the queue
-    when: An advisor opens the admin page
-    then: The pending escalation is listed with its reason and original query
-    tags: [hitl, admin]
-
-  - id: IRAS-HITL-003
-    title: Resolving an escalation marks it resolved end to end
-    category: functional
-    severity: high
-    given: A pending escalation has been created via the escalation API
-    when: The advisor opens the admin page and clicks Resolve on that escalation
-    then: The escalation is shown as resolved after the action
-    tags: [hitl, admin, journey]
-    depends_on: [IRAS-HITL-002]
-
-  - id: IRAS-A11Y-001
+  - id: TAX-A11Y-001
     title: Page exposes a skip-to-content link and a single h1
     category: a11y
     severity: high
@@ -113,7 +85,7 @@ requirements:
     then: A skip-to-content link targets the main region and exactly one h1 is present
     tags: [a11y]
 
-  - id: IRAS-A11Y-002
+  - id: TAX-A11Y-002
     title: The chat message input has an accessible label
     category: a11y
     severity: high
@@ -122,7 +94,7 @@ requirements:
     then: The input exposes a non-empty accessible label
     tags: [a11y, forms]
 
-  - id: IRAS-SEC-001
+  - id: TAX-SEC-001
     title: Responses carry baseline security headers
     category: security
     severity: high
@@ -131,25 +103,25 @@ requirements:
     then: X-Frame-Options is DENY and X-Content-Type-Options is nosniff
     tags: [security, headers]
 
-  - id: IRAS-NAV-001
+  - id: TAX-NAV-001
     title: Primary navigation links to every showcase page
     category: functional
     severity: high
     given: A visitor is anywhere on the site
     when: They look at the primary navigation
-    then: There are links to Assistant, MCP tools, Evals, Gateway, Prompts, and the Advisor queue
+    then: There are links to the Assistant, Documents, AI Tools, AI Instructions, Usage analytics, AI Gateway, AI Dashboard, AI Policy, AI Audit Trail, and AI Evaluation
     tags: [nav, showcase]
 
-  - id: IRAS-TOOLS-002
+  - id: TAX-TOOLS-002
     title: A visitor can run a seeded lookup tool and see a result
     category: functional
     severity: high
     given: The Tools page is open with the seeded tax_facts lookup under Your tools
     when: The visitor runs it with a topic of GST
-    then: The deterministic IRAS fact for GST is shown, including the SGD 1,000,000 threshold
+    then: The deterministic tax fact for GST is shown, including the SGD 1,000,000 threshold
     tags: [tools, examples]
 
-  - id: IRAS-EVAL-001
+  - id: TAX-EVAL-001
     title: Evals page shows the test-cases workbench
     category: ui
     severity: medium
@@ -158,7 +130,7 @@ requirements:
     then: It shows the Test cases section and the Results section
     tags: [evals, workbench]
 
-  - id: IRAS-ROUTE-001
+  - id: TAX-ROUTE-001
     title: Routing page shows the editable model routing rules
     category: ui
     severity: medium
@@ -167,7 +139,7 @@ requirements:
     then: It shows the Model routing rules section and the live route preview
     tags: [routing, workbench]
 
-  - id: IRAS-TOOLS-003
+  - id: TAX-TOOLS-003
     title: A visitor can create a custom tool and run it
     category: functional
     severity: high
@@ -176,7 +148,7 @@ requirements:
     then: The tool is created and returns the configured answer for that keyword
     tags: [tools, builder]
 
-  - id: IRAS-ROUTER-001
+  - id: TAX-ROUTER-001
     title: The deterministic routing rules pick the right model per query
     category: data
     severity: high
@@ -185,7 +157,7 @@ requirements:
     then: Factual lookups route to the OpenAI model, personalised and PII to Anthropic, others to the fallback, with the right reason
     tags: [evals, router]
 
-  - id: IRAS-EVAL-002
+  - id: TAX-EVAL-002
     title: The route preview shows where a query routes
     category: functional
     severity: medium
@@ -194,7 +166,7 @@ requirements:
     then: It shows the query routing to the configured factual-lookup model
     tags: [routing, router]
 
-  - id: IRAS-EVAL-003
+  - id: TAX-EVAL-003
     title: Running the test cases populates the result stats
     category: functional
     severity: medium
@@ -204,7 +176,7 @@ requirements:
     tags: [evals, workbench]
     notes: Running calls the routed model per case, so the e2e stubs /api/eval with a fixed result.
 
-  - id: IRAS-RATELIMIT-001
+  - id: TAX-RATELIMIT-001
     title: Rate limiting fails open when Upstash is not configured
     category: data
     severity: high
@@ -213,7 +185,7 @@ requirements:
     then: makeLimiter returns null and isAllowed resolves true, so requests are allowed
     tags: [rate-limit, infra]
 
-  - id: IRAS-STORE-001
+  - id: TAX-STORE-001
     title: Generic JSON store round-trips values and lists newest-first
     category: data
     severity: high
@@ -222,7 +194,7 @@ requirements:
     then: get returns what was put, list returns values newest-first (reverse-chronological ids sort ascending), and reverseChronoId of a later time sorts before an earlier one
     tags: [store, infra]
 
-  - id: IRAS-GATEWAY-001
+  - id: TAX-GATEWAY-001
     title: The gateway records model, latency, and token usage for a completed call
     category: data
     severity: high
@@ -231,7 +203,7 @@ requirements:
     then: A gateway log entry exists with the model id, a non-negative latency, and the input and output token counts from the provider usage
     tags: [gateway, observability]
 
-  - id: IRAS-GATEWAY-002
+  - id: TAX-GATEWAY-002
     title: Gateway cost is computed from the registry prices for generate and stream
     category: data
     severity: high
@@ -240,7 +212,7 @@ requirements:
     then: The logged costUsd equals tokens divided by 1M times the registry price, summed over input and output
     tags: [gateway, cost]
 
-  - id: IRAS-GATEWAY-003
+  - id: TAX-GATEWAY-003
     title: A provider error falls back to the alternate provider and is flagged
     category: data
     severity: high
@@ -249,7 +221,7 @@ requirements:
     then: The fallback model answers, and the log entry records the fallback model id with fallbackUsed true
     tags: [gateway, resilience]
 
-  - id: IRAS-GATEWAY-004
+  - id: TAX-GATEWAY-004
     title: The gateway page lists recent model calls
     category: ui
     severity: medium
@@ -258,7 +230,7 @@ requirements:
     then: Recent calls are listed with model, tokens, latency, and cost
     tags: [gateway, observability]
 
-  - id: IRAS-EVAL-004
+  - id: TAX-EVAL-004
     title: Eval runs persist and list newest-first
     category: data
     severity: high
@@ -267,7 +239,7 @@ requirements:
     then: Runs round-trip with their stats, listing returns newest first, and a limit caps the result
     tags: [evals, store]
 
-  - id: IRAS-EVAL-005
+  - id: TAX-EVAL-005
     title: The LLM judge grades to a structured verdict and fails closed
     category: data
     severity: high
@@ -276,7 +248,7 @@ requirements:
     then: A valid verdict yields pass, score, and rationale; unparseable output fails closed with pass false and score 0 instead of throwing
     tags: [evals, judge]
 
-  - id: IRAS-EVAL-006
+  - id: TAX-EVAL-006
     title: Run history shows past runs with a pass-rate trend
     category: functional
     severity: medium
@@ -286,7 +258,7 @@ requirements:
     tags: [evals, history]
     notes: /api/eval is stubbed (it calls the LLM); /api/eval/runs is exercised for real against the file-backed store.
 
-  - id: IRAS-EVAL-007
+  - id: TAX-EVAL-007
     title: Baseline comparison flags regressions beyond the tolerance
     category: data
     severity: high
@@ -296,7 +268,7 @@ requirements:
     tags: [evals, baseline, ci]
     notes: The CLI's live-model path runs in CI when ANTHROPIC_API_KEY is present and skips cleanly otherwise.
 
-  - id: IRAS-EVAL-008
+  - id: TAX-EVAL-008
     title: A persisted run records the prompt version and grader it targeted
     category: data
     severity: medium
@@ -305,7 +277,7 @@ requirements:
     then: The run entry carries the grader and promptVersion it was executed with
     tags: [evals, prompts]
 
-  - id: IRAS-PROMPT-001
+  - id: TAX-PROMPT-001
     title: Prompt store keeps immutable versions behind an activation pointer
     category: data
     severity: high
@@ -314,7 +286,7 @@ requirements:
     then: Versions are append-only with increasing numbers, earlier content is unchanged, and activeVersion moves only when a version is explicitly activated (activating a missing version fails)
     tags: [prompts, store]
 
-  - id: IRAS-PROMPT-002
+  - id: TAX-PROMPT-002
     title: The system prompt resolves from the active version and falls back to the compiled-in default
     category: data
     severity: high
@@ -323,7 +295,7 @@ requirements:
     then: It returns the active version's content when one exists and the compiled-in SYSTEM prompt otherwise, never throwing
     tags: [prompts, agent]
 
-  - id: IRAS-PROMPT-003
+  - id: TAX-PROMPT-003
     title: The prompts page lists versions and shows a line diff between them
     category: ui
     severity: medium
@@ -332,7 +304,7 @@ requirements:
     then: The versions are listed with the active one marked, and a line diff against the previous version highlights added and removed lines
     tags: [prompts, ui]
 
-  - id: IRAS-PROMPT-004
+  - id: TAX-PROMPT-004
     title: Creating and activating a prompt version works end to end
     category: functional
     severity: high
@@ -340,10 +312,10 @@ requirements:
     when: The visitor saves a new version through the form and activates it
     then: The new version appears in the list and is marked active after activation
     tags: [prompts, journey]
-    depends_on: [IRAS-PROMPT-001]
+    depends_on: [TAX-PROMPT-001]
     notes: Real API, no LLM involved. The journey covers create, activate, and read-back in one pass.
 
-  - id: IRAS-PROMPT-005
+  - id: TAX-PROMPT-005
     title: The prompts write API validates input and is rate limited
     category: security
     severity: high
@@ -352,7 +324,7 @@ requirements:
     then: The API rejects it with 400 (404 for unknown activation targets) and never persists the payload; writes share the rate limiter, which fails open only when Upstash is not configured
     tags: [prompts, security]
 
-  - id: IRAS-SANDBOX-001
+  - id: TAX-SANDBOX-001
     title: Sandboxed code tools run user JavaScript and return a JSON result
     category: data
     severity: high
@@ -361,7 +333,7 @@ requirements:
     then: It returns ok true with the function's result, parsed from JSON, and a duration
     tags: [sandbox, tools]
 
-  - id: IRAS-SANDBOX-002
+  - id: TAX-SANDBOX-002
     title: Runaway sandbox code is interrupted by hard time and memory limits
     category: security
     severity: critical
@@ -370,7 +342,7 @@ requirements:
     then: The infinite loop is interrupted at the deadline (about one second) and the allocation bomb fails at the memory cap (about 32MB); both return ok false with a safe error message instead of hanging or crashing the process
     tags: [sandbox, security]
 
-  - id: IRAS-SANDBOX-003
+  - id: TAX-SANDBOX-003
     title: The sandbox exposes no host capabilities
     category: security
     severity: critical
@@ -379,7 +351,7 @@ requirements:
     then: None of the host capabilities exist inside the sandbox; the probes find no escape surface
     tags: [sandbox, security]
 
-  - id: IRAS-SANDBOX-004
+  - id: TAX-SANDBOX-004
     title: Sandbox output is capped with a truncation marker
     category: data
     severity: medium
@@ -388,7 +360,7 @@ requirements:
     then: The returned result is truncated to the cap and carries a truncation marker
     tags: [sandbox, limits]
 
-  - id: IRAS-TOOLS-005
+  - id: TAX-TOOLS-005
     title: A visitor can build a sandboxed code tool and run it end to end
     category: functional
     severity: high
@@ -396,10 +368,10 @@ requirements:
     when: The visitor creates a code tool with a run(input) function and runs it with an input
     then: The tool executes server-side in the sandbox and the computed result is shown
     tags: [tools, sandbox, journey]
-    depends_on: [IRAS-SANDBOX-001]
+    depends_on: [TAX-SANDBOX-001]
     notes: Deterministic, no LLM. The run goes through POST /api/tools/run against the real sandbox.
 
-  - id: IRAS-MCP-001
+  - id: TAX-MCP-001
     title: The MCP endpoint answers a JSON-RPC initialize
     category: functional
     severity: high
@@ -409,7 +381,7 @@ requirements:
     tags: [mcp, server]
     notes: Streamable HTTP may frame single replies as SSE; the test parses both JSON and event-stream bodies.
 
-  - id: IRAS-MCP-002
+  - id: TAX-MCP-002
     title: tools/list exposes the run_javascript sandbox tool with a schema
     category: functional
     severity: high
@@ -418,7 +390,7 @@ requirements:
     then: run_javascript is listed with an input schema, and the removed built-in tax tools are not
     tags: [mcp, tools]
 
-  - id: IRAS-MCP-003
+  - id: TAX-MCP-003
     title: Calling run_javascript over MCP executes code in the sandbox
     category: functional
     severity: high
@@ -428,17 +400,7 @@ requirements:
     tags: [mcp, journey]
     notes: Full over-the-wire journey against the real endpoint and the QuickJS sandbox; no LLM involved.
 
-  - id: IRAS-MCP-004
-    title: Escalation over MCP requires the API key when one is configured
-    category: security
-    severity: high
-    given: MCP_API_KEY is set in the environment
-    when: tools/call escalate_to_human arrives without (or with a wrong) bearer token
-    then: The request is rejected with 401 before reaching the tool, using a constant-time comparison; with no MCP_API_KEY configured the tool stays open
-    tags: [mcp, security]
-    notes: Vitest with stubbed env against the route handler and the pure guard, no live server needed.
-
-  - id: IRAS-TOOLS-007
+  - id: TAX-TOOLS-007
     title: Example tools are preloaded and runnable on first visit
     category: functional
     severity: high
@@ -448,7 +410,7 @@ requirements:
     tags: [tools, examples, journey]
     notes: Deterministic, no LLM. The code example runs through POST /api/tools/run against the real sandbox. Examples behave like user tools (editable, deletable); any save replaces the seed.
 
-  - id: IRAS-CHAT-006
+  - id: TAX-CHAT-006
     title: Assistant example chips cover each scenario and stay available mid-chat
     category: ui
     severity: medium
@@ -457,7 +419,7 @@ requirements:
     then: Example chips cover a factual lookup, a calculation, a multi-step two-tool question, a complex comparison, a personalised escalation, and a PII-sensitive question (with route hints in the empty state); during a conversation the chips remain above the composer so each scenario can be tried in the same chat
     tags: [chat, examples]
 
-  - id: IRAS-GUIDE-001
+  - id: TAX-GUIDE-001
     title: Every feature page has a follow-along guide at the top
     category: ui
     severity: medium
@@ -466,7 +428,7 @@ requirements:
     then: A how-to-use panel near the top lists numbered follow-along steps for that page; collapsing it is remembered, so it stays collapsed on the next visit
     tags: [guide, docs]
 
-  - id: IRAS-EVAL-009
+  - id: TAX-EVAL-009
     title: A failed eval case explains why it failed
     category: functional
     severity: medium
@@ -476,7 +438,7 @@ requirements:
     tags: [evals, workbench]
     notes: /api/eval is stubbed (it calls the LLM); the miss list and the judge verdict come from the stubbed responses.
 
-  - id: IRAS-AGENT-001
+  - id: TAX-AGENT-001
     title: The agent loop chains tools across steps until the answer
     category: data
     severity: high
@@ -486,7 +448,7 @@ requirements:
     tags: [agent, loop]
     notes: Vitest with an ai/test MockLanguageModelV3 driving lib/run-agent.ts directly; zero network.
 
-  - id: IRAS-AGENT-002
+  - id: TAX-AGENT-002
     title: Assistant replies show a numbered step trace of tool use
     category: ui
     severity: medium
@@ -495,7 +457,7 @@ requirements:
     then: A collapsed step trace is shown; expanding it lists each step numbered with the tool name, input, and output
     tags: [agent, trace]
 
-  - id: IRAS-AGENT-003
+  - id: TAX-AGENT-003
     title: A multi-step reply renders the full trace and the answer
     category: functional
     severity: high

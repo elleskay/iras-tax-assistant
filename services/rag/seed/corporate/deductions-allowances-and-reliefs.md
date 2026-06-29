@@ -1,8 +1,8 @@
 # Corporate income tax: deductions, allowances, and reliefs (synthetic demo doc)
 
-**Last verified:** 2026-06-29. Source: IRAS, "Corporate Income Tax" income &
-deductions guides (https://www.iras.gov.sg/taxes/corporate-income-tax). Demo
-document for the Corporate Income Tax workspace; facts paraphrased.
+**Last verified:** 2026-06-29. Source: the tax authority, "Corporate Income Tax"
+income & deductions guides (https://www.iras.gov.sg/taxes/corporate-income-tax).
+Demo document for the Corporate Income Tax workspace; facts paraphrased.
 
 ## Facts
 - **Deductible expenses** must be incurred wholly and exclusively in producing

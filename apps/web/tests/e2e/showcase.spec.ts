@@ -1,7 +1,7 @@
 import { specTest, expect } from "@platform/spec-test/playwright";
 
 specTest(
-  "IRAS-LANDING-001",
+  "TAX-LANDING-001",
   "Landing page guides the visitor and links into every showcase page",
   async ({ page }) => {
     await page.goto("/");
@@ -34,7 +34,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-NAV-001",
+  "TAX-NAV-001",
   "Primary navigation links to every showcase page",
   async ({ page }) => {
     await page.goto("/");
@@ -59,7 +59,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-TOOLS-002",
+  "TAX-TOOLS-002",
   "A visitor can run a seeded lookup tool and see a result",
   async ({ page }) => {
     await page.goto("/tools");
@@ -75,7 +75,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-TOOLS-003",
+  "TAX-TOOLS-003",
   "A visitor can create a custom tool and run it",
   async ({ page }) => {
     await page.goto("/tools");
@@ -97,7 +97,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-EVAL-002",
+  "TAX-EVAL-002",
   "The route preview shows where a query routes",
   async ({ page }) => {
     await page.goto("/governance/policy");
@@ -111,7 +111,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-EVAL-003",
+  "TAX-EVAL-003",
   "Running the test cases populates the result stats",
   async ({ page }) => {
     // Running calls the routed model per case, so stub /api/eval.
@@ -136,7 +136,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-EVAL-001",
+  "TAX-EVAL-001",
   "Evals page shows the test-cases workbench",
   async ({ page }) => {
     await page.goto("/evals");
@@ -147,7 +147,7 @@ specTest(
 );
 
 specTest(
-  "IRAS-ROUTE-001",
+  "TAX-ROUTE-001",
   "AI Policy page shows the editable model routing rules",
   async ({ page }) => {
     await page.goto("/governance/policy");

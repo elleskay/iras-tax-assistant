@@ -3,8 +3,8 @@ import { join } from "node:path";
 import { nanoid } from "nanoid";
 
 /*
- * Generic JSON store, the persistence layer behind the HITL queue, gateway
- * logs, prompt versions, and eval runs.
+ * Generic JSON store, the persistence layer behind workspaces, gateway logs,
+ * prompt versions, eval runs, and the governance policy.
  *
  * Two backends, chosen at runtime per operation:
  *  - S3 (when STORE_BUCKET or HITL_BUCKET is set): durable, shared across

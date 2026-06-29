@@ -2,7 +2,7 @@
   "name": "web-cdk",
   "version": "0.1.0",
   "private": true,
-  "description": "CDK app for the IRAS Tax Assistant (Next.js + OpenNext on AWS serverless).",
+  "description": "CDK app for the AI Tax Assistant Platform (Next.js + OpenNext on AWS serverless).",
   "bin": {
     "web-cdk": "bin/app.js"
   },

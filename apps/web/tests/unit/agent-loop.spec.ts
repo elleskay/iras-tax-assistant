@@ -15,7 +15,7 @@ import { SYSTEM } from "../../lib/agent";
 import { findModel, DEFAULT_MODEL_ID } from "../../lib/model-registry";
 
 /*
- * IRAS-AGENT-001: the agent loop chains tools across steps. A mock model
+ * TAX-AGENT-001: the agent loop chains tools across steps. A mock model
  * scripts the conversation (a lookup, then a calculation, then the answer)
  * against two real deterministic tools defined here. Zero network, zero LLM.
  * Tools are defined inline because the assistant no longer ships built-in tax
@@ -90,7 +90,7 @@ const tools = {
 };
 
 specTest(
-  "IRAS-AGENT-001",
+  "TAX-AGENT-001",
   "The agent loop chains tools across steps until the answer",
   async () => {
     await withTempStore(async () => {

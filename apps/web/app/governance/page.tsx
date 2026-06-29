@@ -129,7 +129,10 @@ export default async function DashboardPage() {
   const toTs = times[times.length - 1];
   const fmtDate = (iso: string) => {
     try {
-      return new Date(iso).toLocaleDateString("en-SG", { dateStyle: "medium" });
+      return new Date(iso).toLocaleDateString("en-SG", {
+        dateStyle: "medium",
+        timeZone: "Asia/Singapore",
+      });
     } catch {
       return iso;
     }
@@ -245,10 +248,6 @@ export default async function DashboardPage() {
           </a>
         </div>
       </main>
-
-      <p className="mt-8 text-xs text-muted-foreground">
-        Unofficial demo, not affiliated with IRAS.
-      </p>
     </div>
   );
 }

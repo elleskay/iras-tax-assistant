@@ -1,7 +1,7 @@
 import { specTest, expect } from "@platform/spec-test/playwright";
 
 specTest(
-  "IRAS-SEC-001",
+  "TAX-SEC-001",
   "Responses carry baseline security headers",
   async ({ page }) => {
     const response = await page.goto("/");
