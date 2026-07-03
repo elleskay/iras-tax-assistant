@@ -169,4 +169,8 @@ jobs:
           echo "Deployed: $URL"
 
       - name: Smoke test
+        env:
+          # Pages beyond the root that must render 200; catches page-level SSR
+          # failures whose broken module only ships in that page's bundle.
+          EXTRA_SMOKE_PAGES: "/assistant /documents /governance"
         run: ./scripts/verify-deploy.sh "${{ steps.cdk.outputs.url }}"
