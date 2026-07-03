@@ -42,11 +42,11 @@ The role is locked to the named repo; another repo on the same OIDC provider can
   aws iam create-open-id-connect-provider \
     --url https://token.actions.githubusercontent.com \
     --client-id-list sts.amazonaws.com \
-    --thumbprint-list 6938fd4d98bab03faadb97b34396831e3780aea1
+    --thumbprint-list 1c58a3a8518e8759bf075b76b750d4f2df264fcd
   ```
-  Then run this stack. (A future version of this stack could provision the provider conditionally.)
+  Then run this stack. (AWS validates GitHub's certificate dynamically, so the thumbprint value is a required formality; this matches the one `scripts/connect.sh` uses.)
 
-- **The role's policy is `cdk-deploy` from `infra/iam/cdk-deploy-policy.json`**, which is permissive (`s3:*`, `lambda:*`, `cloudfront:*`). Fine for portfolio scale; tighten resource ARNs for production.
+- **The role's policy is `cdk-deploy` from `infra/iam/cdk-deploy-policy.json`**: service actions are broad (`s3:*`, `lambda:*`, `cloudfront:*`) but the IAM statements are scoped to the stacks' role-name prefixes and account. Fine for portfolio scale; see `infra/iam/README.md` for the residual risk and how to tighten further.
 
 ## Updating the policy later
 

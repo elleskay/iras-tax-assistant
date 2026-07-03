@@ -31,7 +31,7 @@ async function login(prev: unknown, formData: FormData) {
 }
 
 export default function LoginPage() {
-  // Use useActionState for the form state + errors
+  // Add useActionState if you want to surface the action's error state inline.
   return (
     <form action={login}>
       <input name="email" type="email" required />

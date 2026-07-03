@@ -7,7 +7,7 @@ platform's **own usage** (officer prompts + interaction telemetry) and produces
 | Workspace            | Tax type                |
 | -------------------- | ----------------------- |
 | `individual-income`  | Individual Income Tax   |
-| `corporate`          | Corporate Tax           |
+| `corporate`          | Corporate Income Tax    |
 
 > **The data is SYNTHETIC.** Live platform usage is too sparse for a demo, so the
 > pipeline generates a realistic, seeded officer-interaction dataset. Every
@@ -53,13 +53,14 @@ synthetic interactions  ->  embeddings  ->  KMeans clusters  ->  3 analyses  -> 
    `_meta.clusterPath`. Embeddings are L2-normalised, so Euclidean KMeans
    approximates cosine clustering.
 4. **Analysis** (`analyze.py`). Aggregates each cluster (size, retrieval health,
-   eval health, effort) and derives the three sections.
+   eval health, effort), merges clusters that share a dominant label
+   (count-weighted, so a topic never appears twice in a section), and derives
+   the three sections.
 
 ## Which path actually ran
 
-This environment is **offline** (no `scikit-learn` / `sentence-transformers`
-available, `pip install` blocked), so the committed `insights.json` was produced
-with:
+The committed `insights.json` is generated with the always-available fallback
+so regeneration is reproducible with no optional dependencies:
 
 - embedding path: **`numpy/hashing-tfidf`**
 - cluster path: **`numpy/kmeans`**
@@ -98,7 +99,7 @@ Offline smoke test (forces the deterministic numpy fallback, asserts the three
 sections exist for both workspaces and round-trips the JSON):
 
 ```bash
-pip install -r requirements.txt   # numpy + pytest only
+pip install -r requirements-dev.txt   # numpy + pytest
 pytest -q
 ```
 
@@ -107,7 +108,9 @@ pytest -q
 ```
 services/insights/
   generate.py                 CLI entry point
-  requirements.txt            numpy + pytest required; sklearn/ST optional
+  requirements.txt            numpy required; sklearn/ST optional
+  requirements-dev.txt        adds pytest for the test suite
+  conftest.py, pytest.ini     pytest wiring (import path, test dir)
   README.md                   this file
   insights_pipeline/
     __init__.py
@@ -145,7 +148,7 @@ services/insights/
   "_meta": {
     "embeddingPath": "numpy/hashing-tfidf",
     "clusterPath": "numpy/kmeans",
-    "note": "Synthetic demo data."
+    "note": "Synthetic demo data. See services/insights/README.md."
   }
 }
 ```

@@ -292,7 +292,7 @@ Wrap calls in a helper that logs. Better, but it is easy to bypass, and on Lambd
 <details>
 <summary><strong>Great solution: one gateway via model middleware</strong></summary>
 
-Wrap the model with `wrapLanguageModel` so every call passes one chokepoint that times it, extracts token usage, computes USD cost from registry prices, retries once on the other provider on error, logs per workspace, and awaits the log write before the stream closes. Observability and resilience live in one place. This is what the platform runs.
+Wrap the model with `wrapLanguageModel` so every call passes one chokepoint that times it, extracts token usage, computes USD cost from registry prices, retries once on the other provider on error, logs per workspace (including failed and cancelled calls, flagged as errored), and awaits the log write before the stream closes. Observability and resilience live in one place. This is what the platform runs.
 </details>
 
 ### 3) How do we isolate tenants without standing up a deployment per department?
@@ -424,7 +424,7 @@ Capture real responses once and replay them. Deterministic, but the fixtures dri
 <details>
 <summary><strong>Great solution: mocks, stubs, and a spec gate</strong></summary>
 
-Unit tests drive the agent with scripted mock models, and the chat and eval e2e stub the streamed response with fixed fixtures, so no test ever calls an LLM. A spec maps each requirement to a passing test, and the gate blocks the build below 100 percent. Live model calls happen only in opt-in CI workflows. This is what the platform runs.
+Unit tests drive the agent with scripted mock models, and the chat and eval e2e stub the streamed response with fixed fixtures, so no test ever calls an LLM. A spec maps each requirement to a passing test, and the gate blocks the build (and the deploy, which depends on it) below 100 percent. Live model calls are confined to two dedicated CI workflows, the PR AI review and the path-filtered eval gate. This is what the platform runs.
 </details>
 
 ---
@@ -479,7 +479,7 @@ flowchart LR
 | Models | OpenAI GPT-4.1 nano, GPT-4o mini, GPT-4.1, and Anthropic Claude Haiku 4.5, Sonnet 4.6, Opus 4.8 |
 | Routing | Deterministic keyword rules, no classifier call, per-workspace default model, configurable per browser |
 | Gateway | `wrapLanguageModel` middleware for latency, tokens, cost, cross-provider fallback, and per-workspace logs |
-| RAG | Python FastAPI + LlamaIndex, OpenAI `text-embedding-3-small`, pgvector (Neon) or local store, one index per workspace |
+| RAG | Python FastAPI + LlamaIndex, OpenAI `text-embedding-3-small`, pgvector (Neon) or local store, one index per workspace, shared bearer token |
 | Insights | Python: synthetic telemetry, embeddings + KMeans clustering, per-workspace analytics |
 | Tools / MCP | No-code custom tools plus a real MCP server (`run_javascript`) over Streamable HTTP and stdio |
 | Sandbox | QuickJS compiled to WASM, a roughly 1 second deadline, 32MB and 8KB caps, no host globals |

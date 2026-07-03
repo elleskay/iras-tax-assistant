@@ -47,15 +47,18 @@ palette with the Lexend + Source Sans 3 type pairing. Tokens live in
 # From the repo root (installs the workspace, builds @platform/spec-test):
 npm install
 
-# Add your keys in apps/web/.env.local:
-#   ANTHROPIC_API_KEY=sk-ant-...   # the chat agent
-#   OPENAI_API_KEY=sk-...          # the OpenAI models in the router
-# Optional: ANTHROPIC_MODEL (defaults to claude-sonnet-4-6),
-#           RAG_SERVICE_URL (the Python RAG service; unset disables RAG).
+# Copy the env template and add your keys (all optional; the assistant needs
+# at least one model key to answer):
+cp apps/web/.env.example apps/web/.env.local
 
 cd apps/web
 npm run dev    # http://localhost:3000
 ```
+
+For document retrieval locally, run the RAG service alongside (it works fully
+offline with deterministic fake embeddings; see `services/rag/README.md`) and
+set `RAG_SERVICE_URL=http://127.0.0.1:8000` in `.env.local`. Unset, retrieval
+is disabled and the assistant still runs.
 
 ## Spec-driven tests
 

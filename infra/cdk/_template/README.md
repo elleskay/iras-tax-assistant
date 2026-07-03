@@ -1,11 +1,11 @@
 # CDK app scaffold
 
-Full CDK package for deploying a Next.js + OpenNext app to AWS serverless. Copy this whole directory into your app and rename.
+Full CDK package for deploying a Next.js + OpenNext app to AWS serverless. Copy this whole directory per app (this repo's live copy is `infra/cdk/web/`).
 
 ## Use
 
 ```bash
-# From your cloned app repo, rename _template to your app name
+# From your cloned app repo, copy _template to your app name
 cp -r infra/cdk/_template infra/cdk/<your-app>
 # Keep infra/cdk/_template in place: platform CI (ci.yml cdk-synth) synths it
 # as a self-test and fails if it is deleted.
