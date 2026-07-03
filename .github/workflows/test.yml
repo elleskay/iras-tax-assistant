@@ -83,7 +83,7 @@ jobs:
         # Fork PRs run with a read-only token; a failed comment must not mark
         # a green test run as failed.
         continue-on-error: true
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
