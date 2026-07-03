@@ -24,13 +24,17 @@ jobs:
       # NODE_ENV=test keeps server caches (e.g. the prompt cache) out of the
       # e2e's way so activation effects are immediately observable.
       NODE_ENV: test
+      NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      # Scoped install: this job only exercises apps/web and the spec-test
+      # package; skipping the demo app's dependency tree (Sentry, NextAuth,
+      # PostHog, Resend) saves a chunk of install time on every run.
+      - run: npm ci -w web -w @platform/spec-test --include-workspace-root
       - name: Build @platform/spec-test (dist is gitignored)
         working-directory: packages/spec-test
         run: npm run build
@@ -39,12 +43,21 @@ jobs:
         working-directory: apps/web
         run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
       - name: Cache Playwright browsers
+        id: pw-cache
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
-      - name: Install Playwright browsers
+      # On a cache hit the browser binary is already present, so skip the apt
+      # round trip (--with-deps) that costs ~30-45s; ubuntu-latest already has
+      # the shared libraries chromium needs.
+      - name: Install Playwright browsers (cold cache)
+        if: steps.pw-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+      - name: Install Playwright browsers (warm cache)
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install chromium
         working-directory: apps/web
       - name: Cache Next.js build cache
         uses: actions/cache@v4

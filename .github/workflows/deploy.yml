@@ -87,8 +87,10 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
+      # Scoped install: the deploy only builds apps/web; the demo app's
+      # dependency tree is dead weight here.
       - name: Install workspace dependencies
-        run: npm ci
+        run: npm ci -w web -w @platform/spec-test --include-workspace-root
 
       # Apply DB migrations before the new Lambda code (which may reference
       # new columns/tables) goes live. If the app does not use Drizzle, the
@@ -132,6 +134,7 @@ jobs:
       - name: Build Next.js with OpenNext
         working-directory: ${{ env.APP_DIR }}
         env:
+          NEXT_TELEMETRY_DISABLED: "1"
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
           AUTH_URL: ${{ vars.APP_URL }}
