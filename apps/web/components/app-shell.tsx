@@ -84,11 +84,19 @@ function NavLinks({
 
   const itemClass = (active: boolean) =>
     cn(
-      "flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium transition-colors",
+      "flex h-9 items-center gap-2.5 overflow-hidden whitespace-nowrap rounded-lg px-2.5 text-sm font-medium transition-colors duration-150",
       active
-        ? "bg-secondary text-secondary-foreground"
+        ? "bg-secondary text-secondary-foreground shadow-[inset_3px_0_0_0_var(--primary)]"
         : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
     );
+
+  // Labels stay in the DOM when the rail collapses (so accessible names and
+  // the width tween survive); they fade and give up their width instead of
+  // popping out.
+  const labelClass = cn(
+    "min-w-0 truncate transition-[opacity,width] duration-200 ease-out",
+    collapsed ? "w-0 opacity-0" : "opacity-100",
+  );
 
   const renderLink = ({
     href,
@@ -124,12 +132,12 @@ function NavLinks({
       className={itemClass(isActive(href))}
     >
       <Icon className="h-4 w-4 shrink-0" />
-      {collapsed ? null : <span>{label}</span>}
+      <span className={labelClass}>{label}</span>
     </Link>
   );
 
   return (
-    <div className="flex flex-col gap-5 px-7 py-4">
+    <div className="flex flex-col gap-6 px-7 py-5">
       {/* Landing page */}
       <nav className="flex flex-col gap-0.5">
         <Link
@@ -140,7 +148,7 @@ function NavLinks({
           className={itemClass(pathname === "/")}
         >
           <Home className="h-4 w-4 shrink-0" />
-          {collapsed ? null : <span>Landing page</span>}
+          <span className={labelClass}>Landing page</span>
         </Link>
         {renderLink({ href: "/workspaces", label: "Workspaces", icon: Boxes })}
       </nav>
@@ -149,15 +157,25 @@ function NavLinks({
           Workspace group leads with the workspace selector, below its caption. */}
       {GROUPS.map((group) => (
         <nav key={group.label} className="flex flex-col gap-0.5">
-          {collapsed ? (
-            <div className="flex h-5 items-center px-2.5">
-              <span className="w-full border-t" />
-            </div>
-          ) : (
-            <p className="flex h-5 items-center px-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {/* One fixed-height row: the caption text and the divider rule
+              crossfade as the rail collapses, so nothing pops. */}
+          <p className="flex h-6 items-center overflow-hidden whitespace-nowrap px-2.5">
+            <span
+              className={cn(
+                "min-w-0 truncate text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/80 transition-[opacity,width] duration-200 ease-out",
+                collapsed ? "w-0 opacity-0" : "opacity-100",
+              )}
+            >
               {group.label}
-            </p>
-          )}
+            </span>
+            <span
+              aria-hidden
+              className={cn(
+                "border-t transition-[opacity,width] duration-200 ease-out",
+                collapsed ? "w-full opacity-100" : "w-0 opacity-0",
+              )}
+            />
+          </p>
           {group.label === "Workspace" ? (
             collapsed ? (
               <Link
@@ -190,6 +208,9 @@ function NavLinks({
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false); // mobile drawer
   const [collapsed, setCollapsed] = useState(false); // desktop rail
+  // The width transition is enabled only after mount, so restoring a saved
+  // collapsed state does not play the collapse animation on page load.
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     try {
@@ -197,6 +218,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore
     }
+    setMounted(true);
   }, []);
 
   // Escape closes the mobile drawer (the backdrop is click-only otherwise).
@@ -223,25 +245,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      {/* Top bar */}
-      <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b bg-card px-7">
+      {/* Top bar: glassy, floats over the content scroll */}
+      <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-border/70 bg-background/75 px-7 backdrop-blur-xl">
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className="rounded-md p-1.5 text-muted-foreground hover:bg-accent md:hidden"
+          className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent md:hidden"
           aria-label="Toggle navigation"
           aria-expanded={open}
         >
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2.5">
           <span
             aria-hidden
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-from to-brand-to text-white"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-from to-brand-to text-white shadow-soft ring-1 ring-white/20 ring-inset"
           >
             <Building2 className="h-4 w-4" />
           </span>
-          <span className="text-sm font-semibold text-navy">
+          <span
+            className="text-sm font-semibold tracking-tight text-navy"
+            style={{ fontFamily: "var(--font-heading)" }}
+          >
             AI Tax Assistant Platform
           </span>
         </Link>
@@ -257,27 +282,34 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Desktop sidebar */}
         <aside
           className={cn(
-            "sticky top-16 hidden h-[calc(100dvh-4rem)] shrink-0 self-start border-r bg-card md:flex md:flex-col",
-            collapsed ? "w-24" : "w-72",
+            "sticky top-16 hidden h-[calc(100dvh-4rem)] shrink-0 self-start overflow-x-hidden border-r border-border/70 bg-[var(--sidebar)] md:flex md:flex-col",
+            mounted && "transition-[width] duration-200 ease-out",
+            collapsed ? "w-24" : "w-64",
           )}
         >
           <div className="flex-1 overflow-y-auto">
             <NavLinks collapsed={collapsed} />
           </div>
-          <div className="border-t px-7 py-2">
+          <div className="border-t border-border/70 px-7 py-2">
             <button
               type="button"
               onClick={toggleCollapsed}
               aria-label={collapsed ? "Expand menu" : "Collapse menu"}
-              className="flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="flex h-9 w-full items-center gap-2.5 overflow-hidden whitespace-nowrap rounded-lg px-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               {collapsed ? (
                 <PanelLeftOpen className="h-4 w-4 shrink-0" />
               ) : (
-                <>
-                  <PanelLeftClose className="h-4 w-4 shrink-0" /> Collapse menu
-                </>
+                <PanelLeftClose className="h-4 w-4 shrink-0" />
               )}
+              <span
+                className={cn(
+                  "min-w-0 truncate transition-[opacity,width] duration-200 ease-out",
+                  collapsed ? "w-0 opacity-0" : "opacity-100",
+                )}
+              >
+                Collapse menu
+              </span>
             </button>
           </div>
         </aside>
@@ -287,10 +319,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <>
             <div
               aria-hidden="true"
-              className="fixed inset-0 top-16 z-30 bg-black/30 md:hidden"
+              className="fixed inset-0 top-16 z-30 bg-black/45 backdrop-blur-sm md:hidden"
               onClick={() => setOpen(false)}
             />
-            <aside className="fixed bottom-0 left-0 top-16 z-40 w-72 overflow-y-auto border-r bg-card md:hidden">
+            <aside className="fixed bottom-0 left-0 top-16 z-40 w-72 overflow-y-auto border-r bg-[var(--sidebar)] md:hidden">
               <NavLinks onNavigate={() => setOpen(false)} />
             </aside>
           </>

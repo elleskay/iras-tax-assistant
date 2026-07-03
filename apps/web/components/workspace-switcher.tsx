@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Building2 } from "lucide-react";
+import { Building2, ChevronDown } from "lucide-react";
 import {
   readWorkspaceCookie,
   setWorkspaceCookie,
@@ -53,13 +53,16 @@ export function WorkspaceSwitcher() {
   if (list.length === 0) return null;
 
   return (
-    <label className="flex h-9 w-full items-center gap-2 rounded-md border bg-card px-2.5 text-sm">
+    <label className="relative flex h-9 w-full items-center gap-2 rounded-lg border bg-card px-2.5 text-sm">
       <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
       <span className="sr-only">Active department workspace</span>
+      {/* appearance-none drops the native arrow (which browsers draw over
+          long option text); pr-6 reserves room for our chevron instead, and
+          truncate ellipsizes names that still do not fit. */}
       <select
         value={active}
         onChange={(e) => change(e.target.value)}
-        className="w-full flex-1 cursor-pointer bg-popover text-sm font-medium text-popover-foreground outline-none"
+        className="w-full min-w-0 flex-1 cursor-pointer appearance-none truncate bg-transparent pr-6 text-sm font-medium text-foreground outline-none"
       >
         {list.map((w) => (
           <option
@@ -71,6 +74,10 @@ export function WorkspaceSwitcher() {
           </option>
         ))}
       </select>
+      <ChevronDown
+        aria-hidden
+        className="pointer-events-none absolute right-2.5 h-4 w-4 shrink-0 text-muted-foreground"
+      />
     </label>
   );
 }
