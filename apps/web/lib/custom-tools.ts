@@ -12,6 +12,9 @@ import { z } from "zod";
 
 export const MAX_CUSTOM_TOOLS = 15;
 const NAME_RE = /^[a-z][a-z0-9_]{1,40}$/;
+// Built-in tool names a custom tool may not take: the chat route merges custom
+// tools over the built-ins, so a same-named tool would silently shadow RAG.
+const RESERVED_TOOL_NAMES = new Set(["search_knowledge"]);
 
 export const ToolParamSchema = z.object({
   name: z.string().regex(/^[a-z][a-z0-9_]{0,30}$/),
@@ -26,7 +29,12 @@ const LookupPairSchema = z.object({
 
 const Base = {
   id: z.string().min(1).max(64),
-  name: z.string().regex(NAME_RE),
+  name: z
+    .string()
+    .regex(NAME_RE)
+    .refine((n) => !RESERVED_TOOL_NAMES.has(n), {
+      message: "This name is reserved for a built-in tool.",
+    }),
   description: z.string().min(1).max(300),
 };
 
@@ -72,14 +80,17 @@ export function runCustomTool(
   if (tool.kind === "lookup") {
     const raw = String(input[tool.paramName] ?? "").trim();
     const key = raw.toLowerCase().replace(/\s+/g, "_");
+    const fallback =
+      tool.fallback ??
+      `No match for "${raw}". Known keys: ${tool.pairs.map((p) => p.key).join(", ")}.`;
+    // An empty key would substring-match the first pair (`k.includes("")` is
+    // always true), returning an arbitrary value instead of the fallback.
+    if (!key) return fallback;
     for (const pair of tool.pairs) {
       const k = pair.key.toLowerCase().replace(/\s+/g, "_");
       if (k && (key.includes(k) || k.includes(key))) return pair.value;
     }
-    return (
-      tool.fallback ??
-      `No match for "${raw}". Known keys: ${tool.pairs.map((p) => p.key).join(", ")}.`
-    );
+    return fallback;
   }
   // template
   return tool.template.replace(/\{(\w+)\}/g, (_m, name: string) => {
@@ -217,6 +228,10 @@ export const CUSTOM_TOOLS_CHANGED = "iras:custom-tools-changed";
 
 export function saveCustomTools(tools: CustomTool[]): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(toolsKey(), JSON.stringify(tools.slice(0, MAX_CUSTOM_TOOLS)));
+  try {
+    localStorage.setItem(toolsKey(), JSON.stringify(tools.slice(0, MAX_CUSTOM_TOOLS)));
+  } catch {
+    // Quota exceeded or storage disabled: the in-memory state stays usable.
+  }
   window.dispatchEvent(new Event(CUSTOM_TOOLS_CHANGED));
 }

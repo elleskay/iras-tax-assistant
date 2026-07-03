@@ -4,11 +4,11 @@ This app is tested against a YAML spec at `specs/<app>.yml`. Every requirement m
 
 ## Files
 
-- `specs/<app>.yml` — requirement list (zod-validated)
-- `tests/unit/*.spec.ts` — Vitest tests for pure logic (category: `data`)
-- `tests/e2e/*.spec.ts` — Playwright tests for UI, auth, flows (categories: `ui`, `security`, `functional`, `a11y`)
-- `vitest.config.ts` — Vitest setup
-- `playwright.config.ts` — Playwright setup; uses `PLAYWRIGHT_BASE_URL` if set, else spawns `npm run start`
+- `specs/<app>.yml`: requirement list (zod-validated)
+- `tests/unit/*.spec.ts`: Vitest tests for pure logic (category: `data`)
+- `tests/e2e/*.spec.ts`: Playwright tests for UI, auth, flows (categories: `ui`, `security`, `functional`, `a11y`)
+- `vitest.config.ts`: Vitest setup
+- `playwright.config.ts`: Playwright setup; uses `PLAYWRIGHT_BASE_URL` if set, else spawns `npm run start`
 
 ## Scripts (merge into your `package.json`)
 

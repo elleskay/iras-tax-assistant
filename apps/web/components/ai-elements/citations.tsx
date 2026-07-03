@@ -5,7 +5,7 @@ import { isToolUIPart, type UIMessage } from "ai";
 import { ChevronDown } from "lucide-react";
 import type { Components } from "streamdown";
 import { cn } from "@/lib/utils";
-import type { ToolPart } from "./tool";
+import type { ToolPart } from "./step-trace";
 
 /*
  * Citations for an assistant answer. The agent's search_knowledge tool returns

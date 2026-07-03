@@ -128,7 +128,7 @@ If a feature calls a non-deterministic service (an LLM, a third-party API), keep
 
 ## CI workflow
 
-Copy `apps/_template/.github/workflows/test.yml` into your app's `.github/workflows/`. It includes:
+Copy `apps/_template/.github/workflows/test.yml` into the repo root `.github/workflows/` (workflows only execute from there, not from an app subdirectory). It includes:
 
 - Postgres 17 service container
 - Migration + seed before tests
@@ -136,7 +136,7 @@ Copy `apps/_template/.github/workflows/test.yml` into your app's `.github/workfl
 - Unit + E2E + coverage gate
 - Coverage report uploaded as artifact + posted as PR comment
 
-Deploy must depend on this job (`needs: [spec]` in `deploy.yml`) so a failing spec gate blocks the deploy.
+Deploy must depend on this gate so a failing spec blocks the deploy: test.yml exposes `workflow_call`, and deploy.yml calls it as a `test` job that the `deploy` job `needs` (a `needs:` cannot reference a job in a separate workflow file).
 
 ## Authoring workflow (agent + human)
 

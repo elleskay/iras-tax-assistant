@@ -2,16 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { Building2 } from "lucide-react";
+import {
+  readWorkspaceCookie,
+  setWorkspaceCookie,
+} from "@/lib/workspace-cookie";
 
 interface Ws {
   id: string;
   name: string;
-}
-
-function readCookie(name: string): string | null {
-  if (typeof document === "undefined") return null;
-  const m = document.cookie.match(new RegExp("(?:^|; )" + name + "=([^;]+)"));
-  return m ? decodeURIComponent(m[1]) : null;
 }
 
 /**
@@ -38,7 +36,7 @@ export function WorkspaceSwitcher() {
         const fallback = ws.some((w) => w.id === "individual-income")
           ? "individual-income"
           : (ws[0]?.id ?? "");
-        setActive(readCookie("workspace") ?? fallback);
+        setActive(readWorkspaceCookie() ?? fallback);
       })
       .catch(() => {});
     return () => {
@@ -47,12 +45,7 @@ export function WorkspaceSwitcher() {
   }, []);
 
   function change(id: string) {
-    document.cookie = `workspace=${encodeURIComponent(id)}; path=/; max-age=31536000; samesite=lax`;
-    try {
-      localStorage.setItem("workspace", id);
-    } catch {
-      // ignore storage failures
-    }
+    setWorkspaceCookie(id);
     setActive(id);
     location.reload();
   }

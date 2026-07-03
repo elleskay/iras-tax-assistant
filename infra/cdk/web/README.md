@@ -1,44 +1,45 @@
-# CDK app scaffold
+# infra/cdk/web
 
-Full CDK package for deploying a Next.js + OpenNext app to AWS serverless. Copy this whole directory into your app and rename.
+The live CDK package for the AI Tax Assistant web app (`apps/web`). One stack,
+`IrasTaxServerless` (see `bin/app.ts`), built on the reusable
+`NextjsServerless` construct. The reference copy of this package lives at
+`infra/cdk/_template/`; keep that one in place, platform CI synths it as a
+self-test.
 
-## Use
+## What the stack provisions
+
+- CloudFront distribution over an OpenNext streaming server Lambda (60s
+  timeout: AI routes stream longer than the 30s default)
+- S3 assets bucket (construct-managed) plus the private `HitlBucket` backing
+  the app's JSON store (workspaces, prompts, gateway logs, eval runs,
+  governance). The store bucket is `RETAIN`: it is the app's entire
+  persistence layer.
+- Custom domain `ai-tax.soonkeong.dev` (override with `CUSTOM_DOMAIN_NAME` /
+  `CERTIFICATE_ARN` env vars at synth)
+
+## Deploying
+
+Deploys normally run through `.github/workflows/deploy.yml` (OIDC, spec gate,
+smoke test). For a manual deploy:
 
 ```bash
-# From your cloned app repo, rename _template to your app name
-cp -r infra/cdk/_template infra/cdk/<your-app>
-rm -rf infra/cdk/_template
-cd infra/cdk/<your-app>
-npm install
+cd apps/web && npm run build:open-next && cd ../../infra/cdk/web
+npm ci
+ANTHROPIC_API_KEY=... OPENAI_API_KEY=... \
+RAG_SERVICE_URL=... RAG_SERVICE_TOKEN=... \
+UPSTASH_REDIS_REST_URL=... UPSTASH_REDIS_REST_TOKEN=... \
+npx cdk deploy
 ```
 
-Then edit:
+Env vars are baked into the Lambda at synth time (docs/DEPLOY.md #5), so
+every runtime variable must be present in the deploy environment AND wired in
+`lib/web-stack.ts` (docs/DEPLOY.md #13). `apps/web/.env.example` lists them.
 
-- `bin/app.ts` — rename the stack id (e.g. `AppServerless` → `ArmouryServerless`)
-- `lib/web-stack.ts` — confirm `appPath` resolves to your Next.js app directory
-- Optionally enable `customDomain` to skip the two-pass deploy (see `lib/constructs/NextjsServerless.ts` JSDoc)
+## Files
 
-## Deploy
-
-```bash
-# Build the app with OpenNext first (see app's README)
-cd ../../../apps/web && npm run build:open-next
-
-# Bootstrap CDK once per AWS account/region
-cd ../../infra/cdk/<your-app>
-npx cdk bootstrap aws://<account>/<region>
-
-# Deploy
-DATABASE_URL=... AUTH_SECRET=... AUTH_URL=https://your-cf-url npx cdk deploy --all
-```
-
-## What's inside
-
-- `bin/app.ts` — CDK app entry point
-- `lib/web-stack.ts` — the deploy unit (one CloudFormation stack)
-- `lib/constructs/NextjsServerless.ts` — reusable construct, ~200 lines that encode all the production gotchas
-- `package.json`, `tsconfig.json`, `cdk.json`, `.gitignore` — CDK package boilerplate
-
-## Why copy and not import as a package
-
-For a portfolio platform, npm publishing is overhead without payoff. The copy-on-scaffold pattern means each app pins its version of the construct, and breaking changes never propagate without explicit action.
+- `bin/app.ts`: CDK app entry point (stack id `IrasTaxServerless`)
+- `lib/web-stack.ts`: the deploy unit (one CloudFormation stack)
+- `lib/constructs/NextjsServerless.ts`: reusable construct; encodes the
+  production gotchas (see `docs/DEPLOY.md`)
+- `package.json`, `tsconfig.json`, `cdk.json`, `.gitignore`: CDK package
+  boilerplate

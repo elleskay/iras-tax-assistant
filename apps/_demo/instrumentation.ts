@@ -7,8 +7,9 @@ export async function register() {
   }
 }
 
-export const onRequestError = async (...args: unknown[]) => {
+export const onRequestError = async (
+  ...args: Parameters<(typeof import("@sentry/nextjs"))["captureRequestError"]>
+) => {
   const Sentry = await import("@sentry/nextjs");
-  // @ts-expect-error - Sentry types accept the spread signature
   return Sentry.captureRequestError(...args);
 };

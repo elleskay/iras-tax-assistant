@@ -18,12 +18,12 @@ platform's **own usage** (officer prompts + interaction telemetry) and produces
 For each workspace the pipeline writes three analyses to
 `apps/web/public/insights.json`:
 
-- **`trainingNeeds`** — the largest prompt clusters (topics officers ask about
+- **`trainingNeeds`**: the largest prompt clusters (topics officers ask about
   most). Each has a human label, count, 2-3 example prompts, and a one-line
   training recommendation. *High volume = upskilling target.*
-- **`docGaps`** — clusters with low/zero retrieval or low eval scores. Each has a
+- **`docGaps`**: clusters with low/zero retrieval or low eval scores. Each has a
   reason and a count. *Poor retrieval / weak answers = documentation gap.*
-- **`processImprovements`** — clusters with the highest officer effort (avg
+- **`processImprovements`**: clusters with the highest officer effort (avg
   turns, steps, time). Each is a redesign candidate with its metrics. *High
   effort = process-redesign candidate.*
 
@@ -43,9 +43,9 @@ synthetic interactions  ->  embeddings  ->  KMeans clusters  ->  3 analyses  -> 
    improvements).
 2. **Embeddings** (`embeddings.py`). Three paths, tried in order; the one that
    ran is recorded in `_meta.embeddingPath`:
-   - `sentence-transformers/all-MiniLM-L6-v2` — best semantic quality.
-   - `sklearn/TfidfVectorizer` — deterministic, offline.
-   - `numpy/hashing-tfidf` — pure-numpy hashing + n-gram TF-IDF, **always
+   - `sentence-transformers/all-MiniLM-L6-v2`: best semantic quality.
+   - `sklearn/TfidfVectorizer`: deterministic, offline.
+   - `numpy/hashing-tfidf`: pure-numpy hashing + n-gram TF-IDF, **always
      available, no external deps**, deterministic (FNV-1a hashing, not Python's
      salted `hash()`).
 3. **Clustering** (`cluster.py`). `sklearn.cluster.KMeans` if installed, else a
@@ -65,7 +65,7 @@ with:
 - cluster path: **`numpy/kmeans`**
 
 Install the optional packages to upgrade quality (the pipeline auto-detects and
-switches paths — no code change needed):
+switches paths, no code change needed):
 
 ```bash
 pip install scikit-learn sentence-transformers

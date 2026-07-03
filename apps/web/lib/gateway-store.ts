@@ -23,6 +23,8 @@ export interface GatewayCall {
   outputTokens: number;
   costUsd: number;
   fallbackUsed: boolean;
+  /** True when the call threw (including a failed fallback); absent on older entries. */
+  errored?: boolean;
 }
 
 const store = (workspace: string) =>

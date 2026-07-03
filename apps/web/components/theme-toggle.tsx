@@ -9,7 +9,14 @@ import { Sun, Moon } from "lucide-react";
  * saved (or system) preference before paint.
  */
 export function ThemeToggle() {
-  const [dark, setDark] = useState(false);
+  // Lazy init: the no-flash script has already set the class before hydration,
+  // so reading it here avoids a first paint with the wrong icon/label in dark
+  // mode. The effect still re-syncs after hydration for safety.
+  const [dark, setDark] = useState(
+    () =>
+      typeof document !== "undefined" &&
+      document.documentElement.classList.contains("dark"),
+  );
 
   useEffect(() => {
     setDark(document.documentElement.classList.contains("dark"));

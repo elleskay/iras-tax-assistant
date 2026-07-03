@@ -27,7 +27,7 @@
       "Sid": "CdkAssumeBootstrapRoles",
       "Effect": "Allow",
       "Action": ["sts:AssumeRole"],
-      "Resource": "arn:aws:iam::*:role/cdk-*"
+      "Resource": "arn:aws:iam::281639842383:role/cdk-*"
     },
     {
       "Sid": "Lambda",
@@ -60,7 +60,10 @@
       "Sid": "IamPassRoleForCdk",
       "Effect": "Allow",
       "Action": ["iam:PassRole"],
-      "Resource": "*",
+      "Resource": [
+        "arn:aws:iam::281639842383:role/IrasTaxServerless-*",
+        "arn:aws:iam::281639842383:role/AppServerless-*"
+      ],
       "Condition": {
         "StringEquals": {
           "iam:PassedToService": ["lambda.amazonaws.com", "cloudfront.amazonaws.com"]
@@ -83,13 +86,12 @@
         "iam:ListRolePolicies",
         "iam:ListAttachedRolePolicies",
         "iam:TagRole",
-        "iam:UntagRole",
-        "iam:CreatePolicy",
-        "iam:DeletePolicy",
-        "iam:GetPolicy",
-        "iam:ListPolicies"
+        "iam:UntagRole"
       ],
-      "Resource": "*"
+      "Resource": [
+        "arn:aws:iam::281639842383:role/IrasTaxServerless-*",
+        "arn:aws:iam::281639842383:role/AppServerless-*"
+      ]
     },
     {
       "Sid": "SsmForCdkContext",

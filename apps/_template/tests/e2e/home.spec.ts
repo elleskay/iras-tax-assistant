@@ -4,8 +4,14 @@ specTest(
   "EXAMPLE-AUTH-001",
   "Unauthenticated /admin redirects to /login",
   async ({ page }) => {
-    const response = await page.goto("/admin");
-    expect(response?.status()).toBeLessThan(400);
+    // Observe the redirect itself, not just the final URL: page.goto resolves
+    // with the post-redirect response (always ~200), so asserting its status
+    // would never see the 307 the spec requires.
+    const redirect = page.waitForResponse(
+      (res) => res.url().includes("/admin") && res.status() >= 300 && res.status() < 400,
+    );
+    await page.goto("/admin");
+    expect((await redirect).status()).toBe(307);
     await expect(page).toHaveURL(/\/login/);
   },
   { category: "security" },

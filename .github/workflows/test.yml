@@ -3,8 +3,13 @@ name: Test (spec-driven)
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [main]
+  # Called by deploy.yml so a red gate blocks the deploy; pushes to main are
+  # covered through that call instead of a second standalone run.
+  workflow_call:
+
+permissions:
+  contents: read
+  pull-requests: write
 
 concurrency:
   group: test-${{ github.ref }}
@@ -14,23 +19,10 @@ jobs:
   spec:
     name: Spec coverage gate
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: test
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
     env:
-      DATABASE_URL: postgres://test:test@localhost:5432/test
-      AUTH_SECRET: ci-test-secret-not-used-in-prod
-      AUTH_URL: http://localhost:3000
+      # apps/web has no database or auth: state is a JSON store (lib/store.ts).
+      # NODE_ENV=test keeps server caches (e.g. the prompt cache) out of the
+      # e2e's way so activation effects are immediately observable.
       NODE_ENV: test
     steps:
       - uses: actions/checkout@v6
@@ -61,12 +53,6 @@ jobs:
           key: nextjs-web-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('apps/web/**/*.[jt]s', 'apps/web/**/*.[jt]sx') }}
           restore-keys: |
             nextjs-web-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
-      - name: Apply DB migrations
-        working-directory: apps/web
-        run: npm run db:migrate
-      - name: Seed test data
-        working-directory: apps/web
-        run: npm run db:seed
       - name: Typecheck
         working-directory: apps/web
         run: npm run typecheck
@@ -94,6 +80,9 @@ jobs:
           if-no-files-found: warn
       - name: Comment coverage on PR
         if: github.event_name == 'pull_request' && always()
+        # Fork PRs run with a read-only token; a failed comment must not mark
+        # a green test run as failed.
+        continue-on-error: true
         uses: actions/github-script@v7
         with:
           script: |

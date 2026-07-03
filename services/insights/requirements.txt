@@ -1,7 +1,8 @@
 # Operational-insights pipeline dependencies.
 #
 # The pipeline runs with NO optional deps via a pure-numpy fallback
-# (hashing TF-IDF + numpy KMeans). numpy + pytest are the only hard requirements.
+# (hashing TF-IDF + numpy KMeans). numpy is the only hard requirement;
+# test tooling lives in requirements-dev.txt.
 #
 # Installing the optional packages upgrades the embedding/cluster quality:
 #   - scikit-learn         -> TF-IDF vectoriser + KMeans
@@ -11,8 +12,7 @@
 # (see the "_meta.embeddingPath" / "_meta.clusterPath" fields in the output).
 
 # --- hard requirements ---
-numpy>=1.24
-pytest>=7.0
+numpy==1.26.4
 
 # --- optional, better quality (uncomment / pip install if available) ---
 # scikit-learn>=1.3

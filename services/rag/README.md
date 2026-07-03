@@ -15,20 +15,31 @@ automatically falls back to a local, file-persisted vector store so it runs with
 
 Every operation is keyed by a `workspace` string and isolation is **physical**:
 
-- **pgvector backend** — one Postgres table per workspace (`data_rag_<workspace>`).
+- **pgvector backend**: one Postgres table per workspace (`data_rag_<workspace>`).
   Separate tables guarantee no cross-tenant leakage and make per-workspace
   listing/deletion trivial. This is the cleaner, more LlamaIndex-idiomatic
   approach versus a single shared table with a `workspace` metadata filter on
   every query (which is also supported by LlamaIndex via `MetadataFilters`, but
   pushes correctness onto every read path).
-- **local backend** — one `SimpleVectorStore` + `StorageContext` persisted under
+- **local backend**: one `SimpleVectorStore` + `StorageContext` persisted under
   `./.data/<workspace>/`.
 
 In both backends every chunk carries `doc_id`, `filename`, and `location`
 metadata, used for citations and for delete/list-by-document.
 
-Workspace keys are validated (`^[a-zA-Z0-9][a-zA-Z0-9_-]{0,62}$`) and normalised
-(`-` → `_`, lowercased) into table/path-safe names.
+Workspace keys are validated (`^[a-z0-9][a-z0-9_-]{0,62}$`, lowercase only so
+distinct keys cannot merge after case-folding) and normalised (`-` to `_`) into
+table/path-safe names.
+
+---
+
+## Authentication
+
+Set `RAG_SERVICE_TOKEN` to require `Authorization: Bearer <token>` on every
+endpoint except `GET /health`. The web app sends the header when its own
+`RAG_SERVICE_TOKEN` env var is set; use the same value on both sides. When the
+variable is unset the service is open (fine locally, not for a shared deploy;
+the service logs a warning at boot).
 
 ---
 
@@ -60,7 +71,7 @@ Response `200`:
 Re-indexing an existing `doc_id` is an **upsert** (old chunks are removed first).
 
 ### `POST /search`
-Request (`top_k` optional, default 5, range 1–50):
+Request (`top_k` optional, default 5, range 1-50):
 ```json
 { "workspace": "individual-income", "query": "earned income relief", "top_k": 5 }
 ```
@@ -99,9 +110,13 @@ Response `200`:
 ```
 
 ### Errors
-- `400` — invalid input (e.g. bad workspace key): `{ "detail": "..." }`
-- `422` — request body fails pydantic validation (FastAPI default).
-- `500` — backend failure (DB/OpenAI): `{ "detail": "..." }`
+- `400`: invalid workspace key: `{ "detail": "..." }`
+- `401`: missing/wrong bearer token (only when `RAG_SERVICE_TOKEN` is set).
+- `422`: request body fails pydantic validation (FastAPI default).
+- `500`: backend failure (DB/OpenAI). The detail is generic; specifics go to logs.
+
+Deleting a `doc_id` that does not exist returns `200` with
+`"deleted_chunks": 0` (deletes are idempotent).
 
 ---
 
@@ -109,15 +124,16 @@ Response `200`:
 
 | Var | Required | Default | Purpose |
 |-----|----------|---------|---------|
-| `OPENAI_API_KEY` | yes (real embeddings) | – | OpenAI key for `text-embedding-3-small`. |
-| `DATABASE_URL` | no | – | Postgres + pgvector connection string. **Unset → local fallback.** |
+| `OPENAI_API_KEY` | yes (real embeddings) | none | OpenAI key for `text-embedding-3-small`. |
+| `DATABASE_URL` | no | none | Postgres + pgvector connection string. **Unset means local fallback.** |
+| `RAG_SERVICE_TOKEN` | no | none | Bearer token required on every endpoint except `/health` when set. |
 | `PORT` | no | `8000` | HTTP bind port. |
 | `RAG_EMBED_MODEL` | no | `text-embedding-3-small` | Embedding model id. |
 | `RAG_EMBED_DIM` | no | `1536` | Embedding dimensions (must match the model). |
-| `RAG_CHUNK_SIZE` | no | `512` | Sentence-splitter chunk size (tokens). |
-| `RAG_CHUNK_OVERLAP` | no | `64` | Chunk overlap (tokens). |
+| `RAG_CHUNK_SIZE` | no | `96` | Sentence-splitter chunk size (tokens). Small, so a citation pinpoints the fact. |
+| `RAG_CHUNK_OVERLAP` | no | `16` | Chunk overlap (tokens). |
 | `RAG_DATA_DIR` | no | `./.data` | Local fallback persistence dir. |
-| `RAG_FAKE_EMBEDDINGS` | no | – | `1` → deterministic offline embeddings (tests only). |
+| `RAG_FAKE_EMBEDDINGS` | no | none | `1` selects deterministic offline embeddings (tests only). |
 
 ---
 
@@ -157,8 +173,8 @@ curl -X POST localhost:8000/search -H 'content-type: application/json' \
 
 ## Tests (offline)
 
-The smoke test uses the local fallback + deterministic fake embeddings — no
-network, no DB, no API key.
+The tests use the local fallback + deterministic fake embeddings: no network,
+no DB, no API key.
 
 ```bash
 cd services/rag
@@ -187,6 +203,7 @@ RAG_FAKE_EMBEDDINGS=1 pytest        # the fixture also sets this automatically
    ```bash
    fly secrets set OPENAI_API_KEY=sk-...
    fly secrets set DATABASE_URL="postgresql://USER:PASSWORD@HOST/DB?sslmode=require"
+   fly secrets set RAG_SERVICE_TOKEN="$(openssl rand -hex 32)"   # same value as the web app
    ```
 
 4. **Deploy:**
@@ -220,8 +237,10 @@ services/rag/
 │   ├── indexer.py      # IndexManager: per-workspace index/search/delete/list
 │   └── main.py         # FastAPI app + routes
 ├── tests/
-│   ├── conftest.py     # forces local + fake embeddings
-│   └── test_smoke.py   # index -> search -> list -> delete, offline
+│   ├── conftest.py       # forces local + fake embeddings
+│   ├── test_smoke.py     # index -> search -> list -> delete, offline
+│   ├── test_auth.py      # bearer-token enforcement
+│   └── test_pg_paths.py  # connection-string + pg error handling, offline
 ├── requirements.txt
 ├── requirements-dev.txt
 ├── Dockerfile

@@ -8,12 +8,16 @@ name: AI review
 on:
   pull_request:
     types: [opened, synchronize]
+    # Docs-only changes do not need a paid model review; README claims that
+    # live model calls in CI are scoped stay honest.
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
 
 permissions:
   contents: read
   pull-requests: write
   issues: read
-  id-token: write
 
 concurrency:
   group: ai-review-${{ github.event.pull_request.number }}
@@ -49,7 +53,8 @@ jobs:
           fetch-depth: 0
 
       - name: Run Claude Code review
-        uses: anthropics/claude-code-action@v1
+        # Third-party action pinned by commit (tags are mutable): v1
+        uses: anthropics/claude-code-action@6c0083bb7289c31716797a039b6367b3079cc46e # v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |

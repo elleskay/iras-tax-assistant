@@ -3,12 +3,13 @@ import { join } from "node:path";
 import { specTest, expect } from "@platform/spec-test/playwright";
 
 /*
- * The gateway page reads the file-backed store (gateway.json in the server's
- * working directory) at request time, so the test seeds it directly with two
- * known entries instead of making a live model call.
+ * The gateway page reads the file-backed store at request time, so the test
+ * seeds it directly with two known entries instead of making a live model
+ * call. The store is workspace-scoped: with no workspace cookie the page
+ * reads the default workspace's file, gateway-individual-income.json.
  */
 
-const storePath = join(process.cwd(), "gateway.json");
+const storePath = join(process.cwd(), "gateway-individual-income.json");
 
 function entry(id: string, overrides: Record<string, unknown> = {}) {
   return {

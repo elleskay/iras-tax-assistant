@@ -21,6 +21,7 @@ class Settings:
 
     openai_api_key: str | None
     database_url: str | None
+    service_token: str | None
     embed_model: str
     embed_dim: int
     chunk_size: int
@@ -55,6 +56,9 @@ def get_settings() -> Settings:
     return Settings(
         openai_api_key=os.getenv("OPENAI_API_KEY"),
         database_url=os.getenv("DATABASE_URL"),
+        # Shared-secret bearer token. When set, every endpoint except /health
+        # requires "Authorization: Bearer <token>". Unset means open (local dev).
+        service_token=os.getenv("RAG_SERVICE_TOKEN") or None,
         embed_model=os.getenv("RAG_EMBED_MODEL", "text-embedding-3-small"),
         # text-embedding-3-small is 1536-dim. Keep this in sync with the model.
         embed_dim=_get_int("RAG_EMBED_DIM", 1536),

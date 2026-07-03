@@ -44,6 +44,11 @@ export default function DocumentsPage() {
       setEnabled(Boolean(data.enabled));
       setReachable(Boolean(data.reachable));
       setDocs(data.documents ?? []);
+    } catch {
+      // Treat a failed fetch like an unreachable service instead of surfacing
+      // an unhandled rejection.
+      setReachable(false);
+      setDocs([]);
     } finally {
       setLoading(false);
     }
@@ -214,6 +219,7 @@ export default function DocumentsPage() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              aria-label="Search the indexed documents"
               placeholder="Search the indexed documents..."
               className="flex-1 rounded-md border bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               disabled={!usable}

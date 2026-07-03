@@ -82,7 +82,7 @@ specTest(
   async ({ page }) => {
     await page.goto("/assistant");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await expect(page.getByLabel("Ask a tax question")).toBeVisible();
+    await expect(page.getByLabel("Ask the assistant")).toBeVisible();
     await expect(page.getByRole("button", { name: "Send" })).toBeVisible();
   },
   { category: "ui" },
@@ -104,33 +104,31 @@ specTest(
     });
 
     await page.goto("/assistant");
-    // Label and route hint per scenario: lookup, calculation, multi-step,
-    // complex reasoning, escalation, PII.
+    // Label and hint per scenario (TOPICS_BY_WORKSPACE in the assistant page).
     const chips: [string, string][] = [
-      ["GST", "lookup tool"],
-      ["Income tax", "estimate tool"],
-      ["Multi-step", "two tools chained, step trace"],
-      ["Corporate tax", "complex reasoning"],
-      ["PII", "pii-sensitive route"],
+      ["Cited answer", "grounded, with source"],
+      ["Cross-check", "pulls from several documents"],
+      ["Estimate", "calculation + cited check"],
+      ["Multi-step", "tools chained, step trace"],
+      ["Draft a reply", "review-ready draft, cited"],
+      ["Triage + PII", "summary, flags, real case data"],
     ];
     for (const [label, hint] of chips) {
-      const chip = page.getByRole("button", { name: new RegExp(`^${label}\\b`) });
+      const chip = page.getByRole("button", { name: label });
       await expect(chip).toBeVisible();
       await expect(chip).toContainText(hint);
     }
 
     // Start a chat from a chip, then try another scenario in the SAME chat:
     // the chips stay above the composer, no New chat needed.
-    await page.getByRole("button", { name: /^GST\b/ }).click();
+    await page.getByRole("button", { name: "Cited answer" }).click();
     await expect(
       page.locator('[data-testid="message"][data-role="assistant"]'),
     ).toBeVisible();
     for (const [label] of chips) {
-      await expect(
-        page.getByRole("button", { name: label, exact: true }),
-      ).toBeVisible();
+      await expect(page.getByRole("button", { name: label })).toBeVisible();
     }
-    await page.getByRole("button", { name: "Multi-step", exact: true }).click();
+    await page.getByRole("button", { name: "Multi-step" }).click();
     await expect(
       page.locator('[data-testid="message"][data-role="user"]'),
     ).toHaveCount(2);
@@ -144,7 +142,7 @@ specTest(
   async ({ page }) => {
     await page.goto("/assistant");
     await expect(
-      page.getByText(/general information only, not personalised tax advice/i),
+      page.getByText(/general guidance for the officer's judgement, not a final assessment/i),
     ).toBeVisible();
   },
   { category: "ui" },
@@ -165,7 +163,7 @@ specTest(
       });
     });
     await page.goto("/assistant");
-    await page.getByLabel("Ask a tax question").fill("What is the GST threshold?");
+    await page.getByLabel("Ask the assistant").fill("What is the GST threshold?");
     await page.getByRole("button", { name: "Send" }).click();
     await expect(
       page.locator('[data-testid="message"][data-role="assistant"]'),
@@ -176,7 +174,9 @@ specTest(
 
     // Back to the empty state, no messages.
     await expect(page.locator('[data-testid="message"]')).toHaveCount(0);
-    await expect(page.getByText("Singapore tax, in plain language")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Answers from your own documents." }),
+    ).toBeVisible();
     // The previous conversation is in history.
     await expect(
       page.getByRole("button", { name: "What is the GST threshold?", exact: true }).first(),
@@ -227,7 +227,7 @@ specTest(
     });
 
     await page.goto("/assistant");
-    await page.getByLabel("Ask a tax question").fill("What is the GST threshold?");
+    await page.getByLabel("Ask the assistant").fill("What is the GST threshold?");
     await page.getByRole("button", { name: "Send" }).click();
 
     await expect(
@@ -258,7 +258,7 @@ specTest(
     // Below xl the trace renders inline; at xl+ it moves to the side panel.
     await page.setViewportSize({ width: 1100, height: 800 });
     await page.goto("/assistant");
-    await page.getByLabel("Ask a tax question").fill("GST threshold and my estimate?");
+    await page.getByLabel("Ask the assistant").fill("GST threshold and my estimate?");
     await page.getByRole("button", { name: "Send" }).click();
 
     // Collapsed by default: the trace header is visible, the steps are not.
@@ -302,7 +302,7 @@ specTest(
     await page.setViewportSize({ width: 1100, height: 800 });
     await page.goto("/assistant");
     await page
-      .getByLabel("Ask a tax question")
+      .getByLabel("Ask the assistant")
       .fill("What is the GST threshold, and my chargeable income on 120000 with 20000 deductions?");
     await page.getByRole("button", { name: "Send" }).click();
 

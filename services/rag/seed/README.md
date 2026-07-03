@@ -9,8 +9,8 @@ Terms of Use forbid it). Each note carries a "last verified" date.
 Upload a workspace's folder via the **Documents** page (with that workspace
 active), or POST them to the RAG service `/index` endpoint.
 
-- `individual-income/` — the flagship workspace corpus.
-- `corporate/` — the second workspace corpus.
+- `individual-income/`: the flagship workspace corpus.
+- `corporate/`: the second workspace corpus.
 
 > Concept demo. Verify all figures against the cited official pages before any
 > real use.

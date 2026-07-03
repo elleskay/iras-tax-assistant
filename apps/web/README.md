@@ -10,26 +10,26 @@ For the full system design (architecture, deep dives, diagrams), see the
 
 ## Pages
 
-- `/` — landing: what the platform does, links into every page.
-- `/workspaces` — the department workspaces; create a new one.
-- `/assistant` — the chat assistant: a bounded agent loop with cited retrieval,
+- `/`: landing page, what the platform does, links into every page.
+- `/workspaces`: the department workspaces; create a new one.
+- `/assistant`: the chat assistant: a bounded agent loop with cited retrieval,
   a step trace, and per-workspace tools and instructions.
-- `/documents` — upload a workspace's guidance docs into its RAG index; search it.
-- `/tools` — "AI Tools": build no-code lookup tables, message templates, or
+- `/documents`: upload a workspace's guidance docs into its RAG index; search it.
+- `/tools`: "AI Tools": build no-code lookup tables, message templates, or
   sandboxed JavaScript calculators the assistant can call.
-- `/prompts` — "AI Instructions": the assistant's system prompt per workspace,
+- `/prompts`: "AI Instructions": the assistant's system prompt per workspace,
   versioned with line diffs and an activation pointer.
-- `/insights` — "Usage analytics": training needs, documentation gaps, and
+- `/insights`: "Usage analytics": training needs, documentation gaps, and
   process hotspots, mined from usage (Python embeddings + clustering).
-- `/gateway` — "AI Gateway": every model call with latency, tokens, cost, and
+- `/gateway`: "AI Gateway": every model call with latency, tokens, cost, and
   any provider fallback.
-- `/governance` — "AI Dashboard": platform-wide usage, eval pass rate, cost, and
+- `/governance`: "AI Dashboard": platform-wide usage, eval pass rate, cost, and
   reliability, plus a downloadable AI Risk Assessment.
-- `/governance/policy` — "AI Policy": the governance-as-code editor and the
+- `/governance/policy`: "AI Policy": the governance-as-code editor and the
   deterministic model-routing rules.
-- `/governance/audit` — "AI Audit Trail": every model call, eval run, and
+- `/governance/audit`: "AI Audit Trail": every model call, eval run, and
   instruction change, newest first.
-- `/evals` — "AI Evaluation": graded test cases (keyword grader or LLM judge)
+- `/evals`: "AI Evaluation": graded test cases (keyword grader or LLM judge)
   behind a pass-rate gate.
 
 It also serves an MCP server at `/api/mcp` exposing a sandboxed `run_javascript`

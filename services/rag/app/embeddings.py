@@ -27,7 +27,7 @@ class DeterministicFakeEmbedding(BaseEmbedding):
     def __init__(self, dim: int = 1536, **kwargs: object) -> None:
         super().__init__(embed_dim=dim, model_name="deterministic-fake", **kwargs)
 
-    # Pydantic v2 (LlamaIndex BaseEmbedding) — declare the extra field.
+    # Pydantic v2 (LlamaIndex BaseEmbedding): declare the extra field.
     embed_dim: int = 1536
 
     def _vector(self, text: str) -> list[float]:

@@ -183,6 +183,11 @@ export class NextjsServerless extends Construct {
       sources: [s3deploy.Source.asset(path.join(openNextDir, "assets"))],
       destinationBucket: this.assetsBucket,
       prune: true,
+      // The default 128 MB deployment Lambda is network-throughput-starved and
+      // can time out uploading a Next.js asset bundle (hundreds of small chunk
+      // files). More memory means proportionally more bandwidth, so the upload
+      // finishes in well under the timeout.
+      memoryLimit: 1536,
     });
 
     const serverLogGroup = new logs.LogGroup(this, "ServerLogGroup", {
@@ -191,7 +196,7 @@ export class NextjsServerless extends Construct {
     });
 
     this.serverFunction = new lambda.Function(this, "ServerFunction", {
-      runtime: lambda.Runtime.NODEJS_20_X,
+      runtime: lambda.Runtime.NODEJS_22_X,
       handler: "index.handler",
       code: lambda.Code.fromAsset(path.join(openNextDir, "server-functions", "default")),
       memorySize: props.serverMemoryMb ?? 1024,
@@ -221,7 +226,7 @@ export class NextjsServerless extends Construct {
     });
 
     this.imageFunction = new lambda.Function(this, "ImageFunction", {
-      runtime: lambda.Runtime.NODEJS_20_X,
+      runtime: lambda.Runtime.NODEJS_22_X,
       handler: "index.handler",
       code: lambda.Code.fromAsset(path.join(openNextDir, "image-optimization-function")),
       memorySize: 1024,

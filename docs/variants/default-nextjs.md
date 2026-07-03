@@ -48,7 +48,7 @@ See `apps/_template/README.md` for why each one exists.
 Copy and rename the CDK package that ships with the template:
 
 ```bash
-mv infra/cdk/_template infra/cdk/<your-app>
+cp -r infra/cdk/_template infra/cdk/<your-app>   # keep _template: CI synths it as a self-test
 ```
 
 Edit `infra/cdk/<your-app>/bin/app.ts` to rename the stack id. The app stack at `lib/web-stack.ts` already instantiates `NextjsServerless` (the construct lives at `lib/constructs/NextjsServerless.ts`). See `infra/cdk/_template/README.md` for the exact 5-line usage.
@@ -148,4 +148,4 @@ Fargate (ECS + ALB + RDS + NAT) costs ~$95/month idle. For a portfolio or low-tr
 
 ## Why not Vercel?
 
-Vercel is the obvious choice for serverless Next.js — and if your story is "I ship products on Vercel", use Vercel. This platform exists to show competence with AWS-native deploys (CDK, Lambda, CloudFront, IAM, OIDC) on top of the same Next.js code. Different goal.
+Vercel is the obvious choice for serverless Next.js, and if your story is "I ship products on Vercel", use Vercel. This platform exists to show competence with AWS-native deploys (CDK, Lambda, CloudFront, IAM, OIDC) on top of the same Next.js code. Different goal.

@@ -73,7 +73,7 @@ requirements:
     severity: high
     given: The chat page is open
     when: The page loads
-    then: A disclaimer states this is general information, not personalised tax advice
+    then: A disclaimer states the answers are general guidance for the officer's judgement, not a final assessment
     tags: [chat, compliance]
 
   - id: TAX-A11Y-001
@@ -416,17 +416,26 @@ requirements:
     severity: medium
     given: A visitor on the assistant page
     when: The empty state renders, and again after a conversation has started
-    then: Example chips cover a factual lookup, a calculation, a multi-step two-tool question, a complex comparison, a personalised escalation, and a PII-sensitive question (with route hints in the empty state); during a conversation the chips remain above the composer so each scenario can be tried in the same chat
+    then: Example chips cover a cited answer, a cross-check across documents, an estimate, a multi-step question, a review-ready draft reply, and a PII triage (each with a hint); during a conversation the chips remain above the composer so each scenario can be tried in the same chat
     tags: [chat, examples]
 
-  - id: TAX-GUIDE-001
-    title: Every feature page has a follow-along guide at the top
-    category: ui
+  - id: TAX-CITE-001
+    title: Sources lists exactly the cited passages, keeping duplicate re-surfaced citations resolvable
+    category: data
     severity: medium
-    given: A first-time visitor opens any feature page (assistant, tools, evals, gateway, prompts, admin)
-    when: The page loads
-    then: A how-to-use panel near the top lists numbered follow-along steps for that page; collapsing it is remembered, so it stays collapsed on the next visit
-    tags: [guide, docs]
+    given: An assistant reply whose tool parts contain two search_knowledge results with overlapping passages, and inline [n] citations in the answer text
+    when: The cited sources are collected for the Sources panel
+    then: Every [n] cited in the text resolves to its passage (a later search re-surfacing an earlier passage under a new number is not dropped as a duplicate), and uncited passages are not listed
+    tags: [citations, rag]
+
+  - id: TAX-CITE-002
+    title: A reply with no inline citations shows an empty Sources list
+    category: data
+    severity: medium
+    given: An assistant reply whose tool parts contain search results but whose text has no [n] citations
+    when: The cited sources are collected for the Sources panel
+    then: The Sources list is empty; the retrieval remains visible in the Agent steps trace instead of being mislabelled as cited
+    tags: [citations, rag]
 
   - id: TAX-EVAL-009
     title: A failed eval case explains why it failed

@@ -298,11 +298,14 @@ export async function loadPlatformActivity(
 }> {
   const workspaces = await listWorkspaces();
   const perWs = await Promise.all(
-    workspaces.map(async (w) => ({
-      name: w.name,
-      calls: await listGatewayCalls(callsPerWorkspace, w.id),
-      prompts: await listPrompts(w.id),
-    })),
+    workspaces.map(async (w) => {
+      // The two reads are independent; run them concurrently per workspace.
+      const [calls, prompts] = await Promise.all([
+        listGatewayCalls(callsPerWorkspace, w.id),
+        listPrompts(w.id),
+      ]);
+      return { name: w.name, calls, prompts };
+    }),
   );
   const calls = perWs.flatMap((p) =>
     p.calls.map((c) => ({ ...c, workspace: p.name })),

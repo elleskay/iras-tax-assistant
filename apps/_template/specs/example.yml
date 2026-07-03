@@ -15,7 +15,9 @@ requirements:
     category: data
     severity: high
     given: A submission with 5 ok and 1 not-ok across 6 items
-    when: computeScore({ ok: 5, total: 6 }) is called
+    # Quoted: an unquoted "{ ... }" is parsed as a YAML flow mapping and makes
+    # the whole file invalid.
+    when: "computeScore({ ok: 5, total: 6 }) is called"
     then: Result is 83
     tags: [scoring]
 

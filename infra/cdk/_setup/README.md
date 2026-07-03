@@ -21,7 +21,7 @@ After this stack exists, the deploy workflow can assume the role via OIDC. No lo
 
 You need AWS credentials that can:
 - Create an IAM role
-- Read the existing OIDC provider (or create one, if missing — see Caveats)
+- Read the existing OIDC provider (or create one, if missing: see Caveats)
 - Run CloudFormation
 
 The simplest path: use the AWS root account or a user with `IAMFullAccess` for this one-time deploy. After the role exists, the role itself takes over via OIDC and you don't need broad credentials again.

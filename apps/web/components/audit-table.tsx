@@ -90,7 +90,7 @@ export function AuditTable({ entries }: { entries: AuditEntry[] }) {
         </div>
         <div className="flex items-center justify-between gap-3 border-t px-4 py-3 text-sm text-muted-foreground">
           <span className="tabular-nums">
-            {start + 1}&ndash;{Math.min(start + PAGE_SIZE, entries.length)} of{" "}
+            {start + 1}-{Math.min(start + PAGE_SIZE, entries.length)} of{" "}
             {entries.length.toLocaleString()} events
           </span>
           <div className="flex items-center gap-2">

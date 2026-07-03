@@ -194,9 +194,9 @@ export default function PlatformHome() {
         >
           <Building2 className="h-7 w-7" />
         </span>
-        <h2 className="max-w-3xl text-3xl font-semibold tracking-tight text-navy sm:text-4xl">
+        <h1 className="max-w-3xl text-3xl font-semibold tracking-tight text-navy sm:text-4xl">
           One governed AI assistant per department
-        </h2>
+        </h1>
         <p className="max-w-2xl text-base leading-relaxed text-muted-foreground">
           Every department gets its own workspace and a document-grounded assistant
           for officers, to ask questions, draft replies for review, and triage

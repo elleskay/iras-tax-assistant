@@ -106,10 +106,17 @@ export default function PromptsPage() {
   const [note, setNote] = useState("");
 
   const load = useCallback(async () => {
-    const res = await fetch("/api/prompts", { cache: "no-store" });
-    const data = await res.json();
-    setPrompts(data.prompts ?? []);
-    setLoading(false);
+    try {
+      const res = await fetch("/api/prompts", { cache: "no-store" });
+      const data = await res.json();
+      setPrompts(data.prompts ?? []);
+    } catch {
+      setPrompts([]);
+    } finally {
+      // Without this a failed fetch left the page on "Loading instructions..."
+      // forever.
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -147,12 +154,18 @@ export default function PromptsPage() {
   async function activate(promptName: string, version: number) {
     setActivating(`${promptName}:${version}`);
     try {
-      await fetch("/api/prompts", {
+      const res = await fetch("/api/prompts", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: promptName, version }),
       });
+      if (!res.ok) {
+        setFormError("Could not activate that version. Please try again.");
+        return;
+      }
       await load();
+    } catch {
+      setFormError("Could not activate that version. Check your connection.");
     } finally {
       setActivating(null);
     }

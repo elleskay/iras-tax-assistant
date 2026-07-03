@@ -16,7 +16,8 @@ import { generateText, stepCountIs } from "ai";
 import { resolveSystemPrompt } from "../lib/agent";
 import { findModel, DEFAULT_MODEL_ID } from "../lib/model-registry";
 import { gatewayModel } from "../lib/gateway";
-import { taxTools } from "../lib/tools";
+import { MAX_STEPS, MAX_OUTPUT_TOKENS } from "../lib/run-agent";
+import { buildTaxTools } from "../lib/tools";
 import { keywordGrade } from "../lib/graders";
 import { compareToBaseline, DEFAULT_TOLERANCE } from "../lib/eval-baseline";
 
@@ -51,14 +52,16 @@ async function main() {
 
   let passed = 0;
   for (const c of suite.cases) {
+    // Same loop bounds as /api/chat (lib/run-agent.ts); fresh tools per case
+    // so the search_knowledge citation counter restarts at [1] every case.
     const result = await generateText({
       model: gatewayModel(entry, { route: "eval-cli" }),
       system,
       prompt: c.query,
-      tools: taxTools,
-      stopWhen: stepCountIs(5),
+      tools: buildTaxTools(),
+      stopWhen: stepCountIs(MAX_STEPS),
       temperature: 0,
-      maxOutputTokens: 600,
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
     });
     const grade = keywordGrade(result.text ?? "", c.expects);
     if (grade.pass) passed += 1;

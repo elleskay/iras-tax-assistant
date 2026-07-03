@@ -45,13 +45,14 @@ def _numpy_kmeans(
         dist = np.linalg.norm(mat - centers[c], axis=1) ** 2
         closest = np.minimum(closest, dist)
 
-    labels = np.zeros(n, dtype=int)
+    # Start from -1 so a legitimate all-zeros first assignment cannot satisfy
+    # the convergence check before any centroid update has happened.
+    labels = np.full(n, -1, dtype=int)
     for _ in range(max_iter):
         # assign
         dists = np.linalg.norm(mat[:, None, :] - centers[None, :, :], axis=2)
         new_labels = dists.argmin(axis=1)
         if np.array_equal(new_labels, labels):
-            labels = new_labels
             break
         labels = new_labels
         # update
@@ -59,6 +60,10 @@ def _numpy_kmeans(
             members = mat[labels == c]
             if len(members) > 0:
                 centers[c] = members.mean(axis=0)
+            else:
+                # Re-seed a cluster that lost all members instead of letting
+                # its stale centroid linger.
+                centers[c] = mat[int(rng.integers(n))]
     return labels
 
 

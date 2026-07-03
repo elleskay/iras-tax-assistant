@@ -26,7 +26,7 @@ What this template gives you out of the box, and what each app is expected to ma
 | Rate limiting | Upstash Redis on auth and sensitive routes |
 | CSRF protection | Next.js Server Actions `allowedOrigins` (see `docs/DEPLOY.md` gotcha #1) |
 | HTTPS only | Enforced via CloudFront |
-| Secrets in prod | AWS Secrets Manager, never env files |
+| Secrets in prod | GitHub Actions secrets, injected into Lambda env vars at deploy; never committed (`.env.local` gitignored) |
 | Error tracking | Sentry (catches unhandled exceptions that may leak info) |
 | Logging | Structured JSON logs, no PII, no secrets |
 | Database access | Parameterized queries only (ORM enforces this) |

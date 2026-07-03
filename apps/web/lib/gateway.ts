@@ -82,6 +82,7 @@ async function persist(
   startedAt: number,
   usage: V3Usage | null,
   fallbackUsed: boolean,
+  errored = false,
 ): Promise<void> {
   const inputTokens = usage?.inputTokens.total ?? 0;
   const outputTokens = usage?.outputTokens.total ?? 0;
@@ -97,10 +98,23 @@ async function persist(
       outputTokens,
       costUsd: computeCostUsd(entry, inputTokens, outputTokens),
       fallbackUsed,
+      ...(errored ? { errored } : {}),
     }, meta.workspace);
   } catch {
     // Observability must never take a request down: drop the log entry.
   }
+}
+
+/**
+ * Keep the fallback's error type intact for upstream handling, but attach the
+ * primary error as `cause` so a double failure does not silently discard why
+ * the primary provider went down.
+ */
+function withPrimaryCause(fallbackErr: unknown, primaryErr: unknown): unknown {
+  if (fallbackErr instanceof Error && fallbackErr.cause === undefined) {
+    fallbackErr.cause = primaryErr;
+  }
+  return fallbackErr;
 }
 
 function instrumentation(
@@ -120,10 +134,19 @@ function instrumentation(
         result = await doGenerate();
       } catch (err) {
         const fb = fallbackOverride ?? defaultFallback(entry);
-        if (!fb) throw err;
+        if (!fb) {
+          // The audit trail must include failed calls, not just successes.
+          await persist(entry, meta, "generate", startedAt, null, false, true);
+          throw err;
+        }
         used = fb.entry;
         fallbackUsed = true;
-        result = await fb.model.doGenerate(params);
+        try {
+          result = await fb.model.doGenerate(params);
+        } catch (fbErr) {
+          await persist(fb.entry, meta, "generate", startedAt, null, true, true);
+          throw withPrimaryCause(fbErr, err);
+        }
       }
       await persist(used, meta, "generate", startedAt, result.usage, fallbackUsed);
       return result;
@@ -140,13 +163,31 @@ function instrumentation(
         // Fallback covers errors before the stream starts (auth, quota,
         // outage). Mid-stream failures surface to the client as usual.
         const fb = fallbackOverride ?? defaultFallback(entry);
-        if (!fb) throw err;
+        if (!fb) {
+          await persist(entry, meta, "stream", startedAt, null, false, true);
+          throw err;
+        }
         used = fb.entry;
         fallbackUsed = true;
-        result = await fb.model.doStream(params);
+        try {
+          result = await fb.model.doStream(params);
+        } catch (fbErr) {
+          await persist(fb.entry, meta, "stream", startedAt, null, true, true);
+          throw withPrimaryCause(fbErr, err);
+        }
       }
       let usage: V3Usage | null = null;
-      const tap = new TransformStream<StreamPart, StreamPart>({
+      let logged = false;
+      const record = async (errored = false) => {
+        if (logged) return;
+        logged = true;
+        await persist(used, meta, "stream", startedAt, usage, fallbackUsed, errored);
+      };
+      // `cancel` is in the Streams spec and supported by Node 22, but this
+      // TS lib's Transformer type predates it, hence the widened type.
+      const transformer: Transformer<StreamPart, StreamPart> & {
+        cancel?: (reason?: unknown) => Promise<void>;
+      } = {
         transform(part, controller) {
           if (part.type === "finish") usage = part.usage;
           controller.enqueue(part);
@@ -154,9 +195,15 @@ function instrumentation(
         async flush() {
           // Awaited by the stream machinery before the readable side closes,
           // so the write lands before Lambda freezes the sandbox.
-          await persist(used, meta, "stream", startedAt, usage, fallbackUsed);
+          await record();
         },
-      });
+        async cancel() {
+          // Client disconnects and aborts still incurred provider cost;
+          // without this hook the call would vanish from the audit trail.
+          await record(true);
+        },
+      };
+      const tap = new TransformStream<StreamPart, StreamPart>(transformer);
       return { ...result, stream: result.stream.pipeThrough(tap) };
     },
   };

@@ -199,16 +199,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Escape closes the mobile drawer (the backdrop is click-only otherwise).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
   function toggleCollapsed() {
-    setCollapsed((c) => {
-      const next = !c;
-      try {
-        localStorage.setItem("sidebarCollapsed", next ? "1" : "0");
-      } catch {
-        // ignore
-      }
-      return next;
-    });
+    // Persist outside the setter: updaters must stay pure (StrictMode
+    // double-invokes them).
+    const next = !collapsed;
+    setCollapsed(next);
+    try {
+      localStorage.setItem("sidebarCollapsed", next ? "1" : "0");
+    } catch {
+      // ignore
+    }
   }
 
   return (
@@ -276,6 +286,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {open ? (
           <>
             <div
+              aria-hidden="true"
               className="fixed inset-0 top-16 z-30 bg-black/30 md:hidden"
               onClick={() => setOpen(false)}
             />

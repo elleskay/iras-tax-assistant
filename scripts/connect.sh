@@ -28,7 +28,7 @@
 #   --region <aws-region>   AWS region (default: $AWS_REGION or ap-southeast-1)
 #   --database-url <url>    Use this Postgres URL instead of provisioning Neon
 #   --app-url <url>         Canonical app URL, if you already have a custom domain
-#   --cdk-dir <path>        CDK package dir (default: infra/cdk/_template)
+#   --cdk-dir <path>        CDK package dir (default: infra/cdk/web, matching deploy.yml)
 #   --app-dir <path>        App dir (default: apps/web)
 #   --skip-db               Don't touch the database (set DATABASE_URL yourself)
 #   --yes                   Don't prompt for confirmation
@@ -39,7 +39,7 @@ set -euo pipefail
 
 # ---------- args ----------
 REPO=""; REGION="${AWS_REGION:-ap-southeast-1}"; DATABASE_URL=""; APP_URL=""
-CDK_DIR="infra/cdk/_template"; APP_DIR="apps/web"
+CDK_DIR="infra/cdk/web"; APP_DIR="apps/web"
 SKIP_DB=0; ASSUME_YES=0; DRY_RUN=0
 
 while [ $# -gt 0 ]; do
@@ -208,7 +208,16 @@ ok "AUTH_SECRET generated"
 
 # ---------- 6. GitHub secrets + variables ----------
 step "Setting GitHub Actions secrets and variables on $REPO"
-gh_secret() { run gh secret set "$1" --repo "$REPO" --body "$2" >/dev/null && ok "secret  $1"; }
+# Secret values go via stdin, not argv: argv is briefly visible to other
+# processes on the machine (ps). gh reads the value from stdin when --body is
+# omitted.
+gh_secret() {
+  if [ "$DRY_RUN" = 1 ]; then
+    run gh secret set "$1" --repo "$REPO"
+  else
+    printf %s "$2" | gh secret set "$1" --repo "$REPO" >/dev/null && ok "secret  $1"
+  fi
+}
 gh_var()    { run gh variable set "$1" --repo "$REPO" --body "$2" >/dev/null && ok "variable $1"; }
 
 gh_secret AWS_DEPLOY_ROLE_ARN "$ROLE_ARN"
@@ -219,7 +228,7 @@ gh_var AWS_REGION "$REGION"
 # Wildcards are valid for the first deploy; refine to exact hosts afterwards.
 gh_var ALLOWED_ORIGINS "*.cloudfront.net,*.lambda-url.${REGION}.on.aws"
 [ -n "$APP_URL" ] && gh_var APP_URL "$APP_URL"
-[ "$CDK_DIR" != "infra/cdk/_template" ] && gh_var CDK_DIR "$CDK_DIR"
+[ "$CDK_DIR" != "infra/cdk/web" ] && gh_var CDK_DIR "$CDK_DIR"
 [ "$APP_DIR" != "apps/web" ] && gh_var APP_DIR "$APP_DIR"
 
 # ---------- done ----------

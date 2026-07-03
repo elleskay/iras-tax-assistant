@@ -22,7 +22,36 @@ updates:
     schedule:
       interval: "weekly"
 
+  # The three CDK packages have their own lockfiles (not workspaces). The one
+  # that deploys production (web) matters most; _template and _setup keep the
+  # reference copies current.
   - package-ecosystem: "npm"
     directory: "/infra/cdk/_template"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "npm"
+    directory: "/infra/cdk/web"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "npm"
+    directory: "/infra/cdk/_setup"
+    schedule:
+      interval: "weekly"
+
+  # Python services: the RAG service is deployed (Fly.io); insights is offline.
+  - package-ecosystem: "pip"
+    directory: "/services/rag"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "pip"
+    directory: "/services/insights"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "docker"
+    directory: "/services/rag"
     schedule:
       interval: "weekly"

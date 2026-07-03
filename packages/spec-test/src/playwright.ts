@@ -8,16 +8,15 @@ import {
   type TestInfo,
 } from "@playwright/test";
 import { recordCoverage } from "./coverage.js";
+import { assertSpecId, BRACKETED_SPEC_ID_RE } from "./spec-id.js";
 
 type SpecTestFixtures = PlaywrightTestArgs &
   PlaywrightTestOptions & { specCoverage: void } & PlaywrightWorkerArgs &
   PlaywrightWorkerOptions;
 
-const SPEC_ID_RE = /^\[([A-Z][A-Z0-9]*(?:-[A-Z][A-Z0-9]*)+-\d{3,})\]/;
-
 // Spec category per id, populated by specTest() at collection time and read by
-// the auto fixture at run time so the coverage report can detect a test
-// covering a requirement in the wrong layer (category mismatch).
+// the auto fixture at run time, recorded alongside the runner layer so the
+// coverage report can detect a requirement covered in the wrong layer.
 const categoryById = new Map<string, string>();
 
 /**
@@ -33,14 +32,21 @@ export const test = base.extend<{ specCoverage: void }>({
   specCoverage: [
     async ({}, use, testInfo) => {
       await use();
-      const m = SPEC_ID_RE.exec(testInfo.title);
+      const m = BRACKETED_SPEC_ID_RE.exec(testInfo.title);
       if (!m) return;
       const id = m[1] as string;
+      // A runtime-skipped test covers nothing (recording it as "failed" would
+      // flag the requirement failing; recording "passed" would fake coverage),
+      // and a Ctrl-C interrupt must not persist spurious failures.
+      if (testInfo.status === "skipped" || testInfo.status === "interrupted") {
+        return;
+      }
       const status: "passed" | "failed" =
         testInfo.status === "passed" ? "passed" : "failed";
       recordCoverage({
         id,
         status,
+        layer: "playwright",
         category: categoryById.get(id),
         file: testInfo.file,
         durationMs: testInfo.duration,
@@ -68,6 +74,7 @@ export function specTest(
   fn: (args: SpecTestFixtures, testInfo: TestInfo) => void | Promise<void>,
   opts: SpecTestOptions = {},
 ): void {
+  assertSpecId(id);
   if (opts.category) categoryById.set(id, opts.category);
   test(`[${id}] ${title}`, fn);
 }

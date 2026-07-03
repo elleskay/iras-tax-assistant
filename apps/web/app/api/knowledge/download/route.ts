@@ -22,10 +22,10 @@ export async function GET(req: Request) {
     return new Response("Document not found", { status: 404 });
   }
 
-  const name = (stored?.filename ?? filename ?? "document.txt").replace(
-    /[^\w.\- ]+/g,
-    "_",
-  );
+  // filename is already "" when absent, so only stored?.filename can be
+  // nullish here; the final fallback guards an empty stored filename.
+  const name =
+    (stored?.filename || filename).replace(/[^\w.\- ]+/g, "_") || "document.txt";
   return new Response(text, {
     headers: {
       "Content-Type": "text/markdown; charset=utf-8",

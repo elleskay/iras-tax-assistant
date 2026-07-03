@@ -12,7 +12,8 @@ import { keywordGrade, judgeGrade } from "@/lib/graders";
 import { resolveById } from "@/lib/model-router";
 import { gatewayModel } from "@/lib/gateway";
 import { findModel } from "@/lib/model-registry";
-import { taxTools } from "@/lib/tools";
+import { MAX_STEPS, MAX_OUTPUT_TOKENS } from "@/lib/run-agent";
+import { buildTaxTools } from "@/lib/tools";
 import { makeLimiter, isAllowed, clientIp } from "@/lib/rate-limit";
 import { DEFAULT_WORKSPACE } from "@/lib/workspaces";
 
@@ -40,7 +41,7 @@ export async function POST(req: Request) {
   if (!(await isAllowed(clientIp(req), limiter))) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
-  const parsed = schema.safeParse(await req.json());
+  const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid input" }, { status: 400 });
   }
@@ -67,14 +68,17 @@ export async function POST(req: Request) {
       ? await getPromptVersionContent(SYSTEM_PROMPT_NAME, promptVersion, ws)
       : null) ?? (await resolveSystemPrompt(ws));
 
+  // Same loop bounds as /api/chat (lib/run-agent.ts) so eval answers are not
+  // truncated more aggressively than real answers; fresh tools per request so
+  // the search_knowledge citation counter starts at [1] for every run.
   const result = await generateText({
     model,
     system,
     prompt: question,
-    tools: taxTools,
-    stopWhen: stepCountIs(5),
+    tools: buildTaxTools(ws),
+    stopWhen: stepCountIs(MAX_STEPS),
     temperature: 0,
-    maxOutputTokens: 600,
+    maxOutputTokens: MAX_OUTPUT_TOKENS,
   });
 
   const answer = result.text ?? "";

@@ -10,6 +10,7 @@ on:
   pull_request:
     paths:
       - "apps/web/lib/agent.ts"
+      - "apps/web/lib/run-agent.ts"
       - "apps/web/lib/tools.ts"
       - "apps/web/lib/tax.ts"
       - "apps/web/lib/prompt-store.ts"

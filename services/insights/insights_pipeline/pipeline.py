@@ -28,7 +28,11 @@ def run_pipeline(
     """
 
     out: dict = {}
-    embed_path = cluster_path = "n/a"
+    # The chosen embedding/cluster implementations can in principle differ per
+    # workspace (an optional dep failing mid-run), so track them per workspace
+    # instead of reporting only the last loop iteration.
+    embed_paths: dict[str, str] = {}
+    cluster_paths: dict[str, str] = {}
 
     for ws in WORKSPACES:
         records = generate_workspace_interactions(ws, n=n, seed=seed)
@@ -36,6 +40,8 @@ def run_pipeline(
 
         matrix, embed_path = embed_prompts(prompts, prefer=prefer)
         labels, cluster_path = kmeans_cluster(matrix, k=k, seed=seed)
+        embed_paths[ws.key] = embed_path
+        cluster_paths[ws.key] = cluster_path
         analyses = analyse_workspace(records, labels)
 
         out[ws.key] = {
@@ -56,9 +62,13 @@ def run_pipeline(
             )
 
     # surface the chosen paths under a meta key (does not break the required shape)
+    def _summarise(paths: dict[str, str]) -> str:
+        unique = sorted(set(paths.values()))
+        return unique[0] if len(unique) == 1 else ", ".join(unique)
+
     out["_meta"] = {
-        "embeddingPath": embed_path,
-        "clusterPath": cluster_path,
+        "embeddingPath": _summarise(embed_paths),
+        "clusterPath": _summarise(cluster_paths),
         "note": "Synthetic demo data. See services/insights/README.md.",
     }
     return out

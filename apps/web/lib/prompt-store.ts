@@ -35,16 +35,13 @@ export async function listPrompts(
   return store(workspace).list();
 }
 
-export async function getPrompt(
-  name: string,
-  workspace: string = DEFAULT_WORKSPACE,
-): Promise<PromptRecord | null> {
-  return store(workspace).get(name);
-}
-
 /**
  * Append a new immutable version. The first version of a prompt becomes
  * active; later versions never change the pointer until explicitly activated.
+ *
+ * Note: this is a read-modify-write of one record, so two concurrent appends
+ * to the same prompt can drop one version (last write wins). Acceptable at
+ * this app's scale; a conditional put (S3 ETag/IfMatch) would close it.
  */
 export async function addPromptVersion(
   name: string,
