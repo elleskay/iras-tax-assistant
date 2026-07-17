@@ -108,6 +108,16 @@ export function EvalsWorkbench() {
   async function run() {
     setRunning(true);
     setResults(null);
+    try {
+      await runCases();
+    } finally {
+      // Anything thrown above (e.g. by applyRoutingRules on a bad rule) must
+      // not leave the Run button permanently stuck on "Running...".
+      setRunning(false);
+    }
+  }
+
+  async function runCases() {
     const pinnedVersion = promptVersion ? Number(promptVersion) : undefined;
     const out = await Promise.all(
       cases.map(async (c): Promise<CaseResult> => {
@@ -131,10 +141,17 @@ export function EvalsWorkbench() {
               error: res.status === 429 ? "rate limited" : "request failed",
             };
           }
-          const data = await res.json();
+          const data = (await res.json()) as {
+            model?: string;
+            pass?: boolean;
+            checks?: CaseResult["checks"];
+            answer?: string;
+            score?: number;
+            rationale?: string;
+          };
           return {
             id: c.id, query: c.query, modelLabel: data.model ?? modelLabel(route.modelId),
-            reason: route.reason, pass: data.pass, checks: data.checks ?? [], answer: data.answer ?? "",
+            reason: route.reason, pass: data.pass === true, checks: data.checks ?? [], answer: data.answer ?? "",
             ...(typeof data.score === "number" ? { score: data.score } : {}),
             ...(data.rationale ? { rationale: data.rationale } : {}),
           };
@@ -169,7 +186,6 @@ export function EvalsWorkbench() {
     } catch {
       // History is best-effort; the in-page results are already shown.
     }
-    setRunning(false);
   }
 
   // Stats

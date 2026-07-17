@@ -3,29 +3,15 @@
 import { useEffect, useState } from "react";
 import { Landmark, ArrowRight, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  readWorkspaceCookie,
+  setWorkspaceCookie,
+} from "@/lib/workspace-cookie";
 
 interface Ws {
   id: string;
   name: string;
-  taxType: string;
-  blurb: string;
   seed?: boolean;
-  settings: { defaultModelId: string; costCeilingUsd: number };
-}
-
-function readCookie(name: string): string | null {
-  if (typeof document === "undefined") return null;
-  const m = document.cookie.match(new RegExp("(?:^|; )" + name + "=([^;]+)"));
-  return m ? decodeURIComponent(m[1]) : null;
-}
-
-function setActiveCookie(id: string) {
-  document.cookie = `workspace=${encodeURIComponent(id)}; path=/; max-age=31536000; samesite=lax`;
-  try {
-    localStorage.setItem("workspace", id);
-  } catch {
-    // ignore
-  }
 }
 
 /**
@@ -44,7 +30,7 @@ export function WorkspaceGrid() {
   }, []);
 
   function open(id: string) {
-    setActiveCookie(id);
+    setWorkspaceCookie(id);
     // Full navigation so the cookie is re-read server-side and the layout
     // (workspace switcher, etc.) remounts on the chosen workspace. ?new=1 opens
     // a fresh chat rather than resuming this workspace's last conversation.
@@ -54,14 +40,25 @@ export function WorkspaceGrid() {
   async function remove(id: string, name: string) {
     if (!window.confirm(`Delete the "${name}" workspace? This cannot be undone.`))
       return;
-    await fetch("/api/workspaces", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
+    try {
+      const res = await fetch("/api/workspaces", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) {
+        // Do not remove the card optimistically: a failed delete would
+        // resurrect it on the next refresh with no feedback.
+        window.alert("Could not delete the workspace. Please try again.");
+        return;
+      }
+    } catch {
+      window.alert("Could not delete the workspace. Check your connection.");
+      return;
+    }
     setList((l) => l.filter((w) => w.id !== id));
     // If the deleted workspace was active, fall back to the flagship.
-    if (readCookie("workspace") === id) setActiveCookie("individual-income");
+    if (readWorkspaceCookie() === id) setWorkspaceCookie("individual-income");
   }
 
   if (list.length === 0) return null;

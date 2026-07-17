@@ -21,8 +21,14 @@ export function workspaceFromRequest(req: Request): string {
   const cookie = req.headers.get("cookie") ?? "";
   const m = cookie.match(/(?:^|;\s*)workspace=([^;]+)/);
   if (m) {
-    const v = decodeURIComponent(m[1]);
-    if (SLUG.test(v)) return v;
+    // decodeURIComponent throws on malformed percent-encoding; a bad cookie
+    // byte must fall back to the default workspace, not 500 the route.
+    try {
+      const v = decodeURIComponent(m[1]);
+      if (SLUG.test(v)) return v;
+    } catch {
+      // fall through to the default
+    }
   }
   return DEFAULT_WORKSPACE;
 }

@@ -38,22 +38,12 @@ export function formatEstimate(income: number, deductions: number): string {
 /** Look up a known tax fact by topic, with a guidance fallback. */
 export function lookupTaxFact(topic: string): string {
   const key = topic.toLowerCase().replace(/\s+/g, "_");
+  const fallback = `No specific fact found for "${topic}". Available topics: GST, income tax, corporate tax, SRS.`;
+  // An empty key would substring-match the first entry (`k.includes("")` is
+  // always true), returning an arbitrary fact instead of the fallback.
+  if (!key) return fallback;
   for (const [k, v] of Object.entries(TAX_FACTS)) {
     if (key.includes(k) || k.includes(key)) return v;
   }
-  return `No specific fact found for "${topic}". Available topics: GST, income tax, corporate tax, SRS.`;
-}
-
-/** Same matching, over a configurable key/value fact list. */
-export function lookupFromPairs(
-  pairs: { key: string; value: string }[],
-  topic: string,
-): string {
-  const key = topic.toLowerCase().replace(/\s+/g, "_");
-  for (const p of pairs) {
-    const k = p.key.toLowerCase().replace(/\s+/g, "_");
-    if (k && (key.includes(k) || k.includes(key))) return p.value;
-  }
-  const topics = pairs.map((p) => p.key).join(", ");
-  return `No specific fact found for "${topic}". Available topics: ${topics}.`;
+  return fallback;
 }

@@ -49,7 +49,12 @@ export function loadConversations(workspace: string): Conversation[] {
 export function saveConversations(workspace: string, list: Conversation[]): void {
   if (typeof window === "undefined") return;
   const trimmed = [...list].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, MAX);
-  localStorage.setItem(listKey(workspace), JSON.stringify(trimmed));
+  try {
+    localStorage.setItem(listKey(workspace), JSON.stringify(trimmed));
+  } catch {
+    // Quota exceeded (large chat histories): keep the session alive on the
+    // in-memory state instead of throwing during a state update.
+  }
 }
 
 export function loadCurrentId(workspace: string): string | null {

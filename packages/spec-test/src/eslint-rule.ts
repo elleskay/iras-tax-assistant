@@ -6,20 +6,44 @@ import type {
   ArrowFunctionExpression,
   Literal,
 } from "estree";
+import { BARE_SPEC_ID_RE, BRACKETED_SPEC_ID_RE } from "./spec-id.js";
 
-interface NamedCallee {
-  name: string;
-}
+/*
+ * Lint gate: every spec-bound test body must contain at least one expect().
+ * Covers both call styles the platform uses:
+ *   specTest("TAX-CHAT-001", "title", fn)   <- the wrappers' style
+ *   test("[TAX-CHAT-001] title", fn)        <- raw runner style
+ * plus their .only/.skip variants.
+ */
 
-const SPEC_ID_RE = /^\[([A-Z][A-Z0-9]*(?:-[A-Z][A-Z0-9]*)+-\d{3,})\]/;
+type SpecCall =
+  | { kind: "specTest" }
+  | { kind: "titled" }; // test()/it() with a "[ID] ..." title
 
-function calleeName(node: CallExpression): string | null {
-  const c = node.callee as Node & Partial<NamedCallee>;
-  if (c.type === "Identifier") return (c as unknown as NamedCallee).name;
+const TEST_NAMES = new Set(["test", "it"]);
+const MODIFIERS = new Set(["only", "skip", "fails", "todo"]);
+
+function classifyCallee(node: CallExpression): SpecCall | null {
+  const c = node.callee;
+  if (c.type === "Identifier") {
+    if (c.name === "specTest") return { kind: "specTest" };
+    if (TEST_NAMES.has(c.name)) return { kind: "titled" };
+    return null;
+  }
+  // test.only(...) / it.skip(...) / specTest.only(...). Requiring the object
+  // to be one of the known test names also stops `SOME_RE.test("...")` (a
+  // RegExp call whose property happens to be named "test") from matching.
   if (c.type === "MemberExpression") {
-    const prop = (c as unknown as { property: Node & Partial<NamedCallee> })
-      .property;
-    if (prop.type === "Identifier") return prop.name ?? null;
+    const obj = c.object;
+    const prop = c.property;
+    if (
+      obj.type === "Identifier" &&
+      prop.type === "Identifier" &&
+      MODIFIERS.has(prop.name)
+    ) {
+      if (obj.name === "specTest") return { kind: "specTest" };
+      if (TEST_NAMES.has(obj.name)) return { kind: "titled" };
+    }
   }
   return null;
 }
@@ -60,9 +84,8 @@ function bodyHasExpect(
     if (found || !n || typeof n !== "object") return;
     const node = n as Node & { type: string };
     if (node.type === "CallExpression") {
-      const ce = node as CallExpression;
-      const name = calleeName(ce);
-      if (name === "expect") {
+      const callee = (node as CallExpression).callee;
+      if (callee.type === "Identifier" && callee.name === "expect") {
         found = true;
         return;
       }
@@ -87,26 +110,32 @@ export const requireExpectInSpecTest: Rule.RuleModule = {
     type: "problem",
     docs: {
       description:
-        "Require at least one expect() call inside every test whose title is prefixed with a spec ID like [ARM-XXX-001]",
+        "Require at least one expect() call inside every spec-bound test: specTest('ID', ...) or test('[ID] ...')",
     },
     schema: [],
     messages: {
       missingExpect:
-        "test('[{{id}}] ...') must contain at least one expect() call. A spec requirement that records no assertion does not verify behavior.",
-      missingBody:
-        "test('[{{id}}] ...') must have a function body.",
+        "The spec test for {{id}} must contain at least one expect() call. A spec requirement that records no assertion does not verify behavior.",
+      missingBody: "The spec test for {{id}} must have a function body.",
     },
   },
   create(context) {
     return {
       CallExpression(node: CallExpression) {
-        const callee = calleeName(node);
-        if (callee !== "test" && callee !== "it") return;
-        const title = getStringLiteral(node.arguments[0] as Node | undefined);
-        if (!title) return;
-        const m = SPEC_ID_RE.exec(title);
-        if (!m) return;
-        const id = m[1] ?? "<unknown>";
+        const call = classifyCallee(node);
+        if (!call) return;
+
+        let id: string | null = null;
+        if (call.kind === "specTest") {
+          const bare = getStringLiteral(node.arguments[0] as Node | undefined);
+          if (bare && BARE_SPEC_ID_RE.test(bare)) id = bare;
+        } else {
+          const title = getStringLiteral(node.arguments[0] as Node | undefined);
+          const m = title ? BRACKETED_SPEC_ID_RE.exec(title) : null;
+          if (m) id = m[1] ?? null;
+        }
+        if (!id) return;
+
         const body = findBodyFunction(node);
         if (!body) {
           context.report({ node, messageId: "missingBody", data: { id } });

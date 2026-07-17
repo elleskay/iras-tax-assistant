@@ -4,10 +4,12 @@ Spec-driven test runner. Validates a YAML spec, registers `specTest(id, title, f
 
 ## What this catches
 
-- Missing test for any spec ID → coverage report flags it, CLI exits 1.
-- Test exists but body is empty (zero `expect()` calls) → ESLint rule fails before tests run.
-- Test exists in the wrong test layer (e.g. a `category: ui` requirement only covered by a Vitest test instead of Playwright) → category mismatch, exit 1.
-- Test exists and fails → standard runner failure, exit 1.
+- Missing test for any spec ID: the coverage report flags it, CLI exits 1.
+- Test exists but body is empty (zero `expect()` calls): the ESLint rule fails lint before tests run, for both `specTest("ID", ...)` and `test("[ID] ...")` styles (including `.only`/`.skip`).
+- Test passes in the wrong runner layer for its category (e.g. a `category: ui` requirement whose only passing test is a Vitest unit test): category mismatch, exit 1. The layer is stamped by the runner wrappers; `security` requirements may pass in either layer.
+- Test exists and fails: standard runner failure, exit 1.
+- A recorded id that matches no spec requirement (typo or stale rename) is listed in the report as a warning.
+- A malformed `specTest` id (would never be recorded) throws at registration.
 
 Run on every PR. CI cannot merge with red specs.
 
@@ -31,12 +33,12 @@ Real example from armoury:
 
 | Spec ID | What it asserts | Passed? |
 |---|---|---|
-| ARM-PHOTO-001 | Officer submit page renders `<input type="file">` for items with `kind === "photo"` | ✅ |
-| ARM-PHOTO-002 | A submitted photo persists as a data URL in `responses.valueText` | ✅ |
-| ARM-PHOTO-003 | The submission detail page renders an `<img>` for photo responses | ✅ |
-| **Untested** | **Admin builder dropdown offers Photo as a selectable item kind** | ❌ |
+| ARM-PHOTO-001 | Officer submit page renders `<input type="file">` for items with `kind === "photo"` | yes |
+| ARM-PHOTO-002 | A submitted photo persists as a data URL in `responses.valueText` | yes |
+| ARM-PHOTO-003 | The submission detail page renders an `<img>` for photo responses | yes |
+| **Untested** | **Admin builder dropdown offers Photo as a selectable item kind** | no |
 
-All three spec IDs passed. Coverage was 126/126. The photo feature was unreachable because no admin could ever create a template item of `kind === "photo"` — the builder's `<Select>` was missing the option. The gate was satisfied; the feature was broken.
+All three spec IDs passed. Coverage was 126/126. The photo feature was unreachable because no admin could ever create a template item of `kind === "photo"`: the builder's `<Select>` was missing the option. The gate was satisfied; the feature was broken.
 
 **Mitigation:** for every user-facing feature, write at least one journey-level e2e that traverses the full path:
 
@@ -72,10 +74,10 @@ See `docs/TESTING.md` "Failure modes the gate does NOT catch" for the same cavea
 
 ## Reading list
 
-- `docs/TESTING.md` — full system overview (spec format, category routing, ESLint rule, CLI usage)
-- `samples/example.spec.yml` — minimum viable spec for testing the runner
-- `samples/bad.test.ts` — example of a test the ESLint rule blocks (zero `expect()` calls)
+- `docs/TESTING.md`: full system overview (spec format, category routing, ESLint rule, CLI usage)
+- `samples/example.spec.yml`: minimum viable spec for testing the runner
+- `samples/bad.test.ts`: example of a test the ESLint rule blocks (zero `expect()` calls); `samples/eslint.test.mjs` is the rule's runnable self-test
 
 ## Why this package is private
 
-The platform copies, it does not import. Each app pins its own snapshot of `@platform/spec-test` from `packages/` rather than depending on a published version, so breaking changes never propagate without explicit action. See platform `README.md` "Opinions" for the philosophy.
+The package is consumed as a workspace dependency (`"@platform/spec-test": "*"`) by the apps in this monorepo, not published to a registry. A change here reaches every app on the next install, so treat the exports as a contract and run each app's `test:spec` gate after touching it. Repos cloned from the platform template carry their own copy, so changes here do not propagate across repos.

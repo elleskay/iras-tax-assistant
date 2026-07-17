@@ -18,13 +18,18 @@ const nextConfig: NextConfig = {
   // standalone makes `next start` refuse to serve on Next 16 (which the
   // Playwright e2e webServer relies on).
   poweredByHeader: false,
-  // The QuickJS sandbox packages are loaded at runtime from node_modules
-  // instead of being bundled: Turbopack cannot bundle the singlefile variant
-  // (its inlined WASM string trips the bundler), and the sandbox only runs
-  // server-side anyway.
+  // These packages are loaded at runtime from node_modules instead of being
+  // bundled (docs/DEPLOY.md #15): Turbopack cannot bundle the QuickJS
+  // singlefile variant (its inlined WASM string trips the bundler), and shiki
+  // (the highlighter behind @streamdown/code on the assistant page) ships a
+  // WASM engine that gets externalized either way. Listing them makes OpenNext
+  // copy the packages AND their deps into the server function; shiki is also
+  // pinned as a direct dependency so it hoists to the node_modules root where
+  // the external shim resolves it (nested-only broke /assistant on Lambda).
   serverExternalPackages: [
     "quickjs-emscripten-core",
     "@jitl/quickjs-singlefile-cjs-release-sync",
+    "shiki",
   ],
   experimental: {
     serverActions: {

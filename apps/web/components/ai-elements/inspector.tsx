@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { StepList } from "./step-trace";
 import { SourceList, collectSources } from "./citations";
-import type { ToolPart } from "./tool";
+import type { ToolPart } from "./step-trace";
 
 /*
  * Inspector panel beside the chat: the agent's tool steps for the active answer

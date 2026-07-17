@@ -26,8 +26,11 @@ export function PageTabs({
 
   // Support deep-linking and in-page links to a tab via the URL hash (e.g.
   // #audit). Activates the matching tab on load and on any hash change.
+  // Depend on the id list, not the tabs array: callers pass inline array
+  // literals, which would tear down and re-add the listener every render.
+  const idKey = tabs.map((t) => t.id).join(",");
   useEffect(() => {
-    const ids = new Set(tabs.map((t) => t.id));
+    const ids = new Set(idKey.split(","));
     const apply = () => {
       const id = window.location.hash.slice(1);
       if (id && ids.has(id)) setActive(id);
@@ -35,7 +38,7 @@ export function PageTabs({
     apply();
     window.addEventListener("hashchange", apply);
     return () => window.removeEventListener("hashchange", apply);
-  }, [tabs]);
+  }, [idKey]);
 
   return (
     <>

@@ -31,7 +31,7 @@ import {
 } from "@/components/ai-elements/citations";
 import { Inspector } from "@/components/ai-elements/inspector";
 import { useResizableWidth, ResizeHandle } from "@/components/resizable";
-import type { ToolPart } from "@/components/ai-elements/tool";
+import type { ToolPart } from "@/components/ai-elements/step-trace";
 import { loadCustomTools } from "@/lib/custom-tools";
 import { loadConfig } from "@/lib/routing-rules";
 import { cn } from "@/lib/utils";
@@ -313,24 +313,27 @@ export default function ChatPage() {
 
   // Persist the active conversation when a turn settles (not mid-stream). An
   // empty chat is never saved; it joins the history on its first message.
+  // State updaters must stay pure (StrictMode double-invokes them), so the
+  // next list is computed first and persisted outside the setter.
   useEffect(() => {
     if (!hydrated || !currentId) return;
     if (status === "submitted" || status === "streaming") return;
     if (messages.length === 0) return;
     const ws = activeWorkspace();
-    setConversations((prev) => {
-      const entry: Convo = {
-        id: currentId,
-        title: titleFromMessages(messages),
-        messages,
-        updatedAt: Date.now(),
-      };
-      const next = prev.some((c) => c.id === currentId)
-        ? prev.map((c) => (c.id === currentId ? entry : c))
-        : [entry, ...prev];
-      saveConversations(ws, next);
-      return next;
-    });
+    const entry: Convo = {
+      id: currentId,
+      title: titleFromMessages(messages),
+      messages,
+      updatedAt: Date.now(),
+    };
+    const next = conversations.some((c) => c.id === currentId)
+      ? conversations.map((c) => (c.id === currentId ? entry : c))
+      : [entry, ...conversations];
+    setConversations(next);
+    saveConversations(ws, next);
+    // conversations is deliberately omitted: this effect writes it, and keying
+    // on it as well would loop the persist cycle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, status, hydrated, currentId]);
 
   // The inspector panel only replaces the inline trace/sources on xl+ screens,
@@ -466,27 +469,26 @@ export default function ChatPage() {
   }
 
   function deleteChat(id: string) {
+    // Compute the next list first: setState updaters must stay pure
+    // (StrictMode double-invokes them), so persistence and the other state
+    // transitions happen out here, not inside a setter.
     const ws = activeWorkspace();
-    setConversations((prev) => {
-      const next = prev.filter((c) => c.id !== id);
-      saveConversations(ws, next);
-      if (id === currentId) {
-        if (next.length > 0) {
-          setCurrentId(next[0].id);
-          saveCurrentId(ws, next[0].id);
-          setMessages(next[0].messages);
-        } else {
-          // Deleting the last conversation leaves an empty chat, not saved.
-          const id = newConversationId();
-          setCurrentId(id);
-          saveCurrentId(ws, id);
-          setMessages([]);
-          saveConversations(ws, []);
-          return [];
-        }
+    const next = conversations.filter((c) => c.id !== id);
+    setConversations(next);
+    saveConversations(ws, next);
+    if (id === currentId) {
+      if (next.length > 0) {
+        setCurrentId(next[0].id);
+        saveCurrentId(ws, next[0].id);
+        setMessages(next[0].messages);
+      } else {
+        // Deleting the last conversation leaves an empty chat, not saved.
+        const freshId = newConversationId();
+        setCurrentId(freshId);
+        saveCurrentId(ws, freshId);
+        setMessages([]);
       }
-      return next;
-    });
+    }
   }
 
   const composer = (large: boolean) => (
@@ -557,7 +559,7 @@ export default function ChatPage() {
                     type="button"
                     aria-label={`Delete ${c.title || "chat"}`}
                     onClick={() => deleteChat(c.id)}
-                    className="ml-0.5 rounded-md p-1 text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100"
+                    className="ml-0.5 rounded-md p-1 text-muted-foreground opacity-0 hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -570,6 +572,9 @@ export default function ChatPage() {
 
       <ResizeHandle
         onPointerDown={history.onPointerDown}
+        onKeyDown={history.onKeyDown}
+        value={history}
+        label="Resize the chat history panel"
         className="hidden md:block"
       />
 
@@ -638,9 +643,9 @@ export default function ChatPage() {
               An assistant for tax officers
             </span>
             <div className="flex flex-col gap-4">
-              <h2 className="text-4xl font-semibold tracking-tight text-navy sm:text-5xl">
+              <h1 className="text-4xl font-semibold tracking-tight text-navy sm:text-5xl">
                 Answers from your own documents.
-              </h2>
+              </h1>
               <p className="mx-auto max-w-md text-base leading-relaxed text-muted-foreground">
                 Ask about the rules, draft a reply for your review, or triage a
                 case. Every answer is grounded in this workspace&apos;s documents,
@@ -694,6 +699,21 @@ export default function ChatPage() {
                     }
                     onClick={
                       selectable ? () => setActiveMsgId(message.id) : undefined
+                    }
+                    onKeyDown={
+                      selectable
+                        ? (e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setActiveMsgId(message.id);
+                            }
+                          }
+                        : undefined
+                    }
+                    role={selectable ? "button" : undefined}
+                    tabIndex={selectable ? 0 : undefined}
+                    aria-label={
+                      selectable ? "Show this answer in the inspector" : undefined
                     }
                     className={cn(
                       selectable &&
@@ -807,7 +827,12 @@ export default function ChatPage() {
       {/* Inspector: agent steps + cited sources for the active answer (xl+) */}
       {isWide ? (
         <>
-          <ResizeHandle onPointerDown={inspector.onPointerDown} />
+          <ResizeHandle
+            onPointerDown={inspector.onPointerDown}
+            onKeyDown={inspector.onKeyDown}
+            value={inspector}
+            label="Resize the inspector panel"
+          />
           <aside
             style={{ width: inspector.width }}
             className="flex shrink-0 flex-col border-l bg-card"

@@ -37,6 +37,9 @@ export const SYSTEM_PROMPT_NAME = "assistant-system";
 
 const promptCache = new Map<string, { value: string; at: number }>();
 const PROMPT_CACHE_MS = 60_000;
+// Workspace slugs come from an unauthenticated cookie, so cap the cache: a
+// client minting distinct slugs must not grow a warm instance without bound.
+const PROMPT_CACHE_MAX = 100;
 
 /**
  * Resolve a workspace's system prompt from the prompt store's active version,
@@ -55,6 +58,11 @@ export async function resolveSystemPrompt(
     value = (await getActivePromptContent(SYSTEM_PROMPT_NAME, workspace)) ?? SYSTEM;
   } catch {
     // Store unreadable: serve the compiled-in default rather than failing.
+  }
+  if (promptCache.size >= PROMPT_CACHE_MAX && !promptCache.has(workspace)) {
+    // Simple LRU-ish eviction: drop the oldest entry.
+    const oldest = promptCache.keys().next().value;
+    if (oldest !== undefined) promptCache.delete(oldest);
   }
   promptCache.set(workspace, { value, at: Date.now() });
   return value;

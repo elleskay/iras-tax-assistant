@@ -5,15 +5,19 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Design system: shadcn/ui token structure carrying our brand.
- * Brand: "Accessible and Ethical" (WCAG-oriented, the right fit for a tax /
- * government product), high-contrast navy + blue, never AI-purple gradients.
- * UI patterns (ui-ux-pro-max): AI-Native chat + Soft UI Evolution depth.
- * Type: Lexend (headings, engineered for reading) + Source Sans 3 (body).
+ * Design system: "precision console". shadcn/ui token structure carrying the
+ * brand: near-black zinc neutrals, one refined blue accent, and a single
+ * signature gradient (blue to cyan) reserved for the brand mark, the hero,
+ * and primary CTAs. Depth comes from hairline borders plus soft layered
+ * shadows, never heavy boxes. WCAG AA contrast in both themes.
+ * Type: Space Grotesk (headings) + DM Sans (body), tabular numerals for data.
+ *
+ * Historical token names (navy, gold, brand-from/to, shadow-soft/card/pop) are
+ * kept so every page keeps working; only their values changed.
  */
 @theme inline {
   --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-heading: var(--font-lexend), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-heading-src), ui-sans-serif, system-ui, sans-serif;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -43,109 +47,130 @@
   --color-gold: var(--gold);
   --color-gold-foreground: var(--gold-foreground);
 
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
 
-  --shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.06);
-  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.05), 0 10px 28px rgba(15, 23, 42, 0.07);
-  --shadow-pop: 0 10px 30px rgba(3, 105, 161, 0.22);
+  --shadow-soft: var(--shadow-soft);
+  --shadow-card: var(--shadow-card);
+  --shadow-pop: var(--shadow-pop);
 
   --animate-msg-in: msg-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 :root {
-  /* Palette:
-     navy #142e4f (hero/headings), blue #2d7bb9 (buttons/links),
-     gold #ffce00 (accent), pale-blue pill #d6edff, light surface #f2f5fa. */
-  --radius: 0.5rem;
+  /* Neutrals: cool zinc ramp. Accent: blue (oklch hue 255). The gradient
+     runs deep blue (brand-from) to cyan (brand-to). */
+  --radius: 0.625rem;
   color-scheme: light;
 
-  --background: #f2f5fa; /* light surface */
-  --foreground: #2a3138; /* body text */
-  --heading: #142e4f; /* navy, used for headings */
-  --navy: #142e4f;
-  --gold: #ffce00; /* gold accent */
-  --gold-foreground: #142e4f;
-  --card: #ffffff;
-  --card-foreground: #2a3138;
-  --popover: #ffffff;
-  --popover-foreground: #2a3138;
+  --background: oklch(0.985 0.002 264);
+  --foreground: oklch(0.3 0.015 268);
+  --heading: oklch(0.21 0.02 268); /* used by h1-h6 */
+  --navy: oklch(0.21 0.02 268); /* legacy name: heading ink */
+  --gold: oklch(0.85 0.14 88); /* amber highlight (badges) */
+  --gold-foreground: oklch(0.32 0.06 75);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.3 0.015 268);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.3 0.015 268);
 
-  --primary: #2d7bb9; /* blue */
-  --primary-foreground: #ffffff;
-  --secondary: #d6edff; /* pale-blue category pill */
-  --secondary-foreground: #142e4f;
-  --muted: #eef2f8;
-  --muted-foreground: #5c6672; /* >= 4.5:1 on background */
-  --accent: #d6edff; /* pale blue for hovers/tints */
-  --accent-foreground: #142e4f;
+  --primary: oklch(0.5 0.2 255); /* blue */
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.94 0.026 255); /* blue tint: active pills */
+  --secondary-foreground: oklch(0.35 0.11 255);
+  --muted: oklch(0.955 0.005 264);
+  --muted-foreground: oklch(0.485 0.018 266); /* >= 4.5:1 on background */
+  --accent: oklch(0.95 0.018 255); /* hover tint / icon chips */
+  --accent-foreground: oklch(0.3 0.06 255);
 
-  --destructive: #b91c1c;
-  --success: #047857;
-  --success-foreground: #ffffff;
-  --warning: #fdf2d1; /* pale gold */
-  --warning-foreground: #6b4e07;
+  --destructive: oklch(0.53 0.21 27);
+  --success: oklch(0.5 0.13 162);
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.955 0.05 92); /* pale amber surface */
+  --warning-foreground: oklch(0.42 0.09 78);
 
-  --border: #d2dce8;
-  --input: #c4d2e2;
-  --ring: #2d7bb9;
+  --border: oklch(0.915 0.006 264);
+  --input: oklch(0.875 0.008 264);
+  --ring: oklch(0.5 0.2 255);
 
-  /* Brand-mark gradient (navy to blue) */
-  --brand-from: #142e4f;
-  --brand-to: #2d7bb9;
+  /* Signature gradient (deep blue to cyan) */
+  --brand-from: oklch(0.48 0.2 258);
+  --brand-to: oklch(0.6 0.16 225);
 
-  --sidebar: #ffffff;
-  --sidebar-foreground: #2a3138;
-  --sidebar-primary: #2d7bb9;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #d6edff;
-  --sidebar-accent-foreground: #142e4f;
-  --sidebar-border: #d2dce8;
-  --sidebar-ring: #2d7bb9;
+  /* Depth: hairline borders carry structure; shadows add lift. */
+  --shadow-soft:
+    0 1px 2px oklch(0.25 0.03 270 / 0.05),
+    0 2px 10px -2px oklch(0.25 0.03 270 / 0.07);
+  --shadow-card:
+    0 2px 4px oklch(0.25 0.03 270 / 0.05),
+    0 14px 34px -10px oklch(0.25 0.03 270 / 0.14);
+  --shadow-pop: 0 10px 30px -6px oklch(0.5 0.2 255 / 0.4);
+
+  --sidebar: oklch(0.975 0.003 264);
+  --sidebar-foreground: oklch(0.3 0.015 268);
+  --sidebar-primary: oklch(0.5 0.2 255);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.95 0.018 255);
+  --sidebar-accent-foreground: oklch(0.3 0.06 255);
+  --sidebar-border: oklch(0.915 0.006 264);
+  --sidebar-ring: oklch(0.5 0.2 255);
 }
 
 .dark {
-  /* Neutral black / grey / white base, with a deeper blue accent for icons. */
   color-scheme: dark; /* native controls (select dropdown, scrollbars) go dark */
-  --background: #0a0a0b; /* near-black */
-  --foreground: #ededee; /* off-white */
-  --heading: #f4f4f5;
-  --navy: #e4e4e7; /* titles read as light grey */
-  --card: #161618; /* dark grey surface */
-  --card-foreground: #ededee;
-  --popover: #161618;
-  --popover-foreground: #ededee;
-  --primary: #2d7bb9; /* same blue as the light theme */
-  --primary-foreground: #ffffff;
-  --secondary: #242427; /* grey active pill */
-  --secondary-foreground: #ededee;
-  --muted: #1c1c1f;
-  --muted-foreground: #a1a1aa; /* grey */
-  --accent: #1f1f22; /* grey hover / icon chip */
-  --accent-foreground: #ededee;
-  --destructive: #ef4444;
-  --success: #22c55e;
-  --success-foreground: #06121f;
-  --warning: #2a2410;
-  --warning-foreground: #fbbf24;
-  --gold: #fbbf24;
-  --gold-foreground: #0a0a0b;
-  --border: #2a2a2e;
-  --input: #303035;
-  --ring: #2d7bb9;
-  --brand-from: #142e4f; /* navy to blue, as the light theme */
-  --brand-to: #2d7bb9;
-  --sidebar: #161618;
-  --sidebar-foreground: #ededee;
-  --sidebar-primary: #2d7bb9;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1f1f22;
-  --sidebar-accent-foreground: #ededee;
-  --sidebar-border: #2a2a2e;
-  --sidebar-ring: #2d7bb9;
+  --background: oklch(0.144 0.006 270);
+  --foreground: oklch(0.92 0.004 264);
+  --heading: oklch(0.965 0.003 264);
+  --navy: oklch(0.965 0.003 264); /* titles read as near-white */
+  --card: oklch(0.185 0.007 270);
+  --card-foreground: oklch(0.92 0.004 264);
+  --popover: oklch(0.2 0.008 270);
+  --popover-foreground: oklch(0.92 0.004 264);
+
+  --primary: oklch(0.62 0.19 255); /* brighter blue for dark surfaces */
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.28 0.05 255);
+  --secondary-foreground: oklch(0.9 0.03 255);
+  --muted: oklch(0.225 0.008 270);
+  --muted-foreground: oklch(0.72 0.012 266);
+  --accent: oklch(0.245 0.025 255);
+  --accent-foreground: oklch(0.9 0.02 255);
+
+  --destructive: oklch(0.66 0.2 25);
+  --success: oklch(0.72 0.16 162);
+  --success-foreground: oklch(0.16 0.03 165);
+  --warning: oklch(0.27 0.05 88);
+  --warning-foreground: oklch(0.85 0.12 90);
+  --gold: oklch(0.83 0.14 88);
+  --gold-foreground: oklch(0.2 0.04 80);
+
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.62 0.19 255);
+
+  --brand-from: oklch(0.55 0.19 258);
+  --brand-to: oklch(0.68 0.15 225);
+
+  /* Dark depth: shadows recede, borders and subtle inner light do the work. */
+  --shadow-soft:
+    0 1px 2px oklch(0 0 0 / 0.3),
+    0 2px 10px -2px oklch(0 0 0 / 0.3);
+  --shadow-card:
+    0 2px 4px oklch(0 0 0 / 0.3),
+    0 16px 40px -12px oklch(0 0 0 / 0.5);
+  --shadow-pop: 0 10px 30px -6px oklch(0.62 0.19 255 / 0.35);
+
+  --sidebar: oklch(0.163 0.006 270);
+  --sidebar-foreground: oklch(0.92 0.004 264);
+  --sidebar-primary: oklch(0.62 0.19 255);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.245 0.025 255);
+  --sidebar-accent-foreground: oklch(0.9 0.02 255);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.62 0.19 255);
 }
 
 @layer base {
@@ -162,14 +187,44 @@
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading);
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
     color: var(--heading);
+  }
+  h1 {
+    letter-spacing: -0.03em;
   }
 }
 
-/* Visible focus ring for keyboard users (3px, Accessible and Ethical) */
+@layer utilities {
+  /* Signature gradient as text (decorative; the text itself stays selectable
+     and readable by assistive tech). */
+  .text-gradient {
+    background-image: linear-gradient(100deg, var(--brand-from), var(--brand-to));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Faint blueprint grid for hero surfaces; fades out via mask. */
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, var(--border) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black 30%, transparent 75%);
+  }
+
+  /* Radial accent glow behind hero content. */
+  .hero-glow {
+    background:
+      radial-gradient(38rem 16rem at 50% 0%, oklch(from var(--brand-from) l c h / 0.16), transparent 70%),
+      radial-gradient(24rem 12rem at 68% 10%, oklch(from var(--brand-to) l c h / 0.1), transparent 70%);
+  }
+}
+
+/* Visible focus ring for keyboard users */
 :focus-visible {
-  outline: 3px solid var(--ring);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
   border-radius: 6px;
 }

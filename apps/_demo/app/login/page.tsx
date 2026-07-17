@@ -1,10 +1,18 @@
 import { signIn } from "@/auth";
 import { AuthError } from "next-auth";
 import { redirect } from "next/navigation";
+import { z } from "zod";
+
+// Zod at the server-action boundary (platform convention): only same-origin
+// paths are accepted; anything else falls back to the dashboard.
+const CallbackUrl = z
+  .string()
+  .regex(/^\/(?!\/)/)
+  .catch("/dashboard");
 
 async function loginAction(formData: FormData) {
   "use server";
-  const callbackUrl = (formData.get("callbackUrl") as string) || "/dashboard";
+  const callbackUrl = CallbackUrl.parse(formData.get("callbackUrl"));
   try {
     await signIn("credentials", {
       email: formData.get("email"),
@@ -13,7 +21,10 @@ async function loginAction(formData: FormData) {
     });
   } catch (error) {
     if (error instanceof AuthError) {
-      redirect(`/login?error=${encodeURIComponent(error.type)}`);
+      // Keep the callbackUrl so a retry still lands where the user meant to go.
+      redirect(
+        `/login?error=${encodeURIComponent(error.type)}&callbackUrl=${encodeURIComponent(callbackUrl)}`,
+      );
     }
     throw error;
   }

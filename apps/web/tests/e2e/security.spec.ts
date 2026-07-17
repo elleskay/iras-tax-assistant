@@ -12,3 +12,17 @@ specTest(
   },
   { category: "security" },
 );
+
+specTest(
+  "TAX-SEC-002",
+  "robots.txt blocks crawler-triggered model calls",
+  async ({ page }) => {
+    const response = await page.goto("/robots.txt");
+    expect(response).not.toBeNull();
+    expect(response!.status()).toBe(200);
+    const body = await response!.text();
+    expect(body).toContain("Disallow: /*?q=");
+    expect(body).toContain("Disallow: /api/");
+  },
+  { category: "security" },
+);

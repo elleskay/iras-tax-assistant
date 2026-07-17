@@ -22,6 +22,7 @@ def client(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("RAG_DATA_DIR", str(tmp))
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("RAG_SERVICE_TOKEN", raising=False)
     # Smaller vectors keep the fake embedding fast.
     monkeypatch.setenv("RAG_EMBED_DIM", "64")
 

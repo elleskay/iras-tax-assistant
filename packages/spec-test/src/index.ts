@@ -4,7 +4,8 @@ export {
   RequirementSeverity,
   SpecFile,
 } from "./schema.js";
-export { parseSpec, getRequirementIds, SpecParseError } from "./parser.js";
+export { parseSpec, SpecParseError } from "./parser.js";
+export { BARE_SPEC_ID_RE, BRACKETED_SPEC_ID_RE } from "./spec-id.js";
 export {
   recordCoverage,
   readCoverage,

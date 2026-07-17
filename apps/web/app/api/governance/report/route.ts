@@ -34,7 +34,7 @@ function buildReport(stats: GovernanceStats, policy: GovernancePolicy): string {
   ).join("\n");
 
   const rules = policy.routing.rules
-    .map((r) => `- \`${r.id}\`: ${r.reason} → ${r.modelId} (keywords: ${r.keywords.join(", ")})`)
+    .map((r) => `- \`${r.id}\`: ${r.reason} routes to ${r.modelId} (keywords: ${r.keywords.join(", ")})`)
     .join("\n");
 
   return `# AI Risk Assessment (AI Tax Assistant Platform demo)

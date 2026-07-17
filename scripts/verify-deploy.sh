@@ -133,6 +133,22 @@ check_no_lambda_url_leak() {
   fi
 }
 
+# 10. App pages render. EXTRA_SMOKE_PAGES is a space-separated list of paths
+# the deploy workflow passes per app (e.g. "/assistant"). Catches page-level
+# SSR failures the root check misses: a broken module in one page's server
+# bundle 500s only that page (this exact gap shipped a broken /assistant).
+check_extra_pages() {
+  local p code failed=0
+  for p in $EXTRA_SMOKE_PAGES; do
+    code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 15 "$URL$p")
+    if [ "$code" != "200" ]; then
+      note "$p returned $code"
+      failed=1
+    fi
+  done
+  return $failed
+}
+
 check "Health endpoint (optional)" check_health
 
 if [ "$MODE" = "auth" ]; then
@@ -140,6 +156,10 @@ if [ "$MODE" = "auth" ]; then
   check "/login renders" check_login_page
 else
   check "Root renders" check_root_renders
+fi
+
+if [ -n "${EXTRA_SMOKE_PAGES:-}" ]; then
+  check "App pages render ($EXTRA_SMOKE_PAGES)" check_extra_pages
 fi
 
 check "Security headers present" check_security_headers

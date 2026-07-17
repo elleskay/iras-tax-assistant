@@ -1,13 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Brand mark: matches the app's signature gradient tokens
+       (brand-from oklch(0.48 0.2 258), brand-to oklch(0.6 0.16 225)). -->
   <defs>
     <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#142e4f"/>
-      <stop offset="1" stop-color="#2d7bb9"/>
+      <stop offset="0" stop-color="#0054cb"/>
+      <stop offset="1" stop-color="#0091c7"/>
     </linearGradient>
   </defs>
-  <rect width="32" height="32" rx="7" fill="url(#g)"/>
+  <rect width="32" height="32" rx="8" fill="url(#g)"/>
   <rect x="10" y="8.5" width="12" height="15.5" rx="1.5" fill="#fff"/>
-  <g fill="#2d7bb9">
+  <g fill="#005dd1">
     <rect x="12.4" y="11" width="2.6" height="2.6" rx="0.4"/>
     <rect x="17" y="11" width="2.6" height="2.6" rx="0.4"/>
     <rect x="12.4" y="15.2" width="2.6" height="2.6" rx="0.4"/>

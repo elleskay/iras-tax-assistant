@@ -106,14 +106,16 @@ def test_reindex_is_upsert(client):
         "filename": "f.txt",
         "text": "Goods and Services Tax applies to most supplies of goods and services.",
     }
-    client.post("/index", json={"workspace": workspace, "documents": [doc]})
+    r1 = client.post("/index", json={"workspace": workspace, "documents": [doc]})
+    first_chunks = r1.json()["indexed_chunks"]
     client.post("/index", json={"workspace": workspace, "documents": [doc]})
 
     r = client.get(f"/workspaces/{workspace}/documents")
     docs = r.json()["documents"]
     assert len(docs) == 1
-    # Re-indexing must not double-count chunks.
     assert docs[0]["doc_id"] == "d1"
+    # Re-indexing must not double-count chunks.
+    assert docs[0]["chunk_count"] == first_chunks
 
 
 def test_invalid_workspace_rejected(client):

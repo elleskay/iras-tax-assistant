@@ -11,14 +11,10 @@ Run from services/insights/:
 from __future__ import annotations
 
 import json
-import sys
-from pathlib import Path
 
-# make the package importable when pytest is run from services/insights/
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from insights_pipeline.datagen import WORKSPACES  # noqa: E402
-from insights_pipeline.pipeline import run_pipeline, write_insights  # noqa: E402
+# Package import path is handled by services/insights/conftest.py.
+from insights_pipeline.datagen import WORKSPACES
+from insights_pipeline.pipeline import run_pipeline, write_insights
 
 _WORKSPACE_KEYS = {"individual-income", "corporate"}
 _SECTIONS = ("trainingNeeds", "docGaps", "processImprovements")
@@ -58,9 +54,17 @@ def test_pipeline_runs_offline_fallback():
         for pi in ws["processImprovements"]:
             assert {"topic", "avgTurns", "avgSteps", "avgTimeSeconds", "count"} <= pi.keys()
 
+        # clusters sharing a dominant label are merged, so no section may list
+        # the same topic twice (the pre-merge pipeline shipped duplicates)
+        training_labels = [tn["label"] for tn in ws["trainingNeeds"]]
+        assert len(training_labels) == len(set(training_labels))
+        for section in ("docGaps", "processImprovements"):
+            topics = [item["topic"] for item in ws[section]]
+            assert len(topics) == len(set(topics)), f"{key}.{section} has duplicate topics"
 
-def test_process_improvements_have_higher_effort_than_training(tmp_path):
-    """The story should hold: process-improvement topics cost more effort."""
+
+def test_process_improvements_reflect_high_effort(tmp_path):
+    """The story should hold: process-improvement topics cost real effort."""
     data = run_pipeline(prefer="numpy", k=8, seed=7, n=500)
     for key in _WORKSPACE_KEYS:
         ws = data[key]

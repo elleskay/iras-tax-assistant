@@ -19,7 +19,8 @@ export const authConfig = {
         return true;
       }
 
-      // Allow everything else by default. Apps add role-based checks here.
+      // Default-deny: every other route requires a session and redirects to
+      // /login otherwise. Apps add role-based checks here on top.
       if (!isLoggedIn) {
         const signinUrl = new URL("/login", nextUrl);
         signinUrl.searchParams.set("callbackUrl", nextUrl.pathname);

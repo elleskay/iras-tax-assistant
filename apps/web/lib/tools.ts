@@ -41,6 +41,3 @@ export function buildTaxTools(workspace: string = DEFAULT_WORKSPACE): ToolSet {
 
   return tools;
 }
-
-/** Default tool set (RAG only when configured), used where no workspace is given. */
-export const taxTools = buildTaxTools();

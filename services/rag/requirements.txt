@@ -9,7 +9,11 @@ llama-index-embeddings-openai==0.3.1
 llama-index-vector-stores-postgres==0.4.2
 
 # --- Postgres / pgvector driver stack (used only when DATABASE_URL is set) ---
-psycopg[binary]==3.2.3
+# psycopg2-binary is the driver the code and llama-index-vector-stores-postgres
+# actually use (a declared dependency of that package; pinned so the resolved
+# version is explicit). The previous psycopg[binary] v3 pin was a second full
+# driver stack that never ran.
+psycopg2-binary==2.9.10
 asyncpg==0.30.0
 sqlalchemy==2.0.36
 pgvector==0.3.6

@@ -28,7 +28,9 @@ export default defineConfig({
   webServer: process.env.PLAYWRIGHT_BASE_URL
     ? undefined
     : {
-        command: "npm run start",
+        // start requires a prior next build; building here keeps the
+        // documented `npm run test:spec` chain working on a fresh checkout.
+        command: "npm run build && npm run start",
         url: baseURL,
         reuseExistingServer: !process.env.CI,
         timeout: 60_000,

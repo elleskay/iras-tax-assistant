@@ -2,14 +2,15 @@
 # Rename `app` to your real Fly app name, then `fly deploy`.
 #
 # Secrets (set with `fly secrets set ...`, NOT here):
-#   OPENAI_API_KEY  — required for real embeddings
-#   DATABASE_URL    — Neon Postgres connection string with pgvector enabled
+#   OPENAI_API_KEY     - required for real embeddings
+#   DATABASE_URL       - Neon Postgres connection string with pgvector enabled
+#   RAG_SERVICE_TOKEN  - bearer token; without it every endpoint is public
 #
 # Leaving DATABASE_URL unset makes the service use the local file store, which
-# is NOT durable on Fly (the filesystem is ephemeral) — set it for any real use.
+# is NOT durable on Fly (the filesystem is ephemeral): set it for any real use.
 
 app = "iras-rag"
-primary_region = "sin"   # Singapore — closest to our users
+primary_region = "sin"   # Singapore, closest to our users
 
 [build]
   dockerfile = "Dockerfile"

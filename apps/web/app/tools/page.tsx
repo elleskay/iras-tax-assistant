@@ -309,7 +309,7 @@ function ToolBuilder({ initial, onSave, onCancel }: { initial: CustomTool | null
     <div className="flex flex-col gap-5">
         <div className="flex flex-wrap gap-2">
           {(["lookup", "template", "code"] as const).map((k) => (
-            <button key={k} type="button" onClick={() => setKind(k)} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${kind === k ? "border-primary bg-accent text-accent-foreground" : "text-muted-foreground"}`}>
+            <button key={k} type="button" onClick={() => setKind(k)} aria-pressed={kind === k} className={`rounded-md border px-3 py-1.5 text-sm font-medium ${kind === k ? "border-primary bg-accent text-accent-foreground" : "text-muted-foreground"}`}>
               {k === "lookup" ? "Lookup table" : k === "template" ? "Response template" : "Code (sandboxed)"}
             </button>
           ))}

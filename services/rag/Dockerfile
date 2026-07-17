@@ -22,9 +22,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 # App code.
 COPY app ./app
 
-# Local-fallback data dir (only used when DATABASE_URL is unset).
-RUN mkdir -p /app/.data
+# Run as a non-root user: an RCE in any dependency should not get root.
+# The local-fallback data dir (only used when DATABASE_URL is unset) is the
+# one path the app writes to.
+RUN useradd --system --uid 10001 --no-create-home app \
+    && mkdir -p /app/.data \
+    && chown app:app /app/.data
 ENV RAG_DATA_DIR=/app/.data
+USER app
 
 EXPOSE 8080
 

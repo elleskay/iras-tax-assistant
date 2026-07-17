@@ -1,6 +1,9 @@
-"""Pydantic request/response models — the public HTTP contract.
+"""Pydantic request/response models: the public HTTP contract.
 
 Field names here are the JSON keys a client sends/receives. Keep them stable.
+Size caps mirror the web app's own limits (apps/web/app/api/knowledge/route.ts)
+so an unauthenticated caller cannot push unbounded text into paid embedding
+calls; raise both sides together if the limits ever change.
 """
 
 from __future__ import annotations
@@ -14,13 +17,22 @@ from pydantic import BaseModel, Field
 class DocumentInput(BaseModel):
     """A single source document to be chunked and embedded."""
 
-    doc_id: str = Field(..., min_length=1, description="Stable, caller-owned document id.")
-    filename: str = Field(..., min_length=1, description="Original file name, used for citation.")
-    text: str = Field(..., min_length=1, description="Full plain-text content of the document.")
+    doc_id: str = Field(
+        ..., min_length=1, max_length=160, description="Stable, caller-owned document id."
+    )
+    filename: str = Field(
+        ..., min_length=1, max_length=255, description="Original file name, used for citation."
+    )
+    text: str = Field(
+        ...,
+        min_length=1,
+        max_length=200_000,
+        description="Full plain-text content of the document.",
+    )
 
 
 class SourceRef(BaseModel):
-    """Where a retrieved chunk came from — used to render citations."""
+    """Where a retrieved chunk came from, used to render citations."""
 
     doc_id: str
     filename: str
@@ -46,8 +58,10 @@ class DocumentSummary(BaseModel):
 # /index
 # --------------------------------------------------------------------------- #
 class IndexRequest(BaseModel):
-    workspace: str = Field(..., min_length=1, description="Tenant / tax-type workspace key.")
-    documents: list[DocumentInput] = Field(..., min_length=1)
+    workspace: str = Field(
+        ..., min_length=1, max_length=63, description="Tenant / tax-type workspace key."
+    )
+    documents: list[DocumentInput] = Field(..., min_length=1, max_length=50)
 
 
 class IndexResponse(BaseModel):
@@ -60,8 +74,8 @@ class IndexResponse(BaseModel):
 # /search
 # --------------------------------------------------------------------------- #
 class SearchRequest(BaseModel):
-    workspace: str = Field(..., min_length=1)
-    query: str = Field(..., min_length=1)
+    workspace: str = Field(..., min_length=1, max_length=63)
+    query: str = Field(..., min_length=1, max_length=2_000)
     top_k: int = Field(default=5, ge=1, le=50)
 
 
@@ -73,8 +87,8 @@ class SearchResponse(BaseModel):
 # DELETE /documents
 # --------------------------------------------------------------------------- #
 class DeleteRequest(BaseModel):
-    workspace: str = Field(..., min_length=1)
-    doc_id: str = Field(..., min_length=1)
+    workspace: str = Field(..., min_length=1, max_length=63)
+    doc_id: str = Field(..., min_length=1, max_length=160)
 
 
 class DeleteResponse(BaseModel):

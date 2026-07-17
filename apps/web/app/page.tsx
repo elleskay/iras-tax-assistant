@@ -155,6 +155,26 @@ const UNDER_THE_HOOD = [
   },
 ];
 
+function SectionHeading({
+  children,
+  sub,
+}: {
+  children: React.ReactNode;
+  sub?: string;
+}) {
+  return (
+    <div className="mb-4">
+      <div className="flex items-center gap-3">
+        <h3 className="shrink-0 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          {children}
+        </h3>
+        <span aria-hidden className="h-px flex-1 bg-border" />
+      </div>
+      {sub ? <p className="mt-1.5 text-sm text-muted-foreground">{sub}</p> : null}
+    </div>
+  );
+}
+
 function FeatureCard({
   icon: Icon,
   title,
@@ -168,11 +188,11 @@ function FeatureCard({
 }) {
   return (
     <Link href={href} className="group block">
-      <Card className="h-full shadow-soft transition-all group-hover:border-primary/40 group-hover:shadow-card">
+      <Card className="h-full shadow-soft transition-all duration-200 group-hover:shadow-card group-hover:ring-primary/30">
         <CardContent className="flex h-full flex-col gap-2.5">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-accent text-primary">
-              <Icon className="h-5 w-5" />
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/15 ring-inset transition-colors group-hover:bg-primary/15">
+              <Icon className="h-4.5 w-4.5" />
             </span>
             <h4 className="text-base font-semibold text-navy">{title}</h4>
           </div>
@@ -185,43 +205,60 @@ function FeatureCard({
 
 export default function PlatformHome() {
   return (
-    <main id="main" className="mx-auto w-full max-w-7xl px-4 py-12 pb-20">
+    <main id="main" className="relative mx-auto w-full max-w-7xl px-4 py-16 pb-20">
+      {/* Hero backdrop: accent glow over a fading blueprint grid */}
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[26rem]">
+        <div className="bg-grid absolute inset-0" />
+        <div className="hero-glow absolute inset-0" />
+      </div>
+
       {/* Hero */}
-      <section className="flex flex-col items-center gap-5 text-center">
+      <section className="flex flex-col items-center gap-6 text-center">
         <span
           aria-hidden
-          className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-from to-brand-to text-white shadow-soft"
+          className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-from to-brand-to text-white shadow-pop ring-1 ring-white/25 ring-inset"
         >
           <Building2 className="h-7 w-7" />
         </span>
-        <h2 className="max-w-3xl text-3xl font-semibold tracking-tight text-navy sm:text-4xl">
-          One governed AI assistant per department
-        </h2>
-        <p className="max-w-2xl text-base leading-relaxed text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-card/70 px-3 py-1 text-xs font-medium text-muted-foreground shadow-soft backdrop-blur">
+          <ShieldCheck aria-hidden className="h-3.5 w-3.5 text-primary" />
+          Grounded, cited, and audited by design
+        </span>
+        <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-navy sm:text-5xl">
+          One <span className="text-gradient">governed</span> AI assistant per
+          department
+        </h1>
+        <p className="max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
           Every department gets its own workspace and a document-grounded assistant
           for officers, to ask questions, draft replies for review, and triage
           cases. Answers are cited, and every model call is routed, logged, and
           costed under one platform-wide governance standard.
         </p>
-        <Link
-          href="/workspaces"
-          className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-gradient-to-br from-brand-from to-brand-to px-5 font-medium text-white shadow-soft transition-all hover:shadow-pop"
-        >
-          Browse workspaces <ArrowRight className="h-4 w-4" />
-        </Link>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Link
+            href="/workspaces"
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-gradient-to-br from-brand-from to-brand-to px-5 font-medium text-white shadow-soft transition-all duration-200 hover:shadow-pop"
+          >
+            Browse workspaces <ArrowRight className="h-4 w-4" />
+          </Link>
+          <Link
+            href="/assistant"
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg border bg-card px-5 font-medium text-foreground shadow-soft transition-all duration-200 hover:bg-accent"
+          >
+            Try the assistant
+          </Link>
+        </div>
       </section>
 
       {/* Two capabilities */}
-      <section className="mt-14">
-        <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Two capabilities
-        </h3>
+      <section className="mt-16">
+        <SectionHeading>Two capabilities</SectionHeading>
         <div className="grid gap-4 md:grid-cols-2">
           {CAPABILITIES.map(({ icon: Icon, title, body, href, cta }) => (
-            <Card key={title} className="shadow-soft transition-shadow hover:shadow-card">
+            <Card key={title} className="group shadow-soft transition-all duration-200 hover:shadow-card hover:ring-primary/30">
               <CardContent className="flex h-full flex-col gap-3">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-md bg-accent text-primary">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-brand-from to-brand-to text-white shadow-soft ring-1 ring-white/20 ring-inset">
                     <Icon className="h-5 w-5" />
                   </span>
                   <h4 className="text-lg font-semibold text-navy">{title}</h4>
@@ -233,7 +270,8 @@ export default function PlatformHome() {
                   href={href}
                   className="inline-flex items-center gap-1 text-sm font-medium text-primary"
                 >
-                  {cta} <ArrowRight className="h-4 w-4" />
+                  {cta}{" "}
+                  <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
                 </Link>
               </CardContent>
             </Card>
@@ -242,14 +280,10 @@ export default function PlatformHome() {
       </section>
 
       {/* In each workspace */}
-      <section className="mt-14">
-        <h3 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+      <section className="mt-16">
+        <SectionHeading sub="Scoped to the department you select. Documents, chat history, tools, and instructions stay per workspace.">
           In each workspace
-        </h3>
-        <p className="mb-4 text-sm text-muted-foreground">
-          Scoped to the department you select. Documents, chat history, tools, and
-          instructions stay per workspace.
-        </p>
+        </SectionHeading>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {WORKSPACE_FEATURES.map((f) => (
             <FeatureCard key={f.title} {...f} />
@@ -258,14 +292,10 @@ export default function PlatformHome() {
       </section>
 
       {/* Platform-wide governance */}
-      <section className="mt-10">
-        <h3 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+      <section className="mt-12">
+        <SectionHeading sub="One standard across every workspace, with live aggregates and a full audit trail.">
           Platform-wide governance
-        </h3>
-        <p className="mb-4 text-sm text-muted-foreground">
-          One standard across every workspace, with live aggregates and a full
-          audit trail.
-        </p>
+        </SectionHeading>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {PLATFORM_FEATURES.map((f) => (
             <FeatureCard key={f.title} {...f} />
@@ -274,22 +304,16 @@ export default function PlatformHome() {
       </section>
 
       {/* Under the hood */}
-      <section className="mt-14">
-        <h3 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+      <section className="mt-16">
+        <SectionHeading sub="Three pieces across two runtimes: a Next.js app (the agent, gateway, routing, evals, and governance), a Python RAG service, and a Python insights pipeline. Built so every model decision is deterministic, logged, and reversible.">
           Under the hood
-        </h3>
-        <p className="mb-4 max-w-3xl text-sm text-muted-foreground">
-          Three pieces across two runtimes: a Next.js app (the agent, gateway,
-          routing, evals, and governance), a Python RAG service, and a Python
-          insights pipeline. Built so every model decision is deterministic,
-          logged, and reversible.
-        </p>
+        </SectionHeading>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {UNDER_THE_HOOD.map(({ icon: Icon, title, body }) => (
             <Card key={title} className="shadow-soft">
               <CardContent className="flex h-full flex-col gap-2">
-                <span className="flex h-9 w-9 items-center justify-center rounded-md bg-accent text-primary">
-                  <Icon className="h-5 w-5" />
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/15 ring-inset">
+                  <Icon className="h-4.5 w-4.5" />
                 </span>
                 <h4 className="text-sm font-semibold text-navy">{title}</h4>
                 <p className="text-sm leading-relaxed text-muted-foreground">

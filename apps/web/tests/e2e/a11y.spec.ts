@@ -22,7 +22,7 @@ specTest(
     await page.goto("/assistant");
     // Resolves only if the textbox has a non-empty accessible name.
     await expect(
-      page.getByRole("textbox", { name: /ask a tax question/i }),
+      page.getByRole("textbox", { name: /ask the assistant/i }),
     ).toBeVisible();
   },
   { category: "a11y" },

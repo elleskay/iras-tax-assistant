@@ -31,7 +31,7 @@ export interface SendEmailInput {
 export async function sendEmail(input: SendEmailInput): Promise<{ id: string } | null> {
   const c = client();
   if (!c) {
-    console.warn("[email] RESEND_API_KEY not set, skipping send to", input.to);
+    console.warn("[email] RESEND_API_KEY not set, skipping send");
     return null;
   }
 

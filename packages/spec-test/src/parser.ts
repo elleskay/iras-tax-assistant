@@ -51,7 +51,3 @@ export function parseSpec(path: string): ParseResult {
 
   return { spec: result.data, path };
 }
-
-export function getRequirementIds(spec: SpecFileT): Set<string> {
-  return new Set(spec.requirements.map((r) => r.id));
-}

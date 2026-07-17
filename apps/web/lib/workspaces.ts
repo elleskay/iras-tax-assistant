@@ -83,10 +83,3 @@ export async function deleteWorkspace(id: string): Promise<boolean> {
   await store.delete(id);
   return true;
 }
-
-/** Seed the two example workspaces if none have been created yet. Idempotent. */
-export async function ensureSeeded(): Promise<void> {
-  const saved = await store.list();
-  if (saved.length) return;
-  for (const w of SEED_WORKSPACES) await store.put(w.id, w);
-}

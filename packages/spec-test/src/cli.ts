@@ -15,7 +15,9 @@ interface Args {
 function parseArgs(argv: string[]): Args {
   const args: Args = {
     spec: "",
-    coverage: ".spec-coverage/results.jsonl",
+    // Honor the same env var the recorders write to; a hardcoded default here
+    // meant SPEC_COVERAGE_FILE runs read a different file than tests wrote.
+    coverage: process.env.SPEC_COVERAGE_FILE ?? ".spec-coverage/results.jsonl",
     out: "spec-coverage.md",
     strict: true,
   };
@@ -28,6 +30,12 @@ function parseArgs(argv: string[]): Args {
     else if (a === "--help" || a === "-h") {
       printHelp();
       process.exit(0);
+    } else {
+      // A typo like --coverge must not silently fall back to the default path
+      // (which can produce a false green against a stale results file).
+      console.error(`error: unknown argument "${a}"`);
+      printHelp();
+      process.exit(2);
     }
   }
   if (!args.spec) {
@@ -64,7 +72,16 @@ function main(): void {
     throw err;
   }
 
-  const entries = readCoverage(resolve(args.coverage));
+  const coveragePath = resolve(args.coverage);
+  if (!existsSync(coveragePath)) {
+    // Distinguish "no file" from "file with zero entries": the former usually
+    // means the tests did not run (or wrote elsewhere), not zero coverage.
+    console.error(
+      `spec-coverage: coverage file not found at ${coveragePath}; ` +
+        `treating as zero coverage. Did the test run record results?`,
+    );
+  }
+  const entries = readCoverage(coveragePath);
   const report = buildReport(parsed.spec, entries);
   const md = renderMarkdown(parsed.spec, report);
 
@@ -91,9 +108,17 @@ function main(): void {
     for (const f of report.failingRequirements.slice(0, 10)) {
       console.log(`    - ${f.req.id}: ${f.req.title}`);
     }
+    if (report.failingRequirements.length > 10) {
+      console.log(`    ... and ${report.failingRequirements.length - 10} more`);
+    }
   }
   if (report.categoryMismatches.length > 0) {
     console.log(`  category-mismatch: ${report.categoryMismatches.length}`);
+  }
+  if (report.unknownIds.length > 0) {
+    console.log(
+      `  recorded ids not in the spec (typos?): ${report.unknownIds.join(", ")}`,
+    );
   }
   console.log(`  report: ${outPath}`);
 

@@ -1,49 +1,49 @@
 {
   "individual-income": {
     "name": "Individual Income Tax",
-    "generatedAt": "2026-06-28T07:05:05.742195+00:00",
+    "generatedAt": "2026-07-02T15:48:31.117343+00:00",
     "synthetic": true,
     "totalInteractions": 563,
     "trainingNeeds": [
       {
-        "label": "Employment income & benefits-in-kind",
-        "count": 90,
-        "examplePrompts": [
-          "How is a housing allowance taxed for an employee?",
-          "How do I prepare a case for the Income Tax Board of Review on relief claw-back?",
-          "How is a relocation reimbursement taxed for an employee?"
-        ],
-        "recommendation": "High query volume (90 interactions) on “Employment income & benefits-in-kind”: add a focused officer micro-training and a quick-reference job aid."
-      },
-      {
         "label": "Personal relief eligibility",
-        "count": 74,
+        "count": 195,
         "examplePrompts": [
           "Does a foreigner on a EntrePass pass qualify as a tax resident?",
           "Does a foreigner on a S pass qualify as a tax resident?",
           "Is CPF cash top-up relief still available after the latest budget?"
         ],
-        "recommendation": "High query volume (74 interactions) on “Personal relief eligibility”: add a focused officer micro-training and a quick-reference job aid."
+        "recommendation": "High query volume (195 interactions) on “Personal relief eligibility”: add a focused officer micro-training and a quick-reference job aid."
       },
       {
         "label": "Tax residency determination",
-        "count": 62,
+        "count": 134,
         "examplePrompts": [
           "What residency status applies if employment spans two calendar years?",
-          "Is stock option gain taxable as a benefit-in-kind?",
-          "What records must a taxpayer keep for NFTs disposals?"
+          "How does the three-year rule affect residency for YA {ya}?",
+          "How does the 183-day rule affect residency for YA {ya}?"
         ],
-        "recommendation": "High query volume (62 interactions) on “Tax residency determination”: add a focused officer micro-training and a quick-reference job aid."
+        "recommendation": "High query volume (134 interactions) on “Tax residency determination”: add a focused officer micro-training and a quick-reference job aid."
+      },
+      {
+        "label": "Employment income & benefits-in-kind",
+        "count": 130,
+        "examplePrompts": [
+          "Does a foreigner on a Employment pass qualify as a tax resident?",
+          "How is a housing allowance taxed for an employee?",
+          "How do I prepare a case for the Income Tax Board of Review on relief claw-back?"
+        ],
+        "recommendation": "High query volume (130 interactions) on “Employment income & benefits-in-kind”: add a focused officer micro-training and a quick-reference job aid."
       },
       {
         "label": "Self-employed income computation",
-        "count": 45,
+        "count": 68,
         "examplePrompts": [
           "Which vehicle expenses are deductible for a self-employed individual?",
           "Walk me through handling an objection to the director's fee assessment.",
           "Which mixed private-business expenses are deductible for a self-employed individual?"
         ],
-        "recommendation": "High query volume (45 interactions) on “Self-employed income computation”: add a focused officer micro-training and a quick-reference job aid."
+        "recommendation": "High query volume (68 interactions) on “Self-employed income computation”: add a focused officer micro-training and a quick-reference job aid."
       }
     ],
     "docGaps": [
@@ -63,72 +63,72 @@
       },
       {
         "topic": "Self-employed income computation",
-        "avgTurns": 4.6,
-        "avgSteps": 6.2,
-        "avgTimeSeconds": 96.0,
-        "count": 45
-      },
-      {
-        "topic": "Self-employed income computation",
-        "avgTurns": 4.1,
-        "avgSteps": 5.9,
-        "avgTimeSeconds": 89.0,
-        "count": 23
+        "avgTurns": 4.4,
+        "avgSteps": 6.1,
+        "avgTimeSeconds": 94.0,
+        "count": 68
       },
       {
         "topic": "Employment income & benefits-in-kind",
-        "avgTurns": 3.4,
-        "avgSteps": 4.6,
-        "avgTimeSeconds": 72.0,
-        "count": 90
+        "avgTurns": 3.1,
+        "avgSteps": 4.2,
+        "avgTimeSeconds": 64.0,
+        "count": 130
+      },
+      {
+        "topic": "Foreign-sourced & remote income",
+        "avgTurns": 2.7,
+        "avgSteps": 3.9,
+        "avgTimeSeconds": 50.0,
+        "count": 15
       }
     ]
   },
   "corporate": {
-    "name": "Corporate Income Tax",
-    "generatedAt": "2026-06-28T07:05:05.860857+00:00",
+    "name": "Corporate Tax",
+    "generatedAt": "2026-07-02T15:48:31.254079+00:00",
     "synthetic": true,
     "totalInteractions": 403,
     "trainingNeeds": [
       {
+        "label": "Capital allowances on assets",
+        "count": 108,
+        "examplePrompts": [
+          "Can the company claim accelerated allowance on machinery?",
+          "Is software eligible for the one-year write-off?",
+          "Is machinery eligible for the one-year write-off?"
+        ],
+        "recommendation": "High query volume (108 interactions) on “Capital allowances on assets”: add a focused officer micro-training and a quick-reference job aid."
+      },
+      {
         "label": "Corporate exemptions & rebates",
-        "count": 57,
+        "count": 97,
         "examplePrompts": [
           "Is a investment holding company eligible for the start-up tax exemption?",
           "Is a holding company eligible for the start-up tax exemption?",
           "Is a newly incorporated company eligible for the start-up tax exemption?"
         ],
-        "recommendation": "High query volume (57 interactions) on “Corporate exemptions & rebates”: add a focused officer micro-training and a quick-reference job aid."
-      },
-      {
-        "label": "Group relief & loss transfers",
-        "count": 48,
-        "examplePrompts": [
-          "Walk through transferring donations under group relief between two companies.",
-          "Does the company need a TP study for royalty payments with a related party?",
-          "How do I apply the loss carry-back relief with current-year unutilised losses?"
-        ],
-        "recommendation": "High query volume (48 interactions) on “Group relief & loss transfers”: add a focused officer micro-training and a quick-reference job aid."
+        "recommendation": "High query volume (97 interactions) on “Corporate exemptions & rebates”: add a focused officer micro-training and a quick-reference job aid."
       },
       {
         "label": "Restructuring & M&A tax",
-        "count": 36,
+        "count": 56,
         "examplePrompts": [
           "How is the amalgamation treated for stamp duty and income tax?",
           "What are the tax implications of a spin-off for the acquiring company?",
-          "How is the spin-off treated for stamp duty and income tax?"
+          "Does the internal reorganisation trigger a balancing charge on capital allowances?"
         ],
-        "recommendation": "High query volume (36 interactions) on “Restructuring & M&A tax”: add a focused officer micro-training and a quick-reference job aid."
+        "recommendation": "High query volume (56 interactions) on “Restructuring & M&A tax”: add a focused officer micro-training and a quick-reference job aid."
       },
       {
         "label": "Expense deductibility",
-        "count": 32,
+        "count": 50,
         "examplePrompts": [
           "Are interest costs revenue or capital in nature?",
           "Are pre-commencement costs revenue or capital in nature?",
           "Can the company deduct donations under section 14?"
         ],
-        "recommendation": "High query volume (32 interactions) on “Expense deductibility”: add a focused officer micro-training and a quick-reference job aid."
+        "recommendation": "High query volume (50 interactions) on “Expense deductibility”: add a focused officer micro-training and a quick-reference job aid."
       }
     ],
     "docGaps": [
@@ -149,17 +149,17 @@
       },
       {
         "topic": "Restructuring & M&A tax",
-        "reason": "Answers score poorly (avg eval 47/100) despite retrieval: existing documentation is unclear or outdated.",
-        "count": 36
+        "reason": "Answers score poorly (avg eval 50/100) despite retrieval: existing documentation is unclear or outdated.",
+        "count": 56
       }
     ],
     "processImprovements": [
       {
         "topic": "Restructuring & M&A tax",
-        "avgTurns": 5.2,
-        "avgSteps": 6.2,
-        "avgTimeSeconds": 106.0,
-        "count": 20
+        "avgTurns": 4.5,
+        "avgSteps": 5.7,
+        "avgTimeSeconds": 93.0,
+        "count": 56
       },
       {
         "topic": "Group relief & loss transfers",
@@ -169,18 +169,18 @@
         "count": 48
       },
       {
-        "topic": "Restructuring & M&A tax",
-        "avgTurns": 4.1,
-        "avgSteps": 5.4,
-        "avgTimeSeconds": 86.0,
-        "count": 36
-      },
-      {
         "topic": "Transfer pricing & related parties",
         "avgTurns": 2.9,
         "avgSteps": 4.2,
         "avgTimeSeconds": 60.0,
         "count": 20
+      },
+      {
+        "topic": "Foreign tax credit & treaties",
+        "avgTurns": 2.9,
+        "avgSteps": 3.8,
+        "avgTimeSeconds": 55.0,
+        "count": 24
       }
     ]
   },

@@ -1,13 +1,12 @@
 import { test, expect, afterEach, type TestContext } from "vitest";
 import { recordCoverage } from "./coverage.js";
+import { assertSpecId, BRACKETED_SPEC_ID_RE } from "./spec-id.js";
 
 export { test, expect };
 
-const SPEC_ID_RE = /^\[([A-Z][A-Z0-9]*(?:-[A-Z][A-Z0-9]*)+-\d{3,})\]/;
-
 // Spec category per id, populated by specTest() at collection time and read by
-// the afterEach recorder at run time so the coverage report can detect a test
-// covering a requirement in the wrong layer (category mismatch).
+// the afterEach recorder at run time, recorded alongside the runner layer so
+// the coverage report can detect a requirement covered in the wrong layer.
 const categoryById = new Map<string, string>();
 
 /**
@@ -18,15 +17,19 @@ const categoryById = new Map<string, string>();
 export function setupSpecCoverage(): void {
   afterEach((ctx) => {
     const taskName = ctx.task?.name ?? "";
-    const m = SPEC_ID_RE.exec(taskName);
+    const m = BRACKETED_SPEC_ID_RE.exec(taskName);
     if (!m) return;
     const id = m[1] as string;
-    const failed = !!ctx.task?.result?.errors?.length;
+    // state is per-attempt; result.errors accumulates across retries, so a
+    // flaky test that passed on retry would otherwise still record "failed".
+    const failed = ctx.task?.result?.state === "fail";
     recordCoverage({
       id,
       status: failed ? "failed" : "passed",
+      layer: "vitest",
       category: categoryById.get(id),
-      durationMs: ctx.task?.result?.duration,
+      // No durationMs: Vitest assigns result.duration only after afterEach
+      // hooks complete, so it is never observable here.
     });
   });
 }
@@ -51,6 +54,7 @@ export function specTest(
   fn: (context: TestContext) => void | Promise<void>,
   opts: SpecTestOptions = {},
 ): void {
+  assertSpecId(id);
   if (opts.category) categoryById.set(id, opts.category);
   test(`[${id}] ${title}`, fn);
 }

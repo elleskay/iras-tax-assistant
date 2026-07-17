@@ -40,6 +40,13 @@ export async function isAllowed(
   limiter: Ratelimit | null,
 ): Promise<boolean> {
   if (!limiter) return true;
-  const { success } = await limiter.limit(identifier);
-  return success;
+  try {
+    const { success } = await limiter.limit(identifier);
+    return success;
+  } catch (err) {
+    // The documented contract is graceful degradation: an Upstash outage
+    // should not 500 every rate-limited route.
+    console.warn("rate limit check failed, allowing request", err);
+    return true;
+  }
 }

@@ -1,19 +1,22 @@
 import type { Metadata } from "next";
-import { Lexend, Source_Sans_3 } from "next/font/google";
+import { Space_Grotesk, DM_Sans } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppShell } from "@/components/app-shell";
+import { ThemeSync } from "@/components/theme-sync";
 
-const lexend = Lexend({
+// Headings: Space Grotesk, a distinctive geometric grotesque that reads
+// precise and technical without losing warmth.
+const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
-  variable: "--font-lexend",
+  variable: "--font-heading-src",
   display: "swap",
 });
 
 // Body sans is exposed as --font-sans so shadcn's `font-sans` utility uses it.
-const sourceSans = Source_Sans_3({
+const dmSans = DM_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-sans",
@@ -35,7 +38,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn("h-full", lexend.variable, sourceSans.variable, "font-sans")}
+      className={cn("h-full", spaceGrotesk.variable, dmSans.variable, "font-sans")}
     >
       <body className="min-h-full">
         <script
@@ -50,6 +53,7 @@ export default function RootLayout({
         >
           Skip to main content
         </a>
+        <ThemeSync />
         <TooltipProvider>
           <AppShell>{children}</AppShell>
         </TooltipProvider>

@@ -50,10 +50,10 @@ Then edit `apps/web/auth.ts` to swap the hardcoded `DEMO_USER` for your real pro
 
 ## 4. Configure CDK for the app
 
-Rename `infra/cdk/_template/` to match your app name:
+Copy `infra/cdk/_template/` to match your app name (keep `_template` in place: platform CI synths it as a self-test, and deleting it breaks the `cdk-synth` job):
 
 ```bash
-mv infra/cdk/_template infra/cdk/<your-app>
+cp -r infra/cdk/_template infra/cdk/<your-app>
 cd infra/cdk/<your-app>
 ```
 

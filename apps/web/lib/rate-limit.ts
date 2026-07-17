@@ -43,13 +43,28 @@ export async function isAllowed(
   limiter: Ratelimit | null,
 ): Promise<boolean> {
   if (!limiter) return true;
-  const { success } = await limiter.limit(identifier);
-  return success;
+  try {
+    const { success } = await limiter.limit(identifier);
+    return success;
+  } catch (err) {
+    // The documented contract is graceful degradation: an Upstash outage
+    // should not 500 every rate-limited route.
+    console.warn("rate limit check failed, allowing request", err);
+    return true;
+  }
 }
 
 /** Best-effort client IP from proxy headers, for use as a rate-limit key. */
 export function clientIp(req: Request): string {
+  // Proxies APPEND the connecting IP to x-forwarded-for, so the last entry is
+  // the hop our own edge observed. The first entry is whatever the caller
+  // chose to send: keying on it would let anyone mint fresh limit buckets
+  // per request with a spoofed header.
   const xff = req.headers.get("x-forwarded-for");
-  if (xff) return xff.split(",")[0]!.trim();
+  if (xff) {
+    const hops = xff.split(",").map((h) => h.trim()).filter(Boolean);
+    const last = hops[hops.length - 1];
+    if (last) return last;
+  }
   return req.headers.get("x-real-ip") ?? "anonymous";
 }

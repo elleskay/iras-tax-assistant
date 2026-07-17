@@ -87,8 +87,10 @@ export default function InsightsPage() {
 
   const meta = data?._meta as Meta | undefined;
   // No cross-workspace fallback: a workspace with no usage data shows the reset
-  // (empty) state rather than another workspace's analytics.
-  const cur = data?.[ws] as WsInsights | undefined;
+  // (empty) state rather than another workspace's analytics. The unvalidated
+  // cookie could name the "_meta" key, which is not a workspace entry.
+  const cur =
+    ws !== "_meta" ? (data?.[ws] as WsInsights | undefined) : undefined;
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-8 pb-16">
@@ -104,26 +106,34 @@ export default function InsightsPage() {
         </p>
       </div>
 
+      {/* The main landmark wraps every state so the skip link always has a
+          target, not only the has-data branch. */}
       {err ? (
-        <p className="text-sm text-muted-foreground">
-          No insights artifact found. Generate it with{" "}
-          <code>services/insights/generate.py</code>.
-        </p>
+        <main id="main">
+          <p className="text-sm text-muted-foreground">
+            No insights artifact found. Generate it with{" "}
+            <code>services/insights/generate.py</code>.
+          </p>
+        </main>
       ) : !data ? (
-        <p className="text-sm text-muted-foreground">Loading...</p>
+        <main id="main">
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </main>
       ) : !cur ? (
-        <Card className="border-dashed shadow-none">
-          <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
-            <Info className="h-8 w-8 text-muted-foreground" />
-            <p className="text-sm font-medium text-foreground">
-              No usage analytics for this workspace yet
-            </p>
-            <p className="max-w-sm text-sm text-muted-foreground">
-              Analytics are mined from this workspace&apos;s own usage, so a new
-              workspace starts empty and fills in as officers use the assistant.
-            </p>
-          </CardContent>
-        </Card>
+        <main id="main">
+          <Card className="border-dashed shadow-none">
+            <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
+              <Info className="h-8 w-8 text-muted-foreground" />
+              <p className="text-sm font-medium text-foreground">
+                No usage analytics for this workspace yet
+              </p>
+              <p className="max-w-sm text-sm text-muted-foreground">
+                Analytics are mined from this workspace&apos;s own usage, so a new
+                workspace starts empty and fills in as officers use the assistant.
+              </p>
+            </CardContent>
+          </Card>
+        </main>
       ) : (
         <main id="main">
           <Card className="mb-6 border-dashed">

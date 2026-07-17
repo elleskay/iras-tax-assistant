@@ -52,9 +52,50 @@ def _cluster_descriptors(records: Sequence[dict], labels: np.ndarray) -> list[di
                 "avg_steps": mean(r["step_count"] for r in recs),
                 "avg_time_seconds": mean(r["time_seconds"] for r in recs),
                 "examples": examples,
+                "_prompt_counts": prompt_counts,
             }
         )
-    return descriptors
+    return _merge_by_label(descriptors)
+
+
+def _merge_by_label(descriptors: list[dict]) -> list[dict]:
+    """Merge clusters that share a dominant label into one descriptor.
+
+    KMeans routinely splits one topic across clusters (k is larger than the
+    topic count), and ranking raw clusters then lists the same topic twice
+    (e.g. two "Self-employed income computation" rows with different metrics
+    in the shipped insights.json). Metrics are count-weighted means.
+    """
+
+    by_label: dict[str, list[dict]] = {}
+    for d in descriptors:
+        by_label.setdefault(d["label"], []).append(d)
+
+    merged: list[dict] = []
+    metric_keys = (
+        "purity",
+        "retrieval_hit_rate",
+        "avg_retrieval_score",
+        "avg_eval_score",
+        "avg_turns",
+        "avg_steps",
+        "avg_time_seconds",
+    )
+    for label, group in by_label.items():
+        total = sum(d["count"] for d in group)
+        prompt_counts: Counter = Counter()
+        for d in group:
+            prompt_counts.update(d["_prompt_counts"])
+        out = {
+            "cluster_id": group[0]["cluster_id"],
+            "label": label,
+            "count": total,
+            "examples": [p for p, _ in prompt_counts.most_common(3)],
+        }
+        for key in metric_keys:
+            out[key] = sum(d[key] * d["count"] for d in group) / total
+        merged.append(out)
+    return merged
 
 
 def _round(x: float, n: int = 1) -> float:

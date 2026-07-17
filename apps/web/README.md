@@ -10,26 +10,26 @@ For the full system design (architecture, deep dives, diagrams), see the
 
 ## Pages
 
-- `/` — landing: what the platform does, links into every page.
-- `/workspaces` — the department workspaces; create a new one.
-- `/assistant` — the chat assistant: a bounded agent loop with cited retrieval,
+- `/`: landing page, what the platform does, links into every page.
+- `/workspaces`: the department workspaces; create a new one.
+- `/assistant`: the chat assistant: a bounded agent loop with cited retrieval,
   a step trace, and per-workspace tools and instructions.
-- `/documents` — upload a workspace's guidance docs into its RAG index; search it.
-- `/tools` — "AI Tools": build no-code lookup tables, message templates, or
+- `/documents`: upload a workspace's guidance docs into its RAG index; search it.
+- `/tools`: "AI Tools": build no-code lookup tables, message templates, or
   sandboxed JavaScript calculators the assistant can call.
-- `/prompts` — "AI Instructions": the assistant's system prompt per workspace,
+- `/prompts`: "AI Instructions": the assistant's system prompt per workspace,
   versioned with line diffs and an activation pointer.
-- `/insights` — "Usage analytics": training needs, documentation gaps, and
+- `/insights`: "Usage analytics": training needs, documentation gaps, and
   process hotspots, mined from usage (Python embeddings + clustering).
-- `/gateway` — "AI Gateway": every model call with latency, tokens, cost, and
+- `/gateway`: "AI Gateway": every model call with latency, tokens, cost, and
   any provider fallback.
-- `/governance` — "AI Dashboard": platform-wide usage, eval pass rate, cost, and
+- `/governance`: "AI Dashboard": platform-wide usage, eval pass rate, cost, and
   reliability, plus a downloadable AI Risk Assessment.
-- `/governance/policy` — "AI Policy": the governance-as-code editor and the
+- `/governance/policy`: "AI Policy": the governance-as-code editor and the
   deterministic model-routing rules.
-- `/governance/audit` — "AI Audit Trail": every model call, eval run, and
+- `/governance/audit`: "AI Audit Trail": every model call, eval run, and
   instruction change, newest first.
-- `/evals` — "AI Evaluation": graded test cases (keyword grader or LLM judge)
+- `/evals`: "AI Evaluation": graded test cases (keyword grader or LLM judge)
   behind a pass-rate gate.
 
 It also serves an MCP server at `/api/mcp` exposing a sandboxed `run_javascript`
@@ -47,15 +47,18 @@ palette with the Lexend + Source Sans 3 type pairing. Tokens live in
 # From the repo root (installs the workspace, builds @platform/spec-test):
 npm install
 
-# Add your keys in apps/web/.env.local:
-#   ANTHROPIC_API_KEY=sk-ant-...   # the chat agent
-#   OPENAI_API_KEY=sk-...          # the OpenAI models in the router
-# Optional: ANTHROPIC_MODEL (defaults to claude-sonnet-4-6),
-#           RAG_SERVICE_URL (the Python RAG service; unset disables RAG).
+# Copy the env template and add your keys (all optional; the assistant needs
+# at least one model key to answer):
+cp apps/web/.env.example apps/web/.env.local
 
 cd apps/web
 npm run dev    # http://localhost:3000
 ```
+
+For document retrieval locally, run the RAG service alongside (it works fully
+offline with deterministic fake embeddings; see `services/rag/README.md`) and
+set `RAG_SERVICE_URL=http://127.0.0.1:8000` in `.env.local`. Unset, retrieval
+is disabled and the assistant still runs.
 
 ## Spec-driven tests
 

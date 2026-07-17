@@ -5,6 +5,8 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "jsx": "preserve",
+    // Relaxed vs tsconfig.base.json: the demo's scripted fixtures index
+    // constant arrays; real apps should keep the base's true.
     "noUncheckedIndexedAccess": false,
     "declaration": false,
     "declarationMap": false,
