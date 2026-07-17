@@ -103,6 +103,16 @@ requirements:
     then: X-Frame-Options is DENY and X-Content-Type-Options is nosniff
     tags: [security, headers]
 
+  - id: TAX-SEC-002
+    title: robots.txt blocks crawler-triggered model calls
+    category: security
+    severity: high
+    given: A crawler fetches /robots.txt before crawling
+    when: The response is inspected
+    then: It returns 200 with Disallow rules covering ?q= auto-ask deep links and /api/, so compliant crawlers cannot trigger paid model calls
+    tags: [security, crawlers, cost]
+    notes: Old landing-page /assistant?q= links (live Jun 2026) remain in search indexes; JS-rendering crawlers auto-fire them. See gateway log incident, 17 Jul 2026.
+
   - id: TAX-NAV-001
     title: Primary navigation links to every showcase page
     category: functional
