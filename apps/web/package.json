@@ -38,7 +38,7 @@
     "ai": "^6.0.197",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "diff": "^8.0.4",
+    "diff": "^9.0.0",
     "lucide-react": "^1.17.0",
     "mcp-handler": "^1.1.0",
     "nanoid": "^3.3.12",
