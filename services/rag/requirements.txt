@@ -14,7 +14,7 @@ llama-index-vector-stores-postgres==0.4.2
 # version is explicit). The previous psycopg[binary] v3 pin was a second full
 # driver stack that never ran.
 psycopg2-binary==2.9.10
-asyncpg==0.30.0
+asyncpg==0.31.0
 sqlalchemy==2.0.36
 pgvector==0.3.6
 
