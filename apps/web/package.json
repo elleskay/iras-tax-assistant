@@ -57,16 +57,16 @@
   },
   "devDependencies": {
     "@platform/spec-test": "*",
-    "@playwright/test": "^1.48.0",
-    "@tailwindcss/postcss": "^4.0.0",
+    "@playwright/test": "^1.62.1",
+    "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^20.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "eslint": "^9.0.0",
     "tailwindcss": "^4.0.0",
-    "tsx": "^4.22.4",
+    "tsx": "^4.23.8",
     "typescript": "^5.4.0",
-    "typescript-eslint": "^8.60.0",
+    "typescript-eslint": "^8.66.0",
     "vitest": "^2.0.0"
   }
 }
