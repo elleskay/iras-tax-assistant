@@ -12,7 +12,7 @@
 # (see the "_meta.embeddingPath" / "_meta.clusterPath" fields in the output).
 
 # --- hard requirements ---
-numpy==1.26.4
+numpy==2.5.2
 
 # --- optional, better quality (uncomment / pip install if available) ---
 # scikit-learn>=1.3
